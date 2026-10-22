@@ -1,6 +1,5 @@
 package com.akira.island.ui.screens
 
-import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,7 +53,6 @@ import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.CalibrationRed
 import com.akira.island.island.rememberHaptic
-import com.akira.island.ui.Cutout
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
 import com.akira.island.ui.GroupStepSlider
@@ -62,7 +60,6 @@ import com.akira.island.ui.Page
 import com.akira.island.ui.Pos
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.Ui
-import kotlin.math.roundToInt
 
 /**
  * Подгонка острова под камеру. Пока экран открыт, остров на телефоне красный с белым ободком:
@@ -73,9 +70,7 @@ import kotlin.math.roundToInt
 fun SizeScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     val original = remember { SettingsRepo.current }
-    val context = LocalContext.current
     val haptic = rememberHaptic()
-    var autoStatus by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(Unit) {
         IslandBus.calibrating.value = true
@@ -86,7 +81,7 @@ fun SizeScreen(onBack: () -> Unit) {
         SettingsRepo.update {
             copy(
                 width = original.width, height = original.height, offsetX = original.offsetX,
-                offsetY = original.offsetY, cameraGap = original.cameraGap,
+                offsetY = original.offsetY,
             )
         }
         onBack()
@@ -94,30 +89,6 @@ fun SizeScreen(onBack: () -> Unit) {
     BackHandler(onBack = cancel)
 
     fun set(block: IslandSettings.() -> IslandSettings) = SettingsRepo.update(block)
-
-    fun autoFit() {
-        val hole = (context as? Activity)?.let { Cutout.find(it) }
-        if (hole == null) {
-            autoStatus = "Телефон не сообщает, где камера. Подгоните остров вручную ползунками ниже."
-            return
-        }
-        val r = hole.rect
-        val camW = Cutout.dp(context, r.width().toFloat())
-        val camH = Cutout.dp(context, r.height().toFloat())
-        // Некоторые телефоны отдают вырез высотой во всю строку состояния — тогда толщину не трогаем
-        val h = if (camH + 6 in (s.height + 1)..46) camH + 6 else s.height
-        set {
-            copy(
-                offsetX = Cutout.dp(context, r.exactCenterX() - hole.screenWidth / 2f),
-                offsetY = (Cutout.dp(context, r.exactCenterY()) - h / 2f).roundToInt(),
-                height = h,
-                width = maxOf(width, camW + h),
-                cameraGap = (camW + 6).coerceIn(12, 80),
-            )
-        }
-        haptic()
-        autoStatus = "Готово: остров стоит по центру камеры. Если красное ещё видно — поправьте ползунками."
-    }
 
     Box(Modifier.fillMaxSize()) {
         Page(
@@ -127,7 +98,7 @@ fun SizeScreen(onBack: () -> Unit) {
                 Box(
                     Modifier.size(48.dp).clip(CircleShape).background(Ui.Card).clickable {
                         val d = IslandSettings()
-                        set { copy(width = d.width, height = d.height, offsetX = d.offsetX, offsetY = d.offsetY, cameraGap = d.cameraGap) }
+                        set { copy(width = d.width, height = d.height, offsetX = d.offsetX, offsetY = d.offsetY) }
                     },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -148,16 +119,6 @@ fun SizeScreen(onBack: () -> Unit) {
                 )
             }
 
-            GroupItem(
-                Pos.Single, Icons.Rounded.CenterFocusStrong, "Подогнать под камеру",
-                autoStatus ?: "Поставить остров ровно по вырезу камеры автоматически",
-                onClick = { autoFit() },
-            ) {
-                Box(Modifier.clip(CircleShape).background(Ui.Primary).padding(horizontal = 14.dp, vertical = 7.dp)) {
-                    Text("Авто", color = Ui.OnPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-
             SectionHeader("Положение")
             Group {
                 GroupStepSlider(
@@ -172,14 +133,11 @@ fun SizeScreen(onBack: () -> Unit) {
             SectionHeader("Размер")
             Group {
                 GroupStepSlider(Pos.First, Icons.Rounded.Straighten, "Ширина", s.width, 50..260) { v -> set { copy(width = v) } }
-                GroupStepSlider(Pos.Middle, Icons.Rounded.Height, "Высота", s.height, 22..60) { v -> set { copy(height = v) } }
-                GroupStepSlider(Pos.Last, Icons.Rounded.CenterFocusWeak, "Вырез камеры", s.cameraGap, 8..80) { v ->
-                    set { copy(cameraGap = v) }
-                }
+                GroupStepSlider(Pos.Last, Icons.Rounded.Height, "Высота", s.height, 22..60) { v -> set { copy(height = v) } }
             }
             Text(
-                "«Вырез камеры» — свободное место посередине, к которому прижимаются значки и текст, " +
-                    "когда в острове музыка, таймер или зарядка.",
+                "По умолчанию остров как на iPhone: 126 × 37 dp и 11 dp от верхнего края. " +
+                    "Если камера на вашем телефоне стоит иначе, сдвиньте и растяните остров, пока красное не скроет камеру.",
                 color = Ui.Sub.copy(alpha = 0.7f), fontSize = 13.sp, lineHeight = 18.sp,
                 modifier = Modifier.padding(horizontal = 8.dp),
             )

@@ -40,8 +40,6 @@ object IslandBus {
     val battery = MutableStateFlow(BatteryInfo())
     val foregroundPackage = MutableStateFlow<String?>(null)
     val landscape = MutableStateFlow(false)
-    /** Вырез камеры, как его видит окно острова (в пикселях экрана) */
-    val cutout = MutableStateFlow<android.graphics.Rect?>(null)
     /** Открыт экран «Размер и положение»: остров красный, чтобы подогнать его под камеру */
     val calibrating = MutableStateFlow(false)
     /** Последнее касание раскрытого острова — чтобы не сворачивать его из-под пальца */

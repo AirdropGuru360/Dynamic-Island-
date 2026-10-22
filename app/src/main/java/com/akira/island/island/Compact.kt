@@ -81,11 +81,11 @@ val Digits = TextStyle(fontFamily = Inter, fontFeatureSettings = "tnum", fontWei
 /** Высота капсулы, когда в ней что-то есть: чуть толще пустой, чтобы не выглядеть тонкой полоской. */
 fun activeHeight(s: IslandSettings): Dp = (s.height + s.activeExtra).dp
 
-/** Свободное место над камерой между боковыми частями — к нему прижимается содержимое, как на iPhone. */
+/** Свободное место над камерой посередине — содержимое туда не заходит. */
 fun compactGap(s: IslandSettings): Dp = s.cameraGap.dp.coerceAtLeast(8.dp)
 
-/** Сколько могут выступать боковые части. */
-fun sideMax(s: IslandSettings): Dp = activeHeight(s) * s.sideSize.factor
+/** Самое широкое содержимое одной боковой части. */
+fun sideMax(s: IslandSettings): Dp = activeHeight(s) * 2.6f
 
 /** Высота события: заметно выше свёрнутого острова, как у раскрытых уведомлений iPhone. */
 fun noticeHeight(s: IslandSettings): Dp = (s.height.dp * 1.75f).coerceAtLeast(58.dp)
@@ -216,9 +216,10 @@ private fun GlowDot(color: Color, size: Dp, animate: Boolean) {
 }
 
 /**
- * Левая и правая части свёрнутой капсулы. Как требует Apple для Dynamic Island, содержимое прижато
- * к камере, а не к краям, и капсула ровно такой ширины, какой нужно содержимому: так она не закрывает
- * строку состояния. Обе части одной ширины, поэтому камера всегда посередине.
+ * Левая и правая части свёрнутой капсулы, как на iPhone: значок у левого края, текст или время
+ * у правого, посередине камера. Капсула шире пустой на свою высоту с каждой стороны, а если
+ * содержимое длиннее — расширяется ровно настолько, чтобы не заходить на камеру.
+ * Отступ от края равен отступу сверху — содержимое вписано в скругление, как требует Apple.
  */
 @Composable
 fun CompactRow(
@@ -228,8 +229,7 @@ fun CompactRow(
     left: @Composable BoxScope.() -> Unit,
     right: @Composable BoxScope.() -> Unit,
 ) {
-    // Капсула с содержимым не бывает уже пустой — иначе переход выглядит как сжатие
-    val idleWidth = SettingsRepo.state.collectAsState().value.width.dp + 10.dp
+    val baseWidth = SettingsRepo.state.collectAsState().value.width.dp + h * 2f
     Layout(
         content = {
             Box(contentAlignment = Alignment.Center, content = left)
@@ -237,16 +237,16 @@ fun CompactRow(
         },
     ) { measurables, _ ->
         val hPx = h.roundToPx()
-        val pad = (h * 0.34f).roundToPx()
+        val pad = (h * 0.3f).roundToPx()
         val gapPx = gap.roundToPx()
         val loose = Constraints(maxWidth = side.roundToPx().coerceAtLeast(1), maxHeight = hPx)
         val l = measurables[0].measure(loose)
         val r = measurables[1].measure(loose)
-        val minSlot = (idleWidth.roundToPx() - pad * 2 - gapPx) / 2
-        val slot = maxOf(l.width, r.width, (h * 0.6f).roundToPx(), minSlot)
-        layout(pad * 2 + slot * 2 + gapPx, hPx) {
-            l.place(pad + slot - l.width, (hPx - l.height) / 2)
-            r.place(pad + slot + gapPx, (hPx - r.height) / 2)
+        val needed = 2 * (pad + maxOf(l.width, r.width)) + gapPx
+        val w = maxOf(needed, baseWidth.roundToPx())
+        layout(w, hPx) {
+            l.place(pad, (hPx - l.height) / 2)
+            r.place(w - pad - r.width, (hPx - r.height) / 2)
         }
     }
 }
@@ -354,9 +354,6 @@ private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
     }
 }
 
-/** Ширина событий по настройке «Ширина событий». */
-fun noticeWidth(s: IslandSettings, wideWidth: Dp): Dp = wideWidth * s.noticeWidth.factor
-
 @Composable
 private fun WideNotice(n: Notice, s: IslandSettings, wideWidth: Dp) {
     // Значок «выпрыгивает», батарейка и кольцо заполняются — как на iPhone
@@ -367,7 +364,7 @@ private fun WideNotice(n: Notice, s: IslandSettings, wideWidth: Dp) {
         fill.animateTo(1f, tween(900, delayMillis = 150, easing = FastOutSlowInEasing))
     }
     val height = noticeHeight(s)
-    val width = noticeWidth(s, wideWidth)
+    val width = wideWidth
     // Посередине — место под камеру: подпись и состояние к ней не заходят
     Row(
         Modifier.width(width).height(height).padding(horizontal = height * 0.42f),
@@ -488,14 +485,16 @@ private fun Avatar(m: AppMessage, n: Notice, size: Dp) {
 }
 
 /**
- * Входящий звонок, как на iPhone: аватар и кнопки по краям, подпись и имя — ниже камеры,
- * чтобы вырез их не закрывал.
+ * Входящий звонок, как на iPhone: аватар, подпись с именем и две кнопки стоят на одной линии
+ * по центру. Вся строка опущена под камеру, поэтому вырез не закрывает текст.
  */
 @Composable
 private fun IncomingCall(c: CallInfo, s: IslandSettings, wideWidth: Dp) {
     val context = LocalContext.current
+    // Верх строки — на нижнем крае камеры, низ — с отступом как по бокам
+    val top = cameraInset(s) - 10.dp
     Row(
-        Modifier.width(wideWidth).height(cameraInset(s) + 60.dp).padding(horizontal = 16.dp),
+        Modifier.width(wideWidth).padding(start = 14.dp, end = 14.dp, top = top, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF3A3A3C)), contentAlignment = Alignment.Center) {
@@ -506,17 +505,17 @@ private fun IncomingCall(c: CallInfo, s: IslandSettings, wideWidth: Dp) {
             }
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).padding(top = cameraInset(s) * 0.7f)) {
-            Text("Входящий вызов", color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp)
-            Text(c.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+        Column(Modifier.weight(1f), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+            Text("Входящий вызов", color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp, lineHeight = 16.sp, maxLines = 1)
+            Text(c.name, color = Color.White, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))
-        RoundButton(Ios.call, size = 50.dp, bg = Tints.Red, iconScale = 0.46f, iconRotation = 135f) {
+        RoundButton(Ios.call, size = 52.dp, bg = Tints.Red, iconScale = 0.44f, iconRotation = 135f) {
             Controls.endCall(context, c)
         }
         Spacer(Modifier.width(12.dp))
-        RoundButton(Ios.call, size = 50.dp, bg = Tints.Green, iconScale = 0.46f) {
+        RoundButton(Ios.call, size = 52.dp, bg = Tints.Green, iconScale = 0.44f) {
             Controls.answerCall(context, c)
         }
     }

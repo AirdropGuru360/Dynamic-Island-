@@ -136,19 +136,6 @@ class IslandService : AccessibilityService() {
         }
         val drawRoot = FrameLayout(this)
         drawRoot.addView(compose)
-        // Окно острова рисуется поверх выреза — по нему точнее всего видно, где камера
-        drawRoot.setOnApplyWindowInsetsListener { v, insets ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val origin = IntArray(2)
-                v.getLocationOnScreen(origin)
-                insets.displayCutout?.boundingRects
-                    ?.map { android.graphics.Rect(it).apply { offset(origin[0], origin[1]) } }
-                    ?.filter { it.top < it.height() }
-                    ?.minByOrNull { kotlin.math.abs(it.exactCenterX() - resources.displayMetrics.widthPixels / 2f) }
-                    ?.let { IslandBus.cutout.value = it }
-            }
-            v.onApplyWindowInsets(insets)
-        }
         owner.create()
         owner.attach(drawRoot)
         displayParams.height = tallHeight()
