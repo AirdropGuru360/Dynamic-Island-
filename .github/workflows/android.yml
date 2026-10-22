@@ -37,8 +37,18 @@ jobs:
           name: DynamicIsland-apk
           path: out/*.apk
 
+      - name: Описание релиза из CHANGELOG.md
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" 'index($0, "## [" v "]") == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          printf '\n---\n\n**Установка:** скачайте `DynamicIsland.apk` ниже и откройте на телефоне. Новая версия ставится поверх старой, настройки сохраняются.\n' >> notes.md
+          cat notes.md
+
       - name: Релиз по тегу
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: Динамический остров ${{ github.ref_name }}
+          body_path: notes.md
           files: out/DynamicIsland.apk
