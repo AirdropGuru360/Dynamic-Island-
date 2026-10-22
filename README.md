@@ -112,11 +112,7 @@ Kotlin, Jetpack Compose, Material 3. Нужны JDK 17 и Android SDK 35.
 ./gradlew assembleRelease   # app/build/outputs/apk/release/app-release.apk
 ```
 
-Каждый push собирает APK в [GitHub Actions](https://github.com/Akira9021/Dynamic-Island-/actions). Тег `v*` создаёт релиз, описание берётся из [CHANGELOG.md](CHANGELOG.md):
-
-```bash
-git tag v1.2.0 && git push origin v1.2.0
-```
+Каждый push собирает APK в [GitHub Actions](https://github.com/Akira9021/Dynamic-Island-/actions). Чтобы выпустить новую версию, повысьте `versionName` и `versionCode` в `app/build.gradle.kts` и добавьте раздел `## [x.y.z]` в [CHANGELOG.md](CHANGELOG.md) — после push в основную ветку релиз с APK и описанием создастся сам. Тег `v*` тоже работает.
 
 | Файл | За что отвечает |
 | --- | --- |
