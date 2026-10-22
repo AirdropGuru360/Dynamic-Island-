@@ -132,11 +132,16 @@ fun IslandOverlay() {
         // Пустое место слева уравновешивает пузырь, чтобы остров стоял над камерой
         Spacer(Modifier.width(slot))
         IslandBody(primary, showExpanded, s, lyrics, battery)
-        Box(Modifier.width(slot), contentAlignment = Alignment.CenterEnd) {
-            val bubbleAct = lastSecondary[0]
-            AnimatedVisibility(bubbleVisible && bubbleAct != null, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
-                if (bubbleAct != null) Bubble(bubbleAct, s)
-            }
+        BubbleSlot(slot, bubbleVisible, lastSecondary[0], s)
+    }
+}
+
+/** Отдельная функция: внутри Row подставился бы RowScope.AnimatedVisibility. */
+@Composable
+private fun BubbleSlot(slot: Dp, visible: Boolean, act: Act?, s: IslandSettings) {
+    Box(Modifier.width(slot), contentAlignment = Alignment.CenterEnd) {
+        AnimatedVisibility(visible && act != null, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
+            if (act != null) Bubble(act, s)
         }
     }
 }
