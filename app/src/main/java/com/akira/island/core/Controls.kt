@@ -1,0 +1,116 @@
+package com.akira.island.core
+
+import android.content.Context
+import android.content.Intent
+import android.media.AudioManager
+import android.media.session.MediaController
+import android.media.session.PlaybackState
+import android.os.SystemClock
+
+/** Команды, которые капсула отдаёт системе: плеер, таймер, фонарик, громкость. */
+object Controls {
+    @Volatile
+    var mediaController: MediaController? = null
+
+    // Подставляет IslandService, пока он запущен
+    var torchOn: () -> Unit = {}
+    var torchOff: () -> Unit = {}
+    var torchLevel: (Int) -> Unit = {}
+
+    fun expand(id: String) {
+        IslandBus.focus.value = id
+        IslandBus.expanded.value = true
+    }
+
+    fun collapse() {
+        IslandBus.expanded.value = false
+        IslandBus.focus.value = null
+    }
+
+    // Плеер
+
+    fun playPause() {
+        val c = mediaController ?: return
+        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause()
+        else c.transportControls.play()
+    }
+
+    fun next() {
+        mediaController?.transportControls?.skipToNext()
+    }
+
+    fun prev() {
+        mediaController?.transportControls?.skipToPrevious()
+    }
+
+    fun seekTo(ms: Long) {
+        mediaController?.transportControls?.seekTo(ms)
+    }
+
+    // Таймер
+
+    fun startTimer(minutes: Int) {
+        val total = minutes.coerceIn(1, 99) * 60_000L
+        IslandBus.timer.value = TimerState(total, SystemClock.elapsedRealtime() + total)
+    }
+
+    fun startTimerSeconds(seconds: Int) {
+        val total = seconds * 1000L
+        IslandBus.timer.value = TimerState(total, SystemClock.elapsedRealtime() + total)
+    }
+
+    fun pauseTimer() {
+        val t = IslandBus.timer.value ?: return
+        if (t.pausedLeft == null && !t.ringing) {
+            IslandBus.timer.value = t.copy(pausedLeft = t.left(SystemClock.elapsedRealtime()))
+        }
+    }
+
+    fun resumeTimer() {
+        val t = IslandBus.timer.value ?: return
+        val left = t.pausedLeft ?: return
+        if (!t.ringing) IslandBus.timer.value = t.copy(endAt = SystemClock.elapsedRealtime() + left, pausedLeft = null)
+    }
+
+    fun cancelTimer() {
+        IslandBus.timer.value = null
+        if (IslandBus.focus.value == "timer") collapse()
+    }
+
+    // Секундомер
+
+    fun startStopwatch() {
+        IslandBus.stopwatch.value = StopwatchState(SystemClock.elapsedRealtime(), 0)
+    }
+
+    fun toggleStopwatch() {
+        val w = IslandBus.stopwatch.value ?: return
+        val now = SystemClock.elapsedRealtime()
+        IslandBus.stopwatch.value =
+            if (w.running) StopwatchState(null, w.elapsed(now)) else StopwatchState(now, w.accumulated)
+    }
+
+    fun stopStopwatch() {
+        IslandBus.stopwatch.value = null
+        if (IslandBus.focus.value == "stopwatch") collapse()
+    }
+
+    // Прочее
+
+    fun openApp(context: Context, pkg: String) {
+        val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        runCatching { context.startActivity(intent) }
+        collapse()
+    }
+
+    fun setVolume(context: Context, fraction: Float) {
+        val audio = context.getSystemService(AudioManager::class.java) ?: return
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val level = (fraction.coerceIn(0f, 1f) * max).let { Math.round(it) }
+        if (level != audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
+            runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0) }
+        }
+        IslandBus.showVolume(level, max)
+    }
+}
