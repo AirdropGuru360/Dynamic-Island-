@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,8 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.HourglassBottom
@@ -55,6 +58,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akira.island.core.CallInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.Lyrics
 import com.akira.island.core.MediaInfo
@@ -116,9 +121,32 @@ fun CompactContent(act: Act, s: IslandSettings, lyrics: Lyrics?, wideWidth: Dp) 
 
         is Act.ChronoA -> {
             val now = rememberWallNow(500)
+            // Запись экрана — красная, как на iPhone; таймеры и секундомеры Часов — оранжевые
+            val recording = act.c.isRecording
+            val tint = if (recording) Tints.Red else Tints.Orange
             CompactRow(h, gap, side * 1.4f,
-                left = { AppIcon(act.c.icon, h * 0.62f, Icons.Rounded.Timer, Tints.Green) },
-                right = { Text(formatDuration(act.c.elapsed(now)), color = Tints.Green, fontSize = 15.sp, style = Digits) },
+                left = {
+                    if (recording) Equalizer(tint, true, !s.reduceEffects, Modifier.size(h * 0.75f, h * 0.45f), bars = 6)
+                    else AppIcon(act.c.icon, h * 0.62f, Icons.Rounded.Timer, tint)
+                },
+                right = { Text(formatDuration(act.c.elapsed(now)), color = tint, fontSize = 15.sp, style = Digits) },
+            )
+        }
+
+        is Act.CallA -> if (act.c.incoming) {
+            IncomingCall(act.c, s, wideWidth)
+        } else {
+            val now = rememberWallNow(500)
+            CompactRow(h, gap, side * 1.4f,
+                left = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Call, null, tint = Tints.Green, modifier = Modifier.size(h * 0.45f))
+                        Spacer(Modifier.width(4.dp))
+                        Text(formatDuration(now - act.c.base), color = Tints.Green,
+                            fontSize = 14.sp, style = Digits, maxLines = 1)
+                    }
+                },
+                right = { Equalizer(Tints.Green, true, !s.reduceEffects, Modifier.size(h * 0.75f, h * 0.45f), bars = 6) },
             )
         }
 
@@ -138,9 +166,15 @@ fun CompactContent(act: Act, s: IslandSettings, lyrics: Lyrics?, wideWidth: Dp) 
             },
         )
 
-        is Act.ChargingA -> CompactRow(h, gap, side * 1.2f,
+        is Act.ChargingA -> CompactRow(h, gap, side * 1.6f,
             left = { Icon(Icons.Rounded.Bolt, null, tint = Tints.Green, modifier = Modifier.size(icon)) },
-            right = { Text("${act.b.level}%", color = Tints.Green, fontSize = 14.sp, style = Digits) },
+            right = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${act.b.level}%", color = Tints.Green, fontSize = 14.sp, style = Digits)
+                    Spacer(Modifier.width(5.dp))
+                    BatteryGlyph(act.b.level, Tints.Green, Modifier.size(h * 0.72f, h * 0.36f))
+                }
+            },
         )
 
         is Act.VolumeA -> VolumeCompact(act.v, s, wideWidth)
@@ -257,34 +291,82 @@ private fun VolumeCompact(v: VolumeInfo, s: IslandSettings, wideWidth: Dp) {
     }
 }
 
+/** Событие как на iPhone: слева значок и подпись, справа состояние; посередине — место под камеру. */
 @Composable
 private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
     val h = s.height.dp
-    val width = (s.width.dp + 200.dp).coerceIn(260.dp, wideWidth.coerceAtLeast(260.dp))
-    // Значок «выпрыгивает» на своей подложке
-    val pop = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0.4f) }
-    LaunchedEffect(n.id) { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 300f)) }
+    val gap = (s.width.dp - h).coerceAtLeast(12.dp)
+    // Значок «выпрыгивает» при появлении
+    val pop = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0.3f) }
+    LaunchedEffect(n.id) { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 320f)) }
+
+    if (n.title.isBlank() && n.state == null) {
+        // Только значок, например замок при разблокировке
+        CompactRow(h, gap, h * 0.9f,
+            left = { Icon(n.icon, null, tint = n.tint, modifier = Modifier.size(h * 0.5f).scale(pop.value)) },
+            right = {},
+        )
+        return
+    }
+
+    val width = wideWidth.coerceAtMost(360.dp)
+    val side = ((width - gap - h * 0.4f) / 2).coerceAtLeast(h)
+    CompactRow(h, gap, side,
+        left = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(n.icon, null, tint = n.tint, modifier = Modifier.size(h * 0.55f).scale(pop.value))
+                Spacer(Modifier.width(7.dp))
+                Text(n.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        },
+        right = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (n.state != null) {
+                    Text(n.state, color = n.tint, fontSize = 14.sp, style = Digits, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false))
+                }
+                if (n.battery != null) {
+                    Spacer(Modifier.width(6.dp))
+                    BatteryGlyph(n.battery, n.tint, Modifier.size(h * 0.78f, h * 0.38f))
+                }
+                if (n.ring != null) {
+                    Spacer(Modifier.width(6.dp))
+                    ProgressRing(n.ring, n.tint, Modifier.size(h * 0.55f), stroke = 3.dp)
+                }
+            }
+        },
+    )
+}
+
+/** Входящий звонок: аватар, имя и две круглые кнопки — сразу крупно, как на iPhone. */
+@Composable
+private fun IncomingCall(c: CallInfo, s: IslandSettings, wideWidth: Dp) {
+    val context = LocalContext.current
     Row(
-        Modifier.width(width).height(h + 22.dp).padding(horizontal = 11.dp),
+        Modifier.width(wideWidth.coerceAtMost(400.dp)).padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(h + 2.dp).scale(pop.value).clip(CircleShape).background(n.tint.copy(alpha = 0.22f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(n.icon, null, tint = n.tint, modifier = Modifier.size(h * 0.6f))
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(n.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (n.subtitle != null) {
-                Text(n.subtitle, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.size(50.dp).clip(CircleShape).background(Color(0xFF3A3A3C)), contentAlignment = Alignment.Center) {
+            if (c.avatar != null) {
+                androidx.compose.foundation.Image(c.avatar, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            } else {
+                Text(c.name.take(1).uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-        if (n.trailing != null) {
-            Spacer(Modifier.width(8.dp))
-            Text(n.trailing, color = n.tint, fontSize = 15.sp, style = Digits)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Входящий вызов", color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp)
+            Text(c.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
         }
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(8.dp))
+        RoundButton(Icons.Rounded.CallEnd, size = 48.dp, bg = Tints.Red, iconScale = 0.5f) {
+            Controls.send(context, c.decline)
+        }
+        Spacer(Modifier.width(12.dp))
+        RoundButton(Icons.Rounded.Call, size = 48.dp, bg = Tints.Green, iconScale = 0.5f) {
+            Controls.send(context, c.answer)
+        }
     }
 }

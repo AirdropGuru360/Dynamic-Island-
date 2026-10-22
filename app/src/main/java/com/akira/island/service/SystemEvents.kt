@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.UsbOff
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.WifiOff
+import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import com.akira.island.core.BatteryInfo
@@ -76,14 +77,14 @@ class SystemEvents(private val context: Context) {
             main.post {
                 val wasEmpty = wifiNetworks.isEmpty()
                 wifiNetworks += network
-                if (wasEmpty) notice(s.evWifiOn, Notice("Wi-Fi подключён", "Сеть доступна", Icons.Rounded.Wifi, Tints.Blue))
+                if (wasEmpty) notice(s.evWifiOn, Notice("Wi-Fi", "Подключён", Icons.Rounded.Wifi, Tints.Blue))
             }
         }
 
         override fun onLost(network: Network) {
             main.post {
                 if (wifiNetworks.remove(network) && wifiNetworks.isEmpty()) {
-                    notice(s.evWifiOff, Notice("Wi-Fi отключён", "Нет подключения к сети", Icons.Rounded.WifiOff, Tints.Gray))
+                    notice(s.evWifiOff, Notice("Wi-Fi", "Отключён", Icons.Rounded.WifiOff, Tints.Gray))
                 }
             }
         }
@@ -100,8 +101,8 @@ class SystemEvents(private val context: Context) {
             notice(
                 s.evBrightness,
                 Notice(
-                    if (auto) "Адаптивная яркость" else "Ручная яркость",
-                    if (auto) "Включена" else "Адаптивная яркость выключена",
+                    "Яркость",
+                    if (auto) "Авто" else "Вручную",
                     if (auto) Icons.Rounded.BrightnessAuto else Icons.Rounded.BrightnessMedium,
                     Tints.Yellow,
                 ),
@@ -155,8 +156,8 @@ class SystemEvents(private val context: Context) {
                 val level = IslandBus.battery.value.level
                 notice(
                     s.evChargeStart,
-                    Notice("Зарядка", "Устройство заряжается", Icons.Rounded.Bolt, Tints.Green,
-                        trailing = if (level >= 0) "$level%" else null),
+                    Notice("Зарядка", if (level >= 0) "$level%" else null, Icons.Rounded.Bolt, Tints.Green,
+                        battery = level.takeIf { it >= 0 }),
                 )
             }
 
@@ -164,27 +165,27 @@ class SystemEvents(private val context: Context) {
                 val level = IslandBus.battery.value.level
                 notice(
                     s.evChargeStop,
-                    Notice("Зарядка остановлена", "Устройство отключено", Icons.Rounded.PowerOff, Tints.Orange,
-                        trailing = if (level >= 0) "$level%" else null),
+                    Notice("Отключено", if (level >= 0) "$level%" else null, Icons.Rounded.PowerOff, Tints.Orange,
+                        battery = level.takeIf { it >= 0 }),
                 )
             }
 
             Intent.ACTION_USER_PRESENT ->
-                notice(s.evUnlock, Notice("Разблокировано", "С возвращением", Icons.Rounded.LockOpen, Tints.Teal))
+                notice(s.evUnlock, Notice("", null, Icons.Rounded.LockOpen, Color.White))
 
             Intent.ACTION_SCREEN_OFF -> Controls.collapse()
 
             Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
                 val on = intent.getBooleanExtra("state", false)
-                if (on) notice(s.evAirplaneOn, Notice("Режим полёта", "Включён", Icons.Rounded.AirplanemodeActive, Tints.Orange))
-                else notice(s.evAirplaneOff, Notice("Режим полёта", "Выключен", Icons.Rounded.AirplanemodeInactive, Tints.Gray))
+                if (on) notice(s.evAirplaneOn, Notice("Режим полёта", "Вкл", Icons.Rounded.AirplanemodeActive, Tints.Orange))
+                else notice(s.evAirplaneOff, Notice("Режим полёта", "Выкл", Icons.Rounded.AirplanemodeInactive, Tints.Gray))
             }
 
             AudioManager.RINGER_MODE_CHANGED_ACTION -> {
                 val n = when (intent.getIntExtra(AudioManager.EXTRA_RINGER_MODE, -1)) {
-                    AudioManager.RINGER_MODE_NORMAL -> Notice("Звонок", "Звук включён", Icons.AutoMirrored.Rounded.VolumeUp, Tints.Blue)
-                    AudioManager.RINGER_MODE_VIBRATE -> Notice("Вибрация", "Звонки без звука", Icons.Rounded.Vibration, Tints.Purple)
-                    AudioManager.RINGER_MODE_SILENT -> Notice("Без звука", "Звук выключен", Icons.Rounded.NotificationsOff, Tints.Red)
+                    AudioManager.RINGER_MODE_NORMAL -> Notice("Звонок", "Звук", Icons.AutoMirrored.Rounded.VolumeUp, Tints.Blue)
+                    AudioManager.RINGER_MODE_VIBRATE -> Notice("Звонок", "Вибрация", Icons.Rounded.Vibration, Tints.Purple)
+                    AudioManager.RINGER_MODE_SILENT -> Notice("Без звука", "Вкл", Icons.Rounded.NotificationsOff, Tints.Red)
                     else -> null
                 }
                 if (n != null) notice(s.evRinger, n)
@@ -212,8 +213,8 @@ class SystemEvents(private val context: Context) {
                     val battery = headsetBattery[device.address]
                     notice(
                         s.evHeadsetOn,
-                        Notice(name ?: "Наушники", "Подключено", Icons.Rounded.Headphones, Tints.Blue,
-                            trailing = battery?.let { "$it%" }),
+                        Notice(name ?: "Наушники", battery?.let { "$it%" } ?: "Подключено", Icons.Rounded.Headphones, Tints.Green,
+                            ring = battery?.let { it / 100f }),
                     )
                 } else {
                     headsetBattery.remove(device.address)
@@ -230,12 +231,12 @@ class SystemEvents(private val context: Context) {
 
             UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
                 val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                notice(s.evUsbOn, Notice("USB-устройство", dev?.productName ?: "Подключено", Icons.Rounded.Usb, Tints.Teal))
+                notice(s.evUsbOn, Notice(dev?.productName ?: "USB-устройство", "Подключено", Icons.Rounded.Usb, Tints.Teal))
             }
 
             UsbManager.ACTION_USB_DEVICE_DETACHED -> {
                 val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                notice(s.evUsbOff, Notice("USB-устройство", (dev?.productName?.let { "$it · " } ?: "") + "Отключено", Icons.Rounded.UsbOff, Tints.Gray))
+                notice(s.evUsbOff, Notice(dev?.productName ?: "USB-устройство", "Отключено", Icons.Rounded.UsbOff, Tints.Gray))
             }
 
             USB_STATE -> {
@@ -243,8 +244,8 @@ class SystemEvents(private val context: Context) {
                 val prev = usbConnected
                 usbConnected = connected
                 if (initialSticky || prev == null || prev == connected) return
-                if (connected) notice(s.evUsbOn, Notice("USB", "Подключено к компьютеру", Icons.Rounded.Usb, Tints.Teal))
-                else notice(s.evUsbOff, Notice("USB", "Кабель отключён", Icons.Rounded.UsbOff, Tints.Gray))
+                if (connected) notice(s.evUsbOn, Notice("USB", "Подключено", Icons.Rounded.Usb, Tints.Teal))
+                else notice(s.evUsbOff, Notice("USB", "Отключено", Icons.Rounded.UsbOff, Tints.Gray))
             }
         }
     }
@@ -263,7 +264,7 @@ class SystemEvents(private val context: Context) {
             lowWarned = false
         } else if (level >= 0 && !lowWarned) {
             lowWarned = true
-            notice(s.evLowBattery, Notice("Низкий заряд", "Подключите зарядное устройство", Icons.Rounded.BatteryAlert, Tints.Red, trailing = "$level%"))
+            notice(s.evLowBattery, Notice("Низкий заряд", "$level%", Icons.Rounded.BatteryAlert, Tints.Red, battery = level))
         }
     }
 

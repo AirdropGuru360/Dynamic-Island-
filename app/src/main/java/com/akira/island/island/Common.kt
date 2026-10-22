@@ -109,25 +109,28 @@ fun rememberHaptic(): () -> Unit {
     }
 }
 
+/** Звуковая волна из тонких полосок, как в острове iPhone. */
 @Composable
-fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifier = Modifier) {
-    val bars = 4
+fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifier = Modifier, bars: Int = 5) {
     val transition = rememberInfiniteTransition(label = "eq")
-    val durations = intArrayOf(420, 560, 360, 500)
-    val rest = floatArrayOf(0.35f, 0.55f, 0.3f, 0.45f)
     val heights = (0 until bars).map { i ->
+        val rest = 0.3f + 0.45f * ((i * 37) % 10) / 10f
         if (playing && animate) {
             transition.animateFloat(
                 initialValue = 0.2f,
                 targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(durations[i], easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                animationSpec = infiniteRepeatable(
+                    tween(320 + (i * 97) % 280, easing = FastOutSlowInEasing),
+                    RepeatMode.Reverse,
+                ),
                 label = "bar$i",
             ).value
         } else {
-            if (playing) rest[i] + 0.2f else 0.18f
+            if (playing) rest else 0.15f
         }
     }
     Canvas(modifier) {
+        // Полоска и промежуток одной ширины
         val w = size.width / (bars * 2 - 1)
         heights.forEachIndexed { i, h ->
             val bh = (size.height * h).coerceAtLeast(w)
@@ -138,6 +141,33 @@ fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifi
                 cornerRadius = CornerRadius(w / 2),
             )
         }
+    }
+}
+
+/** Батарейка как в iOS: заливка по уровню заряда и «носик» справа. */
+@Composable
+fun BatteryGlyph(level: Int, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val nub = size.width * 0.07f
+        val bodyW = size.width - nub - 1.dp.toPx()
+        val r = size.height * 0.3f
+        drawRoundRect(color.copy(alpha = 0.3f), size = Size(bodyW, size.height), cornerRadius = CornerRadius(r))
+        val inset = size.height * 0.12f
+        val fillW = (bodyW - inset * 2) * (level.coerceIn(0, 100) / 100f)
+        if (fillW > 0f) {
+            drawRoundRect(
+                color,
+                topLeft = Offset(inset, inset),
+                size = Size(fillW.coerceAtLeast(r * 0.5f), size.height - inset * 2),
+                cornerRadius = CornerRadius(r * 0.7f),
+            )
+        }
+        drawRoundRect(
+            color.copy(alpha = 0.45f),
+            topLeft = Offset(bodyW + 1.dp.toPx(), size.height * 0.32f),
+            size = Size(nub, size.height * 0.36f),
+            cornerRadius = CornerRadius(nub / 2),
+        )
     }
 }
 

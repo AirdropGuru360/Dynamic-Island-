@@ -127,7 +127,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
         SectionHeader("Проверка")
         Group {
             GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", onClick = {
-                IslandBus.post(Notice("Остров работает", "Так выглядят события", Icons.Rounded.NotificationsActive, Tints.Purple, "OK"))
+                IslandBus.post(Notice("Остров", "Работает", Icons.Rounded.NotificationsActive, Tints.Purple))
             })
             GroupItem(Pos.Last, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
                 Controls.startTimer(1)

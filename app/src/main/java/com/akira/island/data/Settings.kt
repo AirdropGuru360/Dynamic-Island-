@@ -46,6 +46,7 @@ data class IslandSettings(
     val cardProgress: Boolean = true,
     val cardTimer: Boolean = true,
     val cardCharging: Boolean = true,
+    val cardCall: Boolean = true,
 
     // События
     val evChargeStart: Boolean = true,

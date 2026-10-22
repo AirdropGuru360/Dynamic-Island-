@@ -1,12 +1,16 @@
 package com.akira.island.service
 
 import android.app.Notification
+import android.app.PendingIntent
+import android.app.Person
+import android.os.Build
 import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.IslandBus
 import com.akira.island.core.ProgressInfo
@@ -30,6 +34,7 @@ class NotifListener : NotificationListenerService() {
         media = null
         IslandBus.progress.value = emptyMap()
         IslandBus.chrono.value = emptyMap()
+        IslandBus.calls.value = emptyMap()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -65,7 +70,12 @@ object NotificationParser {
             }
         }
 
-        val chrono = !isMedia && ex.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false) && n.`when` > 0
+        val call = if (n.category == Notification.CATEGORY_CALL && !isMedia) parseCall(context, sbn, title) else null
+        IslandBus.calls.value = IslandBus.calls.value.toMutableMap().apply {
+            if (call != null) put(sbn.key, call) else remove(sbn.key)
+        }
+
+        val chrono = call == null && !isMedia && ex.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false) && n.`when` > 0
         IslandBus.chrono.value = IslandBus.chrono.value.toMutableMap().apply {
             if (chrono) {
                 val down = ex.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN, false)
@@ -76,7 +86,57 @@ object NotificationParser {
         }
     }
 
+    private fun parseCall(context: Context, sbn: StatusBarNotification, title: String): CallInfo? {
+        val n = sbn.notification
+        val ex = n.extras
+        val ongoing = ex.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false) && n.`when` > 0
+        // CallStyle (Android 12+) кладёт кнопки в extras, у старых звонилок ищем по подписи
+        var answer = pending(ex, "android.answerIntent")
+        var decline = pending(ex, "android.declineIntent")
+        var hangUp = pending(ex, "android.hangUpIntent")
+        n.actions?.forEach { a ->
+            val t = a.title?.toString()?.lowercase().orEmpty()
+            when {
+                answer == null && listOf("ответ", "принять", "answer", "accept").any { it in t } -> answer = a.actionIntent
+                decline == null && listOf("отклон", "сброс", "decline", "reject", "dismiss").any { it in t } -> decline = a.actionIntent
+                hangUp == null && listOf("заверш", "положить", "hang", "end call").any { it in t } -> hangUp = a.actionIntent
+            }
+        }
+        val incoming = !ongoing && answer != null
+        if (!incoming && !ongoing) return null
+
+        val person = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            @Suppress("DEPRECATION")
+            runCatching { ex.getParcelable<Person>(Notification.EXTRA_CALL_PERSON) }.getOrNull()
+        } else {
+            null
+        }
+        val name = person?.name?.toString()?.takeIf { it.isNotBlank() } ?: title
+        val avatar = runCatching {
+            val icon = person?.icon ?: n.getLargeIcon()
+            icon?.loadDrawable(context)?.toBitmap(128, 128)?.asImageBitmap()
+        }.getOrNull()
+        return CallInfo(
+            key = sbn.key,
+            pkg = sbn.packageName,
+            name = name,
+            avatar = avatar,
+            incoming = incoming,
+            base = n.`when`,
+            postTime = sbn.postTime,
+            answer = answer,
+            decline = decline ?: hangUp,
+            hangUp = hangUp ?: decline,
+            open = n.contentIntent,
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun pending(ex: android.os.Bundle, key: String): PendingIntent? =
+        runCatching { ex.getParcelable<PendingIntent>(key) }.getOrNull()
+
     fun onRemoved(key: String) {
+        if (key in IslandBus.calls.value) IslandBus.calls.value = IslandBus.calls.value - key
         if (key in IslandBus.progress.value) IslandBus.progress.value = IslandBus.progress.value - key
         if (key in IslandBus.chrono.value) IslandBus.chrono.value = IslandBus.chrono.value - key
     }

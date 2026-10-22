@@ -1,6 +1,7 @@
 package com.akira.island.island
 
 import com.akira.island.core.BatteryInfo
+import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.MediaInfo
 import com.akira.island.core.Notice
@@ -28,6 +29,9 @@ sealed class Act(val id: String, val transient: Boolean = false) {
     }
     data class ProgressA(val p: ProgressInfo) : Act("progress") {
         override val pkg: String get() = p.pkg
+    }
+    data class CallA(val c: CallInfo) : Act("call") {
+        override val pkg: String get() = c.pkg
     }
     data class ChargingA(val b: BatteryInfo) : Act("charging")
 }

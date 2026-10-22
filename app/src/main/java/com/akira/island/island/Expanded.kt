@@ -12,6 +12,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,6 +36,10 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.Cast
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.FlashlightOff
@@ -43,8 +49,6 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Replay
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
@@ -63,6 +67,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,6 +76,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.BatteryInfo
+import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.Lyrics
@@ -100,6 +106,7 @@ fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: Batte
             is Act.ChronoA -> ChronoExpanded(act.c)
             is Act.ProgressA -> ProgressExpanded(act.p)
             is Act.ChargingA -> ChargingExpanded(act.b)
+            is Act.CallA -> CallExpanded(act.c)
             else -> IdleExpanded(s, battery)
         }
     }
@@ -112,8 +119,8 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
     val pos = m.positionAt(now)
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Art(m.art, 58.dp, 14.dp, Modifier.clickable { Controls.openApp(context, m.pkg) })
-            Spacer(Modifier.width(14.dp))
+            Art(m.art, 54.dp, 13.dp, Modifier.clickable { Controls.openApp(context, m.pkg) })
+            Spacer(Modifier.width(13.dp))
             Column(Modifier.weight(1f)) {
                 Text(m.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE))
@@ -122,34 +129,70 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
                 }
             }
             Spacer(Modifier.width(10.dp))
-            Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(26.dp, 22.dp))
+            Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(30.dp, 20.dp), bars = 6)
         }
 
         val lines = lyrics?.takeIf { it.key == m.key && s.lyricsEnabled && it.lines.isNotEmpty() }
         if (lines != null) {
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             LyricsBlock(lines, pos, m.accent)
         }
 
-        Spacer(Modifier.height(16.dp))
-        SeekBar(
-            fraction = if (m.durationMs > 0) pos.toFloat() / m.durationMs else 0f,
-            color = m.accent,
-            enabled = m.canSeek && m.durationMs > 0,
-            onSeek = { f -> Controls.seekTo((f * m.durationMs).toLong()) },
-        )
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Text(formatDuration(pos), color = Dim, fontSize = 12.sp, style = Digits)
-            Spacer(Modifier.weight(1f))
-            Text(if (m.durationMs > 0) "-" + formatDuration(m.durationMs - pos) else "", color = Dim, fontSize = 12.sp, style = Digits)
+        // Время по краям полосы, как на iPhone
+        Spacer(Modifier.height(14.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(formatDuration(pos), color = Dim, fontSize = 12.sp, style = Digits, modifier = Modifier.width(38.dp))
+            SeekBar(
+                fraction = if (m.durationMs > 0) pos.toFloat() / m.durationMs else 0f,
+                color = Color.White,
+                enabled = m.canSeek && m.durationMs > 0,
+                onSeek = { f -> Controls.seekTo((f * m.durationMs).toLong()) },
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                if (m.durationMs > 0) "-" + formatDuration(m.durationMs - pos) else "",
+                color = Dim, fontSize = 12.sp, style = Digits, textAlign = TextAlign.End, modifier = Modifier.width(42.dp),
+            )
         }
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            RoundButton(Icons.Rounded.SkipPrevious, size = 52.dp, bg = Color.Transparent, iconScale = 0.66f) { Controls.prev() }
-            RoundButton(if (m.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 60.dp, bg = Color.Transparent, iconScale = 0.75f) {
-                Controls.playPause()
+        Spacer(Modifier.height(4.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                RoundButton(Icons.Rounded.FastRewind, size = 52.dp, bg = Color.Transparent, iconScale = 0.62f) { Controls.prev() }
+                RoundButton(if (m.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 58.dp, bg = Color.Transparent, iconScale = 0.74f) {
+                    Controls.playPause()
+                }
+                RoundButton(Icons.Rounded.FastForward, size = 52.dp, bg = Color.Transparent, iconScale = 0.62f) { Controls.next() }
             }
-            RoundButton(Icons.Rounded.SkipNext, size = 52.dp, bg = Color.Transparent, iconScale = 0.66f) { Controls.next() }
+            // Вывод звука — как кнопка AirPlay
+            RoundButton(Icons.Rounded.Cast, Modifier.align(Alignment.CenterEnd), size = 40.dp, bg = Color.Transparent,
+                fg = Dim, iconScale = 0.55f) { Controls.openOutput(context) }
+        }
+    }
+}
+
+/** Идущий разговор: аватар, имя, длительность и кнопка «завершить». */
+@Composable
+private fun CallExpanded(c: CallInfo) {
+    val context = LocalContext.current
+    val now = rememberWallNow(500)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(50.dp).clip(CircleShape).background(Color(0xFF3A3A3C)), contentAlignment = Alignment.Center) {
+            if (c.avatar != null) {
+                Image(c.avatar, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            } else {
+                Text(c.name.take(1).uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f).clickable { if (!Controls.send(context, c.open)) Controls.openApp(context, c.pkg) }) {
+            Text(c.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            Text(formatDuration(now - c.base), color = Tints.Green, fontSize = 15.sp, style = Digits)
+        }
+        if (c.hangUp != null) {
+            RoundButton(Icons.Rounded.CallEnd, size = 48.dp, bg = Tints.Red, iconScale = 0.5f) {
+                Controls.send(context, c.hangUp)
+            }
         }
     }
 }
@@ -179,13 +222,19 @@ private fun LyricsBlock(lyrics: Lyrics, pos: Long, accent: Color) {
 }
 
 @Composable
-private fun SeekBar(fraction: Float, color: Color, enabled: Boolean, onSeek: (Float) -> Unit) {
+private fun SeekBar(
+    fraction: Float,
+    color: Color,
+    enabled: Boolean,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var drag by remember { mutableStateOf<Float?>(null) }
     val seek by rememberUpdatedState(onSeek)
     val thick by animateDpAsState(if (drag != null) 10.dp else 6.dp, label = "thick")
     val shown = (drag ?: fraction).coerceIn(0f, 1f)
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .height(22.dp)
             .pointerInput(enabled) {

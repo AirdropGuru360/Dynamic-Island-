@@ -29,6 +29,7 @@ object IslandBus {
     val lyrics = MutableStateFlow<Lyrics?>(null)
     val progress = MutableStateFlow<Map<String, ProgressInfo>>(emptyMap())
     val chrono = MutableStateFlow<Map<String, ChronoInfo>>(emptyMap())
+    val calls = MutableStateFlow<Map<String, CallInfo>>(emptyMap())
     val torch = MutableStateFlow(TorchState())
     val timer = MutableStateFlow<TimerState?>(null)
     val stopwatch = MutableStateFlow<StopwatchState?>(null)

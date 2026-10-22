@@ -1,5 +1,6 @@
 package com.akira.island.core
 
+import android.app.PendingIntent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -72,7 +73,27 @@ data class ChronoInfo(
     val postTime: Long,
 ) {
     fun elapsed(nowWall: Long): Long = if (countDown) base - nowWall else nowWall - base
+
+    /** Запись экрана или звука — показывается красным. */
+    val isRecording: Boolean
+        get() = title.lowercase().let { t -> "record" in t || "запис" in t }
 }
+
+/** Звонок из уведомления звонилки: входящий или идущий разговор. */
+data class CallInfo(
+    val key: String,
+    val pkg: String,
+    val name: String,
+    val avatar: ImageBitmap?,
+    val incoming: Boolean,
+    /** Notification.when — начало разговора, настенное время */
+    val base: Long,
+    val postTime: Long,
+    val answer: PendingIntent?,
+    val decline: PendingIntent?,
+    val hangUp: PendingIntent?,
+    val open: PendingIntent?,
+)
 
 data class TorchState(
     val on: Boolean = false,
@@ -103,12 +124,17 @@ data class VolumeInfo(val level: Int, val max: Int) {
 
 data class BatteryInfo(val level: Int = -1, val charging: Boolean = false)
 
+/**
+ * Короткое событие в стиле iOS: слева значок и подпись, справа состояние.
+ * [battery] рисует справа батарейку, [ring] — кольцо (например, заряд наушников).
+ */
 data class Notice(
     val title: String,
-    val subtitle: String? = null,
+    val state: String? = null,
     val icon: ImageVector,
     val tint: Color,
-    val trailing: String? = null,
+    val battery: Int? = null,
+    val ring: Float? = null,
     val id: Long = ids.incrementAndGet(),
 ) {
     private companion object {

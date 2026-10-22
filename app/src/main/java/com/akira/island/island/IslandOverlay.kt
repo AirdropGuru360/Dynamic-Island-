@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.HourglassBottom
@@ -56,9 +58,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.akira.island.core.BatteryInfo
 import com.akira.island.core.Controls
@@ -80,13 +83,15 @@ private data class Frame(val act: Act, val expanded: Boolean)
 @Composable
 fun IslandOverlay(
     onTransition: () -> Unit = {},
-    onContentSize: (IntSize) -> Unit = {},
+    onBodyBounds: (Rect) -> Unit = {},
+    onBubbleBounds: (Rect) -> Unit = {},
 ) {
     val s by SettingsRepo.state.collectAsState()
     val media by IslandBus.media.collectAsState()
     val lyrics by IslandBus.lyrics.collectAsState()
     val progress by IslandBus.progress.collectAsState()
     val chrono by IslandBus.chrono.collectAsState()
+    val calls by IslandBus.calls.collectAsState()
     val torch by IslandBus.torch.collectAsState()
     val timer by IslandBus.timer.collectAsState()
     val stopwatch by IslandBus.stopwatch.collectAsState()
@@ -97,13 +102,17 @@ fun IslandOverlay(
     val expanded by IslandBus.expanded.collectAsState()
     val focus by IslandBus.focus.collectAsState()
 
+    val call = if (s.cardCall) calls.values.maxByOrNull { it.postTime } else null
     val acts = buildList {
+        // Входящий звонок важнее всего, как на iPhone
+        if (call != null && call.incoming) add(Act.CallA(call))
         notice?.let { add(Act.NoticeA(it)) }
         if (volume != null && s.cardVolume) add(Act.VolumeA(volume!!))
 
         val persistent = mutableListOf<Act>()
         val t = timer
         if (t != null && t.ringing) persistent += Act.TimerA(t)
+        if (call != null && !call.incoming) persistent += Act.CallA(call)
         if (torch.on && s.cardTorch) persistent += Act.TorchA(torch)
         if (t != null && !t.ringing) persistent += Act.TimerA(t)
         stopwatch?.let { persistent += Act.StopwatchA(it) }
@@ -114,15 +123,16 @@ fun IslandOverlay(
         if (s.cardCharging && battery.charging) persistent += Act.ChargingA(battery)
 
         // Выбранная активность выходит вперёд, но звонящий таймер всегда главный
-        val ringing = (persistent.firstOrNull() as? Act.TimerA)?.t?.ringing == true
+        val ringing = (persistent.firstOrNull() as? Act.TimerA)?.t?.ringing == true || call?.incoming == true
         val i = persistent.indexOfFirst { it.id == focus }
         if (i > 0 && !ringing) persistent.add(0, persistent.removeAt(i))
         addAll(persistent)
     }
 
     val primary = acts.firstOrNull() ?: Act.Idle
-    val secondary = if (primary.transient) null else acts.drop(1).firstOrNull { !it.transient }
-    val showExpanded = expanded && !primary.transient
+    val incoming = (primary as? Act.CallA)?.c?.incoming == true
+    val secondary = if (primary.transient || incoming) null else acts.drop(1).firstOrNull { !it.transient }
+    val showExpanded = expanded && !primary.transient && !incoming
     val h = s.height.dp
 
     // Пузырь уходит с анимацией, поэтому помним последнюю активность в нём
@@ -130,6 +140,10 @@ fun IslandOverlay(
     if (secondary != null) lastSecondary[0] = secondary
     val bubbleVisible = secondary != null && !showExpanded
     val slot by animateDpAsState(if (bubbleVisible) h + 6.dp else 0.dp, islandSpec(s), label = "slot")
+
+    // Раскрытая активность пропала (музыку закрыли, таймер отменили) — сворачиваемся, а не показываем часы
+    val focusGone = expanded && focus != null && focus != Act.Idle.id && acts.none { it.id == focus }
+    LaunchedEffect(focusGone) { if (focusGone) Controls.collapse() }
 
     val hidden = s.hideIdle && primary is Act.Idle && !showExpanded
 
@@ -144,13 +158,16 @@ fun IslandOverlay(
     }
 
     if (hidden) {
-        Box(Modifier.size(1.dp).onSizeChanged(onContentSize))
+        SideEffect {
+            onBodyBounds(Rect.Zero)
+            onBubbleBounds(Rect.Zero)
+        }
         return
     }
 
     // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], onContentSize)
+        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], onBodyBounds, onBubbleBounds)
     }
 }
 
@@ -164,26 +181,30 @@ private fun IslandRow(
     battery: BatteryInfo,
     bubbleVisible: Boolean,
     bubbleAct: Act?,
-    onContentSize: (IntSize) -> Unit,
+    onBodyBounds: (Rect) -> Unit,
+    onBubbleBounds: (Rect) -> Unit,
 ) {
     Row(
         Modifier
+            .offset(x = s.offsetX.dp)
             .wrapContentSize(Alignment.TopCenter, unbounded = true)
-            .onSizeChanged(onContentSize)
             .padding(ISLAND_PAD_DP.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // Пустое место слева уравновешивает пузырь, чтобы остров стоял над камерой
         Spacer(Modifier.width(slot))
-        IslandBody(primary, showExpanded, s, lyrics, battery)
-        BubbleSlot(slot, bubbleVisible, bubbleAct, s)
+        IslandBody(primary, showExpanded, s, lyrics, battery, onBodyBounds)
+        BubbleSlot(slot, bubbleVisible, bubbleAct, s, onBubbleBounds)
     }
 }
 
 /** Отдельная функция: внутри Row подставился бы RowScope.AnimatedVisibility. */
 @Composable
-private fun BubbleSlot(slot: Dp, visible: Boolean, act: Act?, s: IslandSettings) {
-    Box(Modifier.width(slot), contentAlignment = Alignment.CenterEnd) {
+private fun BubbleSlot(slot: Dp, visible: Boolean, act: Act?, s: IslandSettings, onBounds: (Rect) -> Unit) {
+    Box(
+        Modifier.width(slot).onGloballyPositioned { onBounds(it.boundsInWindow()) },
+        contentAlignment = Alignment.CenterEnd,
+    ) {
         AnimatedVisibility(visible && act != null, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
             if (act != null) Bubble(act, s)
         }
@@ -191,7 +212,14 @@ private fun BubbleSlot(slot: Dp, visible: Boolean, act: Act?, s: IslandSettings)
 }
 
 @Composable
-private fun IslandBody(primary: Act, expanded: Boolean, s: IslandSettings, lyrics: Lyrics?, battery: BatteryInfo) {
+private fun IslandBody(
+    primary: Act,
+    expanded: Boolean,
+    s: IslandSettings,
+    lyrics: Lyrics?,
+    battery: BatteryInfo,
+    onBounds: (Rect) -> Unit,
+) {
     val context = LocalContext.current
     val haptic = rememberHaptic()
     val scope = rememberCoroutineScope()
@@ -234,6 +262,7 @@ private fun IslandBody(primary: Act, expanded: Boolean, s: IslandSettings, lyric
 
     Box(
         Modifier
+            .onGloballyPositioned { onBounds(it.boundsInWindow()) }
             .graphicsLayer {
                 scaleX = jellyX.value * (1f + 0.03f * pull.value)
                 scaleY = jellyY.value * (1f + 0.08f * pull.value)
@@ -342,6 +371,11 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
         is Act.VolumeA -> Unit
         is Act.Idle -> Controls.expand(act.id)
         is Act.TimerA -> if (act.t.ringing) Controls.cancelTimer() else perform(context, s.tapAction, act)
+        is Act.CallA -> if (act.c.incoming) {
+            if (!Controls.send(context, act.c.open)) Controls.openApp(context, act.c.pkg)
+        } else {
+            perform(context, s.tapAction, act)
+        }
         else -> perform(context, s.tapAction, act)
     }
 }
@@ -396,6 +430,7 @@ private fun Bubble(act: Act, s: IslandSettings) {
                 ProgressRing(act.p.fraction, Tints.Blue, Modifier.size(inner), stroke = 2.5.dp)
                 Icon(Icons.Rounded.Downloading, null, tint = Tints.Blue, modifier = Modifier.size(inner * 0.55f))
             }
+            is Act.CallA -> Icon(Icons.Rounded.Call, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.8f))
             is Act.ChargingA -> Icon(Icons.Rounded.BatteryChargingFull, null, tint = Tints.Green, modifier = Modifier.size(inner))
             else -> Unit
         }
