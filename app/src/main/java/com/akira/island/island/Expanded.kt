@@ -3,6 +3,34 @@
 package com.akira.island.island
 
 import android.text.format.DateFormat
+import android.os.SystemClock
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -100,12 +128,17 @@ private val Dim = Color.White.copy(alpha = 0.55f)
 
 @Composable
 fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: BatteryInfo, width: Dp) {
+    // Фонарик, как в iOS 18, — не широкая плашка, а высокая карточка с лучом
+    if (act is Act.TorchA) {
+        TorchCard(act.t, s)
+        return
+    }
     Box(Modifier.width(width).padding(horizontal = 22.dp, vertical = 20.dp)) {
         when (act) {
             is Act.MediaA -> MediaExpanded(act.m, s, lyrics)
             is Act.TimerA -> TimerExpanded(act.t)
             is Act.StopwatchA -> StopwatchExpanded(act.w)
-            is Act.TorchA -> TorchExpanded(act.t)
+            is Act.TorchA -> Unit
             is Act.ChronoA -> ChronoExpanded(act.c)
             is Act.ProgressA -> ProgressExpanded(act.p)
             is Act.ChargingA -> ChargingExpanded(act.b)
@@ -278,17 +311,21 @@ private fun SeekBar(
     }
 }
 
+/** Таймер как на iPhone: слева оранжевая «пауза» и серый крестик, справа «Таймер» и крупное время. */
 @Composable
 private fun TimerExpanded(t: TimerState) {
     val now = rememberNow(200)
     if (t.ringing) {
+        val wobble = rememberInfiniteTransition(label = "bell")
+        val angle = wobble.animateFloat(-16f, 16f, infiniteRepeatable(tween(110), RepeatMode.Reverse), label = "a")
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(56.dp).clip(CircleShape).background(Tints.Orange.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.NotificationsActive, null, tint = Tints.Orange, modifier = Modifier.size(30.dp))
+            Box(Modifier.size(50.dp).clip(CircleShape).background(Tints.Orange.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.NotificationsActive, null, tint = Tints.Orange,
+                    modifier = Modifier.size(28.dp).graphicsLayer { rotationZ = angle.value })
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("Таймер", color = Dim, fontSize = 14.sp)
+                Text("Таймер", color = Tints.Orange, fontSize = 15.sp)
                 Text("Время вышло", color = Tints.Orange, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
             }
             PillButton(Icons.Rounded.Stop, "Стоп", bg = Tints.Orange, fg = Color.Black) { Controls.cancelTimer() }
@@ -298,19 +335,16 @@ private fun TimerExpanded(t: TimerState) {
     val left = t.left(now)
     val color = if (left <= 10_000 && !t.paused) Tints.Red else Tints.Orange
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Кольцо остатка вокруг кнопки паузы, как в ПК-версии
-        Box(Modifier.size(58.dp), contentAlignment = Alignment.Center) {
-            ProgressRing(if (t.totalMs > 0) left.toFloat() / t.totalMs else 0f, color, Modifier.size(58.dp), stroke = 4.dp)
-            RoundButton(if (t.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, size = 44.dp, bg = color.copy(alpha = 0.2f), fg = color) {
-                if (t.paused) Controls.resumeTimer() else Controls.pauseTimer()
-            }
+        RoundButton(if (t.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, size = 50.dp,
+            bg = color.copy(alpha = 0.25f), fg = color, iconScale = 0.5f) {
+            if (t.paused) Controls.resumeTimer() else Controls.pauseTimer()
         }
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(if (t.paused) "Пауза" else "Таймер", color = Dim, fontSize = 14.sp)
-            Text(formatDuration(left + 999), color = color, fontSize = 38.sp, style = Digits, maxLines = 1)
-        }
-        RoundButton(Icons.Rounded.Close, size = 44.dp) { Controls.cancelTimer() }
+        Spacer(Modifier.width(12.dp))
+        RoundButton(Icons.Rounded.Close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) { Controls.cancelTimer() }
+        Spacer(Modifier.weight(1f))
+        Text(if (t.paused) "Пауза" else "Таймер", color = color, fontSize = 15.sp, modifier = Modifier.padding(top = 14.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(formatDuration(left + 999), color = color, fontSize = 44.sp, style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
     }
 }
 
@@ -319,64 +353,198 @@ private fun StopwatchExpanded(w: StopwatchState) {
     val now = rememberNow(100, active = w.running)
     val elapsed = w.elapsed(now)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RoundButton(if (w.running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 52.dp,
-            bg = Tints.Orange.copy(alpha = 0.2f), fg = Tints.Orange) { Controls.toggleStopwatch() }
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Секундомер", color = Dim, fontSize = 14.sp)
-            Text(formatDuration(elapsed) + ".%d".format((elapsed % 1000) / 100), color = Tints.Orange, fontSize = 36.sp, style = Digits, maxLines = 1)
+        RoundButton(if (w.running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 50.dp,
+            bg = Tints.Orange.copy(alpha = 0.25f), fg = Tints.Orange, iconScale = 0.5f) { Controls.toggleStopwatch() }
+        Spacer(Modifier.width(12.dp))
+        if (w.running) {
+            RoundButton(Icons.Rounded.Close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) { Controls.stopStopwatch() }
+        } else {
+            RoundButton(Icons.Rounded.Replay, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) {
+                Controls.startStopwatch()
+                Controls.toggleStopwatch()
+            }
         }
-        if (!w.running) {
-            RoundButton(Icons.Rounded.Replay, size = 44.dp) { Controls.startStopwatch(); Controls.toggleStopwatch() }
-            Spacer(Modifier.width(8.dp))
-        }
-        RoundButton(Icons.Rounded.Close, size = 44.dp) { Controls.stopStopwatch() }
+        Spacer(Modifier.weight(1f))
+        Text(formatDuration(elapsed) + ",%d".format((elapsed % 1000) / 100), color = Tints.Orange, fontSize = 40.sp,
+            style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
     }
 }
 
+/**
+ * Фонарик как в iOS 18: остров становится высокой карточкой, внизу светится фонарик, вверх идёт луч.
+ * Провести пальцем вверх или вниз — ярче или тусклее (если телефон это умеет), нажатие — выключить.
+ */
 @Composable
-private fun TorchExpanded(t: TorchState) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(52.dp).clip(CircleShape).background(Tints.Yellow.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.FlashlightOn, null, tint = Tints.Yellow, modifier = Modifier.size(28.dp))
+private fun TorchCard(t: TorchState, s: IslandSettings) {
+    val haptic = rememberHaptic()
+    val max = t.maxLevel.coerceAtLeast(1)
+    var level by remember { mutableFloatStateOf(t.level.toFloat()) }
+    LaunchedEffect(t.level) { level = t.level.toFloat() }
+    val target = if (t.on) (if (max > 1) level / max else 1f) else 0f
+    val intensity by animateFloatAsState(target, spring(dampingRatio = 0.7f, stiffness = 300f), label = "beam")
+    // Луч чуть «дышит», как живой свет
+    val breath = rememberInfiniteTransition(label = "breath")
+    val pulse by breath.animateFloat(0.94f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "p")
+    val glow = if (s.reduceEffects) 1f else pulse
+
+    Box(
+        Modifier
+            .size(200.dp, 224.dp)
+            .pointerInput(max) {
+                detectVerticalDragGestures(
+                    onDragStart = { IslandBus.lastTouch = SystemClock.elapsedRealtime() },
+                ) { change, dy ->
+                    change.consume()
+                    IslandBus.lastTouch = SystemClock.elapsedRealtime()
+                    if (max <= 1) return@detectVerticalDragGestures
+                    val before = Math.round(level)
+                    level = (level - dy / (size.height * 0.6f) * max).coerceIn(1f, max.toFloat())
+                    val after = Math.round(level)
+                    if (after != before) {
+                        haptic()
+                        Controls.torchLevel(after)
+                    }
+                }
             }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Фонарик", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text(if (t.maxLevel > 1) "Яркость ${t.level} из ${t.maxLevel}" else "Включён", color = Dim, fontSize = 13.sp)
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    haptic()
+                    Controls.torchOff()
+                }
+            },
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width / 2
+            val headY = size.height * 0.64f
+            val reach = size.height * 0.58f
+            val spread = 34f + 14f * intensity
+            // Луч — конус с мягким светом от головки фонарика вверх
+            if (intensity > 0.01f) {
+                val beam = Path().apply {
+                    moveTo(cx, headY)
+                    arcTo(
+                        Rect(Offset(cx, headY), reach),
+                        startAngleDegrees = -90f - spread, sweepAngleDegrees = spread * 2, forceMoveTo = false,
+                    )
+                    close()
+                }
+                drawPath(
+                    beam,
+                    Brush.radialGradient(
+                        0f to Color.White.copy(alpha = 0.95f * intensity * glow),
+                        0.35f to Color(0xFFD9D4FF).copy(alpha = 0.55f * intensity * glow),
+                        1f to Color(0xFF8E87FF).copy(alpha = 0f),
+                        center = Offset(cx, headY),
+                        radius = reach,
+                    ),
+                )
+                drawCircle(
+                    Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.9f * intensity), Color.Transparent),
+                        center = Offset(cx, headY), radius = 34.dp.toPx() * glow,
+                    ),
+                    radius = 34.dp.toPx() * glow, center = Offset(cx, headY),
+                )
             }
-            PillButton(Icons.Rounded.FlashlightOff, "Выключить", bg = Tints.Yellow, fg = Color.Black) { Controls.torchOff() }
-        }
-        if (t.maxLevel > 1) {
-            Spacer(Modifier.height(10.dp))
-            Slider(
-                value = t.level.toFloat(),
-                onValueChange = { Controls.torchLevel(Math.round(it)) },
-                valueRange = 1f..t.maxLevel.toFloat(),
-                steps = (t.maxLevel - 2).coerceAtLeast(0),
-                colors = SliderDefaults.colors(
-                    thumbColor = Tints.Yellow,
-                    activeTrackColor = Tints.Yellow,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.18f),
-                    activeTickColor = Color.Transparent,
-                    inactiveTickColor = Color.Transparent,
-                ),
+            // Шкала яркости — пунктирная дуга, пройденная часть сплошная
+            val arcR = reach * 0.86f
+            val arcRect = Rect(Offset(cx, headY), arcR)
+            val dots = 22
+            for (i in 0..dots) {
+                val a = Math.toRadians((-90f - 44f + 88f * i / dots).toDouble())
+                drawCircle(
+                    Color.White.copy(alpha = 0.35f), radius = 1.2.dp.toPx(),
+                    center = Offset(cx + arcR * cos(a).toFloat(), headY + arcR * sin(a).toFloat()),
+                )
+            }
+            if (t.on) {
+                drawArc(
+                    Color.White.copy(alpha = 0.9f), startAngle = -90f - 44f, sweepAngle = 88f * (if (max > 1) level / max else 1f),
+                    useCenter = false, topLeft = arcRect.topLeft, size = arcRect.size,
+                    style = Stroke(2.dp.toPx(), cap = StrokeCap.Round),
+                )
+            }
+            // Сам фонарик: головка-трапеция и ручка
+            val body = if (t.on) Color.White else Color.White.copy(alpha = 0.4f)
+            val headW = 30.dp.toPx()
+            val neckW = 16.dp.toPx()
+            val headH = 14.dp.toPx()
+            val head = Path().apply {
+                moveTo(cx - headW / 2, headY)
+                lineTo(cx + headW / 2, headY)
+                lineTo(cx + neckW / 2, headY + headH)
+                lineTo(cx - neckW / 2, headY + headH)
+                close()
+            }
+            drawPath(head, body)
+            drawRoundRect(
+                body, topLeft = Offset(cx - neckW / 2, headY + headH + 2.dp.toPx()),
+                size = Size(neckW, 36.dp.toPx()), cornerRadius = CornerRadius(5.dp.toPx()),
             )
+            drawCircle(Color.Black.copy(alpha = 0.5f), radius = 3.dp.toPx(), center = Offset(cx, headY + headH + 16.dp.toPx()))
         }
+        Icon(
+            Icons.Rounded.LightMode, null, tint = Color.White.copy(alpha = 0.7f),
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 26.dp).size(14.dp),
+        )
     }
 }
 
+/** Таймер или секундомер из Часов, звонок по VoIP и запись экрана или звука — запись красной волной и кнопкой «стоп». */
 @Composable
 private fun ChronoExpanded(c: ChronoInfo) {
     val context = LocalContext.current
     val now = rememberWallNow(500)
+    if (c.isRecording) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RecordingWave(Modifier.weight(1f).height(22.dp))
+            Spacer(Modifier.width(14.dp))
+            Text(formatDuration(c.elapsed(now)), color = Tints.Red, fontSize = 22.sp, style = Digits)
+            Spacer(Modifier.width(14.dp))
+            // Белое кольцо с красным квадратом — как кнопка «стоп» диктофона на iPhone
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .border(3.dp, Color.White, CircleShape)
+                    .clickable { if (!Controls.send(context, c.stop)) Controls.openApp(context, c.pkg) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)).background(Tints.Red))
+            }
+        }
+        return
+    }
     Row(Modifier.clickable { Controls.openApp(context, c.pkg) }, verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(c.icon, 48.dp, Icons.Rounded.Timer, Tints.Green)
+        AppIcon(c.icon, 46.dp, Icons.Rounded.Timer, Tints.Orange)
         Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(c.title, color = Dim, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(formatDuration(c.elapsed(now)), color = Tints.Green, fontSize = 36.sp, style = Digits)
+        Text(c.title, color = Tints.Orange, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(top = 12.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(formatDuration(c.elapsed(now)), color = Tints.Orange, fontSize = 40.sp,
+            style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
+    }
+}
+
+/** Волна записи: слева идут красные столбики, справа ждёт пунктир — как у диктофона в острове. */
+@Composable
+private fun RecordingWave(modifier: Modifier) {
+    val t = rememberInfiniteTransition(label = "rec")
+    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "ph")
+    Canvas(modifier) {
+        val step = 4.dp.toPx()
+        val n = (size.width / step).toInt()
+        val active = (n * 0.55f).toInt()
+        for (i in 0 until n) {
+            val x = i * step + step / 2
+            if (i < active) {
+                val k = 0.25f + 0.75f * abs(sin((i * 0.7f + phase * 6.28f).toDouble())).toFloat()
+                val h = size.height * k
+                drawLine(Tints.Red, Offset(x, (size.height - h) / 2), Offset(x, (size.height + h) / 2),
+                    strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            } else {
+                drawCircle(Tints.Red.copy(alpha = 0.45f), radius = 1.dp.toPx(), center = Offset(x, size.height / 2))
+            }
         }
     }
 }

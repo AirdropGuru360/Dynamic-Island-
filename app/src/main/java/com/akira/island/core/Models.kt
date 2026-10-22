@@ -74,6 +74,8 @@ data class ChronoInfo(
     val base: Long,
     val countDown: Boolean,
     val postTime: Long,
+    /** Кнопка «Стоп» из уведомления (запись экрана, диктофон) */
+    val stop: PendingIntent? = null,
 ) {
     fun elapsed(nowWall: Long): Long = if (countDown) base - nowWall else nowWall - base
 
@@ -127,9 +129,31 @@ data class VolumeInfo(val level: Int, val max: Int) {
 
 data class BatteryInfo(val level: Int = -1, val charging: Boolean = false)
 
+/** Как событие выглядит в острове. */
+enum class NoticeStyle {
+    /** Широкая плашка почти во всю ширину: зарядка, наушники, Wi-Fi */
+    WIDE,
+    /** Пилюля высотой со свёрнутый остров, вздрагивает при появлении: режим звука, замок */
+    PILL,
+    /** Уведомление приложения: аватар, имя и текст */
+    MESSAGE,
+}
+
+/** Уведомление другого приложения, показанное в острове. */
+data class AppMessage(
+    val key: String,
+    val pkg: String,
+    val appName: String,
+    val text: String,
+    val avatar: ImageBitmap?,
+    val appIcon: ImageBitmap?,
+    val intent: PendingIntent?,
+)
+
 /**
  * Короткое событие в стиле iOS: слева значок и подпись, справа состояние.
- * [battery] рисует справа батарейку, [ring] — кольцо (например, заряд наушников).
+ * [battery] рисует справа батарейку, [ring] — кольцо (например, заряд наушников),
+ * [caption] — мелкая серая строка над подписью («Подключено»).
  */
 data class Notice(
     val title: String,
@@ -138,6 +162,11 @@ data class Notice(
     val tint: Color,
     val battery: Int? = null,
     val ring: Float? = null,
+    val caption: String? = null,
+    val style: NoticeStyle = NoticeStyle.WIDE,
+    val message: AppMessage? = null,
+    /** Сколько показывать; null — из настроек */
+    val durationMs: Long? = null,
     val id: Long = ids.incrementAndGet(),
 ) {
     private companion object {

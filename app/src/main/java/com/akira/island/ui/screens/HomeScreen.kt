@@ -18,6 +18,8 @@ import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.HourglassBottom
@@ -46,7 +48,10 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.MediaInfo
+import com.akira.island.core.AppMessage
 import com.akira.island.core.Notice
+import com.akira.island.core.NoticeStyle
+import com.akira.island.service.NotificationParser
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Act
@@ -141,6 +146,19 @@ fun HomeScreen(open: (Screen) -> Unit) {
         Group {
             GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", onClick = {
                 IslandBus.post(Notice("Зарядка", "75%", Icons.Rounded.Bolt, Tints.Green, battery = 75))
+            })
+            GroupItem(Pos.Middle, Icons.Rounded.ChatBubble, "Сообщение", "Так покажется сообщение из мессенджера", onClick = {
+                IslandBus.post(
+                    Notice(
+                        "Динамический остров", icon = Icons.Rounded.ChatBubble, tint = Tints.Blue, style = NoticeStyle.MESSAGE,
+                        durationMs = 4500,
+                        message = AppMessage("test", context.packageName, "Остров", "Привет! Так выглядят уведомления в острове 💜",
+                            null, NotificationParser.icon(context, context.packageName), null),
+                    ),
+                )
+            })
+            GroupItem(Pos.Middle, Icons.Rounded.NotificationsOff, "Режим звука", "Капсула вздрагивает, колокольчик качается", onClick = {
+                IslandBus.post(Notice("", "Без звука", Icons.Rounded.NotificationsOff, Tints.Red, style = NoticeStyle.PILL))
             })
             GroupItem(Pos.Middle, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
                 Controls.startTimer(1)

@@ -40,6 +40,11 @@ object IslandBus {
     val battery = MutableStateFlow(BatteryInfo())
     val foregroundPackage = MutableStateFlow<String?>(null)
     val landscape = MutableStateFlow(false)
+    /** Открыт экран «Размер и положение»: остров красный, чтобы подогнать его под камеру */
+    val calibrating = MutableStateFlow(false)
+    /** Последнее касание раскрытого острова — чтобы не сворачивать его из-под пальца */
+    @Volatile
+    var lastTouch = 0L
 
     private val queue = Channel<Notice>(capacity = 6, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private var volumeJob: Job? = null
@@ -48,7 +53,7 @@ object IslandBus {
         scope.launch {
             for (n in queue) {
                 notice.value = n
-                val duration = SettingsRepo.current.noticeDurationMs.toLong()
+                val duration = n.durationMs ?: SettingsRepo.current.noticeDurationMs.toLong()
                 // Уведомление уходит по времени или раньше, если его смахнули кликом
                 withTimeoutOrNull(duration) { notice.first { it?.id != n.id } }
                 if (notice.value?.id == n.id) notice.value = null

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.BrightnessMedium
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.HeadsetOff
 import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.PowerOff
 import androidx.compose.material.icons.rounded.Usb
@@ -44,6 +45,7 @@ import com.akira.island.core.BatteryInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Notice
+import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
 
@@ -171,7 +173,7 @@ class SystemEvents(private val context: Context) {
             }
 
             Intent.ACTION_USER_PRESENT ->
-                notice(s.evUnlock, Notice("", null, Icons.Rounded.LockOpen, Color.White))
+                notice(s.evUnlock, Notice("", null, Icons.Rounded.LockOpen, Color.White, style = NoticeStyle.PILL))
 
             Intent.ACTION_SCREEN_OFF -> Controls.collapse()
 
@@ -183,9 +185,10 @@ class SystemEvents(private val context: Context) {
 
             AudioManager.RINGER_MODE_CHANGED_ACTION -> {
                 val n = when (intent.getIntExtra(AudioManager.EXTRA_RINGER_MODE, -1)) {
-                    AudioManager.RINGER_MODE_NORMAL -> Notice("Звонок", "Звук", Icons.AutoMirrored.Rounded.VolumeUp, Tints.Blue)
-                    AudioManager.RINGER_MODE_VIBRATE -> Notice("Звонок", "Вибрация", Icons.Rounded.Vibration, Tints.Purple)
-                    AudioManager.RINGER_MODE_SILENT -> Notice("Без звука", "Вкл", Icons.Rounded.NotificationsOff, Tints.Red)
+                    // Как переключатель «Звонок/Бесшумно» на iPhone: короткая пилюля, колокольчик качается
+                    AudioManager.RINGER_MODE_NORMAL -> Notice("", "Звонок", Icons.Rounded.Notifications, Color.White, style = NoticeStyle.PILL)
+                    AudioManager.RINGER_MODE_VIBRATE -> Notice("", "Вибрация", Icons.Rounded.Vibration, Tints.Purple, style = NoticeStyle.PILL)
+                    AudioManager.RINGER_MODE_SILENT -> Notice("", "Без звука", Icons.Rounded.NotificationsOff, Tints.Red, style = NoticeStyle.PILL)
                     else -> null
                 }
                 if (n != null) notice(s.evRinger, n)
@@ -213,12 +216,12 @@ class SystemEvents(private val context: Context) {
                     val battery = headsetBattery[device.address]
                     notice(
                         s.evHeadsetOn,
-                        Notice(name ?: "Наушники", battery?.let { "$it%" } ?: "Подключено", Icons.Rounded.Headphones, Tints.Green,
-                            ring = battery?.let { it / 100f }),
+                        Notice(name ?: "Наушники", null, Icons.Rounded.Headphones, Tints.Green,
+                            ring = battery?.let { it / 100f }, caption = "Подключено"),
                     )
                 } else {
                     headsetBattery.remove(device.address)
-                    notice(s.evHeadsetOff, Notice(name ?: "Наушники", "Отключено", Icons.Rounded.HeadsetOff, Tints.Gray))
+                    notice(s.evHeadsetOff, Notice(name ?: "Наушники", null, Icons.Rounded.HeadsetOff, Tints.Gray, caption = "Отключено"))
                 }
             }
 

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.HourglassEmpty
@@ -65,6 +66,9 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
                 s.cardTimer) { v -> SettingsRepo.update { copy(cardTimer = v) } }
             ToggleCard(Icons.Rounded.OfflineBolt, "Индикатор зарядки", "Когда устройство заряжается",
                 s.cardCharging) { v -> SettingsRepo.update { copy(cardCharging = v) } }
+            ToggleCard(Icons.Rounded.ChatBubble, "Уведомления приложений",
+                "Сообщения из Telegram, WhatsApp, почты и других приложений — карточкой в острове, как на iPhone",
+                s.cardMessages) { v -> SettingsRepo.update { copy(cardMessages = v) } }
             ToggleCard(Icons.Rounded.Call, "Звонки", "Входящий вызов с кнопками ответа и время разговора",
                 s.cardCall) { v -> SettingsRepo.update { copy(cardCall = v) } }
         }

@@ -52,6 +52,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +70,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import com.akira.island.core.AppMessage
+import com.akira.island.core.NoticeStyle
 import com.akira.island.core.CallInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.Lyrics
@@ -76,9 +82,10 @@ import com.akira.island.core.Tints
 import com.akira.island.core.VolumeInfo
 import com.akira.island.core.formatDuration
 import com.akira.island.data.IslandSettings
+import com.akira.island.ui.Inter
 
 /** Цифры одной ширины, чтобы время не «прыгало» */
-val Digits = TextStyle(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
+val Digits = TextStyle(fontFamily = Inter, fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
 
 @Composable
 fun CompactContent(act: Act, s: IslandSettings, lyrics: Lyrics?, wideWidth: Dp) {
@@ -300,37 +307,48 @@ fun compactGap(s: IslandSettings): Dp = (s.width.dp - s.height.dp * 0.6f).coerce
 /** Высота события: заметно выше свёрнутого острова, как у раскрытых уведомлений iPhone. */
 fun noticeHeight(s: IslandSettings): Dp = (s.height.dp * 1.75f).coerceAtLeast(56.dp)
 
+/** Высота карточки уведомления приложения — как баннер в острове iPhone. */
+val MessageHeight = 76.dp
+
 /**
- * Событие как на iPhone: остров разворачивается почти на всю ширину экрана,
- * слева значок и подпись, справа состояние, батарейка или кольцо.
+ * Событие как на iPhone. Широкое — остров разворачивается почти на всю ширину экрана:
+ * слева значок и подпись, справа состояние, батарейка или кольцо. Пилюля — короткое
+ * переключение (режим звука), значок качается. Сообщение — аватар, имя и текст.
  */
 @Composable
 private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
-    val h = s.height.dp
-    // Значок «выпрыгивает» при появлении
-    val pop = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0.3f) }
-    LaunchedEffect(n.id) { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 320f)) }
-
-    if (n.title.isBlank() && n.state == null) {
-        // Только значок, например замок при разблокировке
-        CompactRow(h, compactGap(s), h * 1.4f,
-            left = { Icon(n.icon, null, tint = n.tint, modifier = Modifier.size(h * 0.52f).scale(pop.value)) },
-            right = {},
-        )
-        return
+    when {
+        n.style == NoticeStyle.MESSAGE && n.message != null -> MessageCard(n, n.message, wideWidth)
+        n.style == NoticeStyle.PILL || n.title.isBlank() && n.state == null -> PillNotice(n, s)
+        else -> WideNotice(n, s, wideWidth)
     }
+}
 
+@Composable
+private fun WideNotice(n: Notice, s: IslandSettings, wideWidth: Dp) {
+    // Значок «выпрыгивает», батарейка и кольцо заполняются — как на iPhone
+    val pop = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0.3f) }
+    val fill = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0f) }
+    LaunchedEffect(n.id) {
+        launch { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 320f)) }
+        fill.animateTo(1f, tween(900, delayMillis = 150, easing = FastOutSlowInEasing))
+    }
     val height = noticeHeight(s)
     Row(
         Modifier.width(wideWidth).height(height).padding(horizontal = height * 0.36f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(n.icon, null, tint = n.tint, modifier = Modifier.size(height * 0.46f).scale(pop.value))
-        Spacer(Modifier.width(10.dp))
-        Text(
-            n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
-        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            if (n.caption != null) {
+                Text(n.caption, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, maxLines = 1)
+            }
+            Text(
+                n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
         Spacer(Modifier.width(12.dp))
         if (n.state != null) {
             Text(n.state, color = n.tint, fontSize = 17.sp, style = Digits, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -338,11 +356,88 @@ private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
         }
         if (n.battery != null) {
             Spacer(Modifier.width(8.dp))
-            BatteryGlyph(n.battery, n.tint, Modifier.size(34.dp, 16.dp))
+            BatteryGlyph((n.battery * fill.value).toInt(), n.tint, Modifier.size(34.dp, 16.dp))
         }
         if (n.ring != null) {
             Spacer(Modifier.width(8.dp))
-            ProgressRing(n.ring, n.tint, Modifier.size(24.dp), stroke = 3.5.dp)
+            // Кольцо с числом внутри — как заряд AirPods
+            Box(Modifier.size(height * 0.62f), contentAlignment = Alignment.Center) {
+                ProgressRing(n.ring * fill.value, n.tint, Modifier.fillMaxSize(), stroke = 3.5.dp)
+                Text("${(n.ring * 100).toInt()}", color = n.tint, fontSize = 13.sp, style = Digits)
+            }
+        }
+    }
+}
+
+/** Пилюля режима звука: значок слева качается, как колокольчик на iPhone, состояние справа. */
+@Composable
+private fun PillNotice(n: Notice, s: IslandSettings) {
+    val h = s.height.dp
+    val swing = remember(n.id) { Animatable(0f) }
+    LaunchedEffect(n.id) {
+        if (s.reduceEffects) return@LaunchedEffect
+        // Затухающее покачивание: 22° → -18° → 14° → … → 0
+        var amp = 22f
+        repeat(6) {
+            swing.animateTo(amp, tween(70))
+            amp = -amp * 0.75f
+        }
+        swing.animateTo(0f, spring(dampingRatio = 0.5f))
+    }
+    CompactRow(h, compactGap(s), h * 2f,
+        left = {
+            Icon(
+                n.icon, null, tint = n.tint,
+                modifier = Modifier.size(h * 0.55f).graphicsLayer {
+                    rotationZ = swing.value
+                    transformOrigin = TransformOrigin(0.5f, 0.1f)
+                },
+            )
+        },
+        right = {
+            if (n.state != null) {
+                Text(n.state, color = n.tint, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+            }
+        },
+    )
+}
+
+/** Уведомление приложения: аватар со значком приложения, имя и текст в две строки. */
+@Composable
+private fun MessageCard(n: Notice, m: AppMessage, wideWidth: Dp) {
+    Row(
+        Modifier.width(wideWidth).height(MessageHeight).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(46.dp)) {
+            val big = m.avatar ?: m.appIcon
+            Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF2C2C2E)), contentAlignment = Alignment.Center) {
+                if (big != null) {
+                    androidx.compose.foundation.Image(big, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else {
+                    Icon(n.icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+            }
+            // Маленький значок приложения в углу аватара, как в iOS
+            if (m.avatar != null && m.appIcon != null) {
+                androidx.compose.foundation.Image(
+                    m.appIcon, null,
+                    Modifier.size(19.dp).align(Alignment.BottomEnd).clip(CircleShape).background(Color.Black).padding(1.5.dp).clip(CircleShape),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(n.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Spacer(Modifier.width(6.dp))
+                Text("сейчас", color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp, maxLines = 1)
+            }
+            if (m.text.isNotEmpty()) {
+                Text(m.text, color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, lineHeight = 17.sp, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

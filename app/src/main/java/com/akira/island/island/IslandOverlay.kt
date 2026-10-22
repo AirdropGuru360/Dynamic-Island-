@@ -67,14 +67,19 @@ import com.akira.island.core.BatteryInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Lyrics
+import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.data.TapAction
 import com.akira.island.service.CallMonitor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+
+/** Цвет острова на экране «Размер и положение»: его нужно спрятать под вырезом камеры. */
+val CalibrationRed = Color(0xFFFF6B6B)
 
 /** Запас вокруг острова в окне: под тень, «желе» и пузырь. */
 const val ISLAND_PAD_DP = 12
@@ -102,6 +107,7 @@ fun IslandOverlay(
     val foreground by IslandBus.foregroundPackage.collectAsState()
     val expanded by IslandBus.expanded.collectAsState()
     val focus by IslandBus.focus.collectAsState()
+    val calibrating by IslandBus.calibrating.collectAsState()
 
     val call = if (!s.cardCall) null else {
         val tel = calls[CallMonitor.KEY]
@@ -143,10 +149,11 @@ fun IslandOverlay(
         addAll(persistent)
     }
 
-    val primary = acts.firstOrNull() ?: Act.Idle
+    // Во время подгонки размера показываем только пустую красную капсулу
+    val primary = if (calibrating) Act.Idle else acts.firstOrNull() ?: Act.Idle
     val incoming = (primary as? Act.CallA)?.c?.incoming == true
-    val secondary = if (primary.transient || incoming) null else acts.drop(1).firstOrNull { !it.transient }
-    val showExpanded = expanded && !primary.transient && !incoming
+    val secondary = if (primary.transient || incoming || calibrating) null else acts.drop(1).firstOrNull { !it.transient }
+    val showExpanded = expanded && !primary.transient && !incoming && !calibrating
     val h = s.height.dp
 
     // Пузырь уходит с анимацией, поэтому помним последнюю активность в нём
@@ -159,7 +166,7 @@ fun IslandOverlay(
     val focusGone = expanded && focus != null && focus != Act.Idle.id && acts.none { it.id == focus }
     LaunchedEffect(focusGone) { if (focusGone) Controls.collapse() }
 
-    val hidden = s.hideIdle && primary is Act.Idle && !showExpanded
+    val hidden = s.hideIdle && primary is Act.Idle && !showExpanded && !calibrating
 
     // Перед сменой формы просим окно стать большим, чтобы анимация шла внутри неподвижного окна
     val transitionKey = "${primary.id}|$showExpanded|${secondary?.id}|$hidden"
@@ -181,7 +188,7 @@ fun IslandOverlay(
 
     // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], onBodyBounds, onBubbleBounds)
+        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBodyBounds, onBubbleBounds)
     }
 }
 
@@ -195,6 +202,7 @@ private fun IslandRow(
     battery: BatteryInfo,
     bubbleVisible: Boolean,
     bubbleAct: Act?,
+    calibrating: Boolean,
     onBodyBounds: (Rect) -> Unit,
     onBubbleBounds: (Rect) -> Unit,
 ) {
@@ -207,7 +215,7 @@ private fun IslandRow(
     ) {
         // Пустое место слева уравновешивает пузырь, чтобы остров стоял над камерой
         Spacer(Modifier.width(slot))
-        IslandBody(primary, showExpanded, s, lyrics, battery, onBodyBounds)
+        IslandBody(primary, showExpanded, s, lyrics, battery, calibrating, onBodyBounds)
         BubbleSlot(slot, bubbleVisible, bubbleAct, s, onBubbleBounds)
     }
 }
@@ -232,6 +240,7 @@ private fun IslandBody(
     s: IslandSettings,
     lyrics: Lyrics?,
     battery: BatteryInfo,
+    calibrating: Boolean,
     onBounds: (Rect) -> Unit,
 ) {
     val context = LocalContext.current
@@ -244,7 +253,8 @@ private fun IslandBody(
 
     val cornerTarget = when {
         expanded -> 44.dp
-        primary is Act.NoticeA && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
+        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 38.dp
+        primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
         primary is Act.CallA && primary.c.incoming -> 42.dp
         else -> h / 2
     }
@@ -277,6 +287,15 @@ private fun IslandBody(
     // Оттягивание вниз пальцем
     val pull = remember { Animatable(0f) }
 
+    // Короткая пилюля (режим звука) вздрагивает вбок, как остров на iPhone при переключении «Звонок/Бесшумно»
+    val shake = remember { Animatable(0f) }
+    val pillId = (primary as? Act.NoticeA)?.n?.takeIf { it.style == NoticeStyle.PILL }?.id
+    LaunchedEffect(pillId) {
+        if (pillId == null || s.reduceEffects) return@LaunchedEffect
+        delay(140)
+        for (x in floatArrayOf(-8f, 7f, -5f, 3.5f, -2f, 0f)) shake.animateTo(x, tween(60))
+    }
+
     val current by rememberUpdatedState(primary)
     val isExpanded by rememberUpdatedState(expanded)
     val settings by rememberUpdatedState(s)
@@ -287,12 +306,19 @@ private fun IslandBody(
             .graphicsLayer {
                 scaleX = jellyX.value * (1f + 0.03f * pull.value)
                 scaleY = jellyY.value * (1f + 0.08f * pull.value)
+                translationX = shake.value.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
             .then(if (s.shadow && !s.reduceEffects) Modifier.shadow(10.dp, shape) else Modifier)
             .clip(shape)
-            .background(Color(s.color))
-            .then(if (s.outline) Modifier.border(s.outlineWidth.dp, outlineColor, shape) else Modifier)
+            .background(if (calibrating) CalibrationRed else Color(s.color))
+            .then(
+                when {
+                    calibrating -> Modifier.border(2.dp, Color.White, shape)
+                    s.outline -> Modifier.border(s.outlineWidth.dp, outlineColor, shape)
+                    else -> Modifier
+                },
+            )
             .pointerInput(s.doubleTapAction != TapAction.NOTHING, s.longPressAction != TapAction.NOTHING) {
                 val doubleOn = settings.doubleTapAction != TapAction.NOTHING
                 val longOn = settings.longPressAction != TapAction.NOTHING
@@ -339,6 +365,10 @@ private fun IslandBody(
                             isExpanded && vertical && dy < -threshold -> {
                                 haptic()
                                 Controls.collapse()
+                            }
+                            // Смахнуть уведомление вверх, как баннер на iPhone
+                            !isExpanded && vertical && dy < -threshold / 2 && act is Act.NoticeA -> {
+                                IslandBus.notice.value = null
                             }
                             !isExpanded && !vertical && abs(dx) > side && act is Act.MediaA && settings.swipeTracks -> {
                                 haptic()
@@ -388,7 +418,13 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
         return
     }
     when (act) {
-        is Act.NoticeA -> IslandBus.notice.value = null
+        is Act.NoticeA -> {
+            // Нажатие на уведомление приложения открывает его, как на iPhone
+            act.n.message?.let { m ->
+                if (!Controls.send(context, m.intent)) Controls.openApp(context, m.pkg)
+            }
+            IslandBus.notice.value = null
+        }
         is Act.VolumeA -> Unit
         is Act.Idle -> Controls.expand(act.id)
         is Act.TimerA -> if (act.t.ringing) Controls.cancelTimer() else perform(context, s.tapAction, act)

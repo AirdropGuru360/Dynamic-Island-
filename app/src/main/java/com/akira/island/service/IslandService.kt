@@ -26,6 +26,7 @@ import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.ISLAND_PAD_DP
 import com.akira.island.island.IslandOverlay
+import com.akira.island.ui.InterTypography
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -124,7 +125,7 @@ class IslandService : AccessibilityService() {
         val compose = ComposeView(this).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                MaterialTheme(colorScheme = darkColorScheme()) {
+                MaterialTheme(colorScheme = darkColorScheme(), typography = InterTypography) {
                     IslandOverlay(
                         onTransition = ::onTransition,
                         onBodyBounds = { r -> if (r != body) { body = r; onBoundsChanged() } },

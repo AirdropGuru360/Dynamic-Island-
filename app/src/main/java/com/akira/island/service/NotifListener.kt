@@ -26,7 +26,8 @@ class NotifListener : NotificationListenerService() {
     override fun onListenerConnected() {
         SettingsRepo.init(this)
         media = MediaMonitor(applicationContext).also { it.start() }
-        runCatching { activeNotifications?.forEach { NotificationParser.onPosted(this, it) } }
+        // Уже висящие уведомления разбираем без показа сообщений — они не новые
+        runCatching { activeNotifications?.forEach { NotificationParser.onPosted(this, it, initial = true) } }
     }
 
     override fun onListenerDisconnected() {
@@ -49,7 +50,7 @@ class NotifListener : NotificationListenerService() {
 object NotificationParser {
     private val icons = HashMap<String, ImageBitmap?>()
 
-    fun onPosted(context: Context, sbn: StatusBarNotification) {
+    fun onPosted(context: Context, sbn: StatusBarNotification, initial: Boolean = false) {
         if (sbn.packageName == context.packageName) return
         val n = sbn.notification ?: return
         val ex = n.extras ?: return
@@ -79,10 +80,19 @@ object NotificationParser {
         IslandBus.chrono.value = IslandBus.chrono.value.toMutableMap().apply {
             if (chrono) {
                 val down = ex.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN, false)
-                put(sbn.key, ChronoInfo(sbn.key, sbn.packageName, title, icon(context, sbn.packageName), n.`when`, down, sbn.postTime))
+                val stop = n.actions?.firstOrNull { a ->
+                    val t = a.title?.toString()?.lowercase().orEmpty()
+                    listOf("стоп", "останов", "заверш", "stop", "finish").any { it in t }
+                }?.actionIntent
+                put(sbn.key, ChronoInfo(sbn.key, sbn.packageName, title, icon(context, sbn.packageName), n.`when`, down, sbn.postTime, stop))
             } else {
                 remove(sbn.key)
             }
+        }
+
+        val service = context as? NotificationListenerService
+        if (!initial && service != null && !isMedia && call == null && !chrono && !hasProgress) {
+            Messages.maybeShow(service, sbn, appLabel(context, sbn.packageName))
         }
     }
 
@@ -136,6 +146,7 @@ object NotificationParser {
         runCatching { ex.getParcelable<PendingIntent>(key) }.getOrNull()
 
     fun onRemoved(key: String) {
+        Messages.forget(key)
         if (key in IslandBus.calls.value) IslandBus.calls.value = IslandBus.calls.value - key
         if (key in IslandBus.progress.value) IslandBus.progress.value = IslandBus.progress.value - key
         if (key in IslandBus.chrono.value) IslandBus.chrono.value = IslandBus.chrono.value - key
@@ -145,7 +156,7 @@ object NotificationParser {
         runCatching { context.packageManager.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull()
     }
 
-    private fun appLabel(context: Context, pkg: String): String = runCatching {
+    fun appLabel(context: Context, pkg: String): String = runCatching {
         val pm = context.packageManager
         pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
     }.getOrDefault(pkg)

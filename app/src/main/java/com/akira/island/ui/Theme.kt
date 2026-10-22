@@ -37,6 +37,7 @@ fun IslandTheme(content: @Composable () -> Unit) {
             surfaceContainerHigh = Ui.Card,
             outline = Ui.Outline,
         ),
+        typography = InterTypography,
         content = content,
     )
 }
