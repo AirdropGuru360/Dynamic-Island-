@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ionicons (MIT), https://ionic.io/ionicons -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:pathData="M 336 0 H 176 a 64 64 0 0 0 -64 64 v 384 a 64 64 0 0 0 64 64 h 160 a 64 64 0 0 0 64 -64 V 64 a 64 64 0 0 0 -64 -64 z m 32 448 a 32 32 0 0 1 -32 32 H 176 a 32 32 0 0 1 -32 -32 V 64 a 32 32 0 0 1 32 -32 h 11.35 a 7.94 7.94 0 0 1 7.3 4.75 A 32 32 0 0 0 224 56 h 64 a 32 32 0 0 0 29.35 -19.25 7.94 7.94 0 0 1 7.3 -4.75 H 336 a 32 32 0 0 1 32 32 z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M 336 48 a 11.88 11.88 0 0 0 -9.53 4.69 A 48 48 0 0 1 288 72 h -64 a 48 48 0 0 1 -38.47 -19.31 A 11.88 11.88 0 0 0 176 48 a 16 16 0 0 0 -16 16 v 384 a 16 16 0 0 0 16 16 h 160 a 16 16 0 0 0 16 -16 V 64 a 16 16 0 0 0 -16 -16 z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M 336 0 H 176 a 64 64 0 0 0 -64 64 v 384 a 64 64 0 0 0 64 64 h 160 a 64 64 0 0 0 64 -64 V 64 a 64 64 0 0 0 -64 -64 z m 32 448 a 32 32 0 0 1 -32 32 H 176 a 32 32 0 0 1 -32 -32 V 64 a 32 32 0 0 1 32 -32 h 11.35 a 7.94 7.94 0 0 1 7.3 4.75 A 32 32 0 0 0 224 56 h 64 a 32 32 0 0 0 29.35 -19.25 7.94 7.94 0 0 1 7.3 -4.75 H 336 a 32 32 0 0 1 32 32 z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

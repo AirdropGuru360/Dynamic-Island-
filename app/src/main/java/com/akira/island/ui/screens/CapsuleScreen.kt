@@ -5,6 +5,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.FormatColorFill
+import androidx.compose.material.icons.rounded.LineWeight
+import androidx.compose.material.icons.rounded.ViewDay
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.OpenWith
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.Speed
@@ -22,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import com.akira.island.data.Elasticity
 import com.akira.island.data.ExpandStyle
+import com.akira.island.data.NoticeWidth
+import com.akira.island.data.SideSize
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.ChoiceDialog
 import com.akira.island.ui.Group
@@ -40,10 +45,25 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     var styleDialog by remember { mutableStateOf(false) }
     var elasticDialog by remember { mutableStateOf(false) }
+    var sideDialog by remember { mutableStateOf(false) }
+    var noticeDialog by remember { mutableStateOf(false) }
 
     Page("Настройки Капсулы") {
+        IslandPreview()
         GroupItem(Pos.Single, Icons.Rounded.OpenWith, "Размер и положение", "Изменить размер и положение капсулы",
             onClick = { open(Screen.SIZE) }) { Arrow() }
+
+        SectionHeader("Вид острова")
+        Group {
+            GroupSlider(
+                Pos.First, Icons.Rounded.LineWeight, "Толщина с активностью",
+                value = s.activeExtra.toFloat(), range = 0f..14f, label = "+${s.activeExtra} dp", steps = 13,
+            ) { v -> SettingsRepo.update { copy(activeExtra = v.toInt()) } }
+            GroupItem(Pos.Middle, Icons.Rounded.SwapHoriz, "Боковые части", s.sideSize.title + " — насколько остров выступает по бокам от камеры",
+                onClick = { sideDialog = true })
+            GroupItem(Pos.Last, Icons.Rounded.ViewDay, "Ширина событий", s.noticeWidth.title + " — зарядка, наушники, Wi-Fi",
+                onClick = { noticeDialog = true })
+        }
 
         SectionHeader("Цвета")
         GroupItem(Pos.Single, Icons.Rounded.FormatColorFill, "Цвет капсулы", "Изменить цвет, настроить контур и тень",
@@ -80,6 +100,14 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
     if (styleDialog) {
         ChoiceDialog("Стиль раскрытия", ExpandStyle.entries, s.expandStyle, { it.title },
             { v -> SettingsRepo.update { copy(expandStyle = v) } }) { styleDialog = false }
+    }
+    if (sideDialog) {
+        ChoiceDialog("Боковые части", SideSize.entries, s.sideSize, { it.title },
+            { v -> SettingsRepo.update { copy(sideSize = v) } }) { sideDialog = false }
+    }
+    if (noticeDialog) {
+        ChoiceDialog("Ширина событий", NoticeWidth.entries, s.noticeWidth, { it.title },
+            { v -> SettingsRepo.update { copy(noticeWidth = v) } }) { noticeDialog = false }
     }
     if (elasticDialog) {
         ChoiceDialog("Упругость анимации", Elasticity.entries, s.elasticity, { it.title },

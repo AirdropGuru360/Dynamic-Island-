@@ -19,6 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.Animatable
+import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -133,7 +136,8 @@ fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: Batte
         TorchCard(act.t, s)
         return
     }
-    Box(Modifier.width(width).padding(horizontal = 22.dp, vertical = 20.dp)) {
+    // Сверху — полоса камеры: содержимое начинается ниже выреза, чтобы он ничего не закрывал
+    Box(Modifier.width(width).padding(start = 22.dp, end = 22.dp, top = cameraInset(s), bottom = 20.dp)) {
         when (act) {
             is Act.MediaA -> MediaExpanded(act.m, s, lyrics)
             is Act.TimerA -> TimerExpanded(act.t)
@@ -201,14 +205,14 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
         Spacer(Modifier.height(4.dp))
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                RoundButton(Icons.Rounded.FastRewind, size = 52.dp, bg = Color.Transparent, iconScale = 0.62f) { Controls.prev() }
-                RoundButton(if (m.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 58.dp, bg = Color.Transparent, iconScale = 0.74f) {
+                RoundButton(Ios.back, size = 52.dp, bg = Color.Transparent, iconScale = 0.56f) { Controls.prev() }
+                RoundButton(if (m.playing) Ios.pause else Ios.play, size = 58.dp, bg = Color.Transparent, iconScale = 0.6f) {
                     Controls.playPause()
                 }
-                RoundButton(Icons.Rounded.FastForward, size = 52.dp, bg = Color.Transparent, iconScale = 0.62f) { Controls.next() }
+                RoundButton(Ios.forward, size = 52.dp, bg = Color.Transparent, iconScale = 0.56f) { Controls.next() }
             }
             // Вывод звука — как кнопка AirPlay
-            RoundButton(Icons.Rounded.Cast, Modifier.align(Alignment.CenterEnd), size = 40.dp, bg = Color.Transparent,
+            RoundButton(Ios.airplay, Modifier.align(Alignment.CenterEnd), size = 40.dp, bg = Color.Transparent,
                 fg = Dim, iconScale = 0.55f) { Controls.openOutput(context) }
         }
     }
@@ -233,7 +237,7 @@ private fun CallExpanded(c: CallInfo) {
                 overflow = TextOverflow.Ellipsis)
             Text(formatDuration(now - c.base), color = Tints.Green, fontSize = 15.sp, style = Digits)
         }
-        RoundButton(Icons.Rounded.CallEnd, size = 48.dp, bg = Tints.Red, iconScale = 0.5f) {
+        RoundButton(Ios.call, size = 48.dp, bg = Tints.Red, iconScale = 0.46f, iconRotation = 135f) {
             Controls.endCall(context, c)
         }
     }
@@ -320,7 +324,7 @@ private fun TimerExpanded(t: TimerState) {
         val angle = wobble.animateFloat(-16f, 16f, infiniteRepeatable(tween(110), RepeatMode.Reverse), label = "a")
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(50.dp).clip(CircleShape).background(Tints.Orange.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.NotificationsActive, null, tint = Tints.Orange,
+                Icon(Ios.bell, null, tint = Tints.Orange,
                     modifier = Modifier.size(28.dp).graphicsLayer { rotationZ = angle.value })
             }
             Spacer(Modifier.width(14.dp))
@@ -328,19 +332,19 @@ private fun TimerExpanded(t: TimerState) {
                 Text("Таймер", color = Tints.Orange, fontSize = 15.sp)
                 Text("Время вышло", color = Tints.Orange, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
             }
-            PillButton(Icons.Rounded.Stop, "Стоп", bg = Tints.Orange, fg = Color.Black) { Controls.cancelTimer() }
+            PillButton(Ios.stop, "Стоп", bg = Tints.Orange, fg = Color.Black) { Controls.cancelTimer() }
         }
         return
     }
     val left = t.left(now)
     val color = if (left <= 10_000 && !t.paused) Tints.Red else Tints.Orange
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RoundButton(if (t.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, size = 50.dp,
+        RoundButton(if (t.paused) Ios.play else Ios.pause, size = 50.dp,
             bg = color.copy(alpha = 0.25f), fg = color, iconScale = 0.5f) {
             if (t.paused) Controls.resumeTimer() else Controls.pauseTimer()
         }
         Spacer(Modifier.width(12.dp))
-        RoundButton(Icons.Rounded.Close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) { Controls.cancelTimer() }
+        RoundButton(Ios.close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.44f) { Controls.cancelTimer() }
         Spacer(Modifier.weight(1f))
         Text(if (t.paused) "Пауза" else "Таймер", color = color, fontSize = 15.sp, modifier = Modifier.padding(top = 14.dp))
         Spacer(Modifier.width(8.dp))
@@ -353,13 +357,13 @@ private fun StopwatchExpanded(w: StopwatchState) {
     val now = rememberNow(100, active = w.running)
     val elapsed = w.elapsed(now)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RoundButton(if (w.running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 50.dp,
+        RoundButton(if (w.running) Ios.pause else Ios.play, size = 50.dp,
             bg = Tints.Orange.copy(alpha = 0.25f), fg = Tints.Orange, iconScale = 0.5f) { Controls.toggleStopwatch() }
         Spacer(Modifier.width(12.dp))
         if (w.running) {
-            RoundButton(Icons.Rounded.Close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) { Controls.stopStopwatch() }
+            RoundButton(Ios.close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.44f) { Controls.stopStopwatch() }
         } else {
-            RoundButton(Icons.Rounded.Replay, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) {
+            RoundButton(Ios.refresh, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.46f) {
                 Controls.startStopwatch()
                 Controls.toggleStopwatch()
             }
@@ -386,13 +390,23 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
     val breath = rememberInfiniteTransition(label = "breath")
     val pulse by breath.animateFloat(0.94f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "p")
     val glow = if (s.reduceEffects) 1f else pulse
+    // Пока палец на ползунке — фонарик сияет сильнее, а на каждом шаге яркости вспыхивает, как на iPhone
+    var dragging by remember { mutableStateOf(false) }
+    val boost by animateFloatAsState(if (dragging && !s.reduceEffects) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 220f), label = "boost")
+    val flare = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
 
     Box(
         Modifier
             .size(200.dp, 224.dp)
             .pointerInput(max) {
                 detectVerticalDragGestures(
-                    onDragStart = { IslandBus.lastTouch = SystemClock.elapsedRealtime() },
+                    onDragStart = {
+                        dragging = true
+                        IslandBus.lastTouch = SystemClock.elapsedRealtime()
+                    },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
                 ) { change, dy ->
                     change.consume()
                     IslandBus.lastTouch = SystemClock.elapsedRealtime()
@@ -403,6 +417,10 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
                     if (after != before) {
                         haptic()
                         Controls.torchLevel(after)
+                        if (!s.reduceEffects) scope.launch {
+                            flare.snapTo(1f)
+                            flare.animateTo(0f, tween(480, easing = FastOutSlowInEasing))
+                        }
                     }
                 }
             }
@@ -417,7 +435,8 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
             val cx = size.width / 2
             val headY = size.height * 0.64f
             val reach = size.height * 0.58f
-            val spread = 34f + 14f * intensity
+            val spread = 34f + 14f * intensity + 6f * boost
+            val shine = glow * (1f + 0.35f * boost + 0.3f * flare.value)
             // Луч — конус с мягким светом от головки фонарика вверх
             if (intensity > 0.01f) {
                 val beam = Path().apply {
@@ -431,20 +450,32 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
                 drawPath(
                     beam,
                     Brush.radialGradient(
-                        0f to Color.White.copy(alpha = 0.95f * intensity * glow),
-                        0.35f to Color(0xFFD9D4FF).copy(alpha = 0.55f * intensity * glow),
+                        0f to Color.White.copy(alpha = (0.95f * intensity * shine).coerceAtMost(1f)),
+                        0.35f to Color(0xFFD9D4FF).copy(alpha = (0.55f * intensity * shine).coerceAtMost(1f)),
                         1f to Color(0xFF8E87FF).copy(alpha = 0f),
                         center = Offset(cx, headY),
                         radius = reach,
                     ),
                 )
+                val halo = 34.dp.toPx() * glow * (1f + 0.6f * boost + 0.45f * flare.value)
                 drawCircle(
                     Brush.radialGradient(
-                        listOf(Color.White.copy(alpha = 0.9f * intensity), Color.Transparent),
-                        center = Offset(cx, headY), radius = 34.dp.toPx() * glow,
+                        listOf(Color.White.copy(alpha = (0.9f * intensity * shine).coerceAtMost(1f)), Color.Transparent),
+                        center = Offset(cx, headY), radius = halo,
                     ),
-                    radius = 34.dp.toPx() * glow, center = Offset(cx, headY),
+                    radius = halo, center = Offset(cx, headY),
                 )
+                // Мягкое лавандовое сияние вокруг всего фонарика, когда его касаются
+                if (boost > 0.01f || flare.value > 0.01f) {
+                    val bloom = reach * (0.75f + 0.25f * boost)
+                    drawCircle(
+                        Brush.radialGradient(
+                            listOf(Color(0xFFB9B4FF).copy(alpha = 0.32f * intensity * (boost + flare.value * 0.6f)), Color.Transparent),
+                            center = Offset(cx, headY + 10.dp.toPx()), radius = bloom,
+                        ),
+                        radius = bloom, center = Offset(cx, headY + 10.dp.toPx()),
+                    )
+                }
             }
             // Шкала яркости — пунктирная дуга, пройденная часть сплошная
             val arcR = reach * 0.86f
@@ -484,7 +515,7 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
             drawCircle(Color.Black.copy(alpha = 0.5f), radius = 3.dp.toPx(), center = Offset(cx, headY + headH + 16.dp.toPx()))
         }
         Icon(
-            Icons.Rounded.LightMode, null, tint = Color.White.copy(alpha = 0.7f),
+            Ios.sunny, null, tint = Color.White.copy(alpha = 0.7f + 0.3f * boost),
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 26.dp).size(14.dp),
         )
     }
@@ -516,7 +547,7 @@ private fun ChronoExpanded(c: ChronoInfo) {
         return
     }
     Row(Modifier.clickable { Controls.openApp(context, c.pkg) }, verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(c.icon, 46.dp, Icons.Rounded.Timer, Tints.Orange)
+        AppIcon(c.icon, 46.dp, Ios.timer, Tints.Orange)
         Spacer(Modifier.width(14.dp))
         Text(c.title, color = Tints.Orange, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(top = 12.dp))
@@ -554,7 +585,7 @@ private fun ProgressExpanded(p: ProgressInfo) {
     val context = LocalContext.current
     Column(Modifier.clickable { Controls.openApp(context, p.pkg) }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(p.icon, 44.dp, Icons.Rounded.Downloading, Tints.Blue)
+            AppIcon(p.icon, 44.dp, Ios.download, Tints.Blue)
             Spacer(Modifier.width(14.dp))
             Text(p.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -575,7 +606,7 @@ private fun ProgressExpanded(p: ProgressInfo) {
 private fun ChargingExpanded(b: BatteryInfo) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(52.dp).clip(CircleShape).background(Tints.Green.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Bolt, null, tint = Tints.Green, modifier = Modifier.size(30.dp))
+            Icon(Ios.flash, null, tint = Tints.Green, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -607,7 +638,7 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
             if (battery.level >= 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        if (battery.charging) Icons.Rounded.BatteryChargingFull else Icons.Rounded.BatteryFull, null,
+                        if (battery.charging) Ios.batteryCharging else Ios.batteryFull, null,
                         tint = when {
                             battery.charging -> Tints.Green
                             battery.level <= 15 -> Tints.Red
@@ -626,29 +657,29 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
             Modifier.fillMaxWidth().clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).padding(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RoundButton(Icons.Rounded.Remove, size = 38.dp) {
+            RoundButton(Ios.remove, size = 38.dp, iconScale = 0.44f) {
                 SettingsRepo.update { copy(timerMinutes = (timerMinutes - 1).coerceAtLeast(1)) }
             }
             Text(
                 "${s.timerMinutes} мин", color = Color.White, fontSize = 16.sp, style = Digits,
                 textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
             )
-            RoundButton(Icons.Rounded.Add, size = 38.dp) {
+            RoundButton(Ios.add, size = 38.dp, iconScale = 0.44f) {
                 SettingsRepo.update { copy(timerMinutes = (timerMinutes + 1).coerceAtMost(99)) }
             }
             Spacer(Modifier.width(8.dp))
-            PillButton(Icons.Rounded.PlayArrow, "Таймер", bg = Tints.Orange, fg = Color.Black) {
+            PillButton(Ios.play, "Таймер", bg = Tints.Orange, fg = Color.Black) {
                 Controls.startTimer(s.timerMinutes)
                 Controls.expand("timer")
             }
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton(Icons.Rounded.Timer, "Секундомер", Modifier.weight(1f)) {
+            PillButton(Ios.stopwatch, "Секундомер", Modifier.weight(1f)) {
                 Controls.startStopwatch()
                 Controls.expand("stopwatch")
             }
-            PillButton(Icons.Rounded.FlashlightOn, "Фонарик", Modifier.weight(1f).alpha(0.95f)) {
+            PillButton(Ios.flashlight, "Фонарик", Modifier.weight(1f).alpha(0.95f)) {
                 Controls.torchOn()
                 Controls.collapse()
             }

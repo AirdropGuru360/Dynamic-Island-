@@ -36,6 +36,20 @@ enum class TapAction(val title: String) {
 }
 
 @Serializable
+enum class SideSize(val title: String, val factor: Float) {
+    COMPACT("Компактно", 1.15f),
+    NORMAL("Обычно", 1.4f),
+    WIDE("Широко", 1.7f),
+}
+
+@Serializable
+enum class NoticeWidth(val title: String, val factor: Float) {
+    FULL("Во всю ширину", 1f),
+    MEDIUM("Средняя", 0.86f),
+    NARROW("Узкая", 0.74f),
+}
+
+@Serializable
 data class IslandSettings(
     val enabled: Boolean = true,
 
@@ -70,6 +84,13 @@ data class IslandSettings(
     val height: Int = 37,
     val offsetX: Int = 0,
     val offsetY: Int = 11,
+    /** Ширина выреза камеры: свободное место посередине, к которому прижимается содержимое */
+    val cameraGap: Int = 34,
+    /** Насколько капсула с активностью (музыка, таймер, зарядка) толще пустой */
+    val activeExtra: Int = 6,
+    /** Насколько боковые части свёрнутой капсулы могут выступать */
+    val sideSize: SideSize = SideSize.COMPACT,
+    val noticeWidth: NoticeWidth = NoticeWidth.FULL,
     // Нет в старых настройках → 1, тогда размеры переносятся на новые
     val layoutVersion: Int = 1,
 

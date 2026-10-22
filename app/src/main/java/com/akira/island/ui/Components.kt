@@ -25,7 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -285,6 +287,79 @@ fun GroupSlider(
                 inactiveTrackColor = Ui.IconBg,
             ),
         )
+    }
+}
+
+/** Строка с ползунком и кнопками ±1 по краям — для точной подгонки размеров. */
+@Composable
+fun GroupStepSlider(
+    pos: Pos,
+    icon: ImageVector,
+    title: String,
+    value: Int,
+    range: IntRange,
+    unit: String = "dp",
+    action: Pair<String, () -> Unit>? = null,
+    onChange: (Int) -> Unit,
+) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    fun tick() = view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(pos.shape())
+            .background(Ui.Card)
+            .padding(start = 20.dp, end = 14.dp, top = 16.dp, bottom = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(20.dp))
+            Text(title, color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            if (action != null) {
+                Text(
+                    action.first, color = Ui.Primary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clip(CircleShape).clickable { tick(); action.second() }.padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+            Box(Modifier.clip(CircleShape).background(Ui.IconBg).padding(horizontal = 10.dp, vertical = 4.dp)) {
+                Text("$value $unit", color = Ui.Text, fontSize = 14.sp)
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StepButton(Icons.Rounded.Remove) {
+                tick()
+                onChange((value - 1).coerceAtLeast(range.first))
+            }
+            Slider(
+                value = value.toFloat().coerceIn(range.first.toFloat(), range.last.toFloat()),
+                onValueChange = { v ->
+                    val next = Math.round(v)
+                    if (next != value) onChange(next)
+                },
+                valueRange = range.first.toFloat()..range.last.toFloat(),
+                colors = SliderDefaults.colors(
+                    thumbColor = Ui.Primary,
+                    activeTrackColor = Ui.Primary,
+                    inactiveTrackColor = Ui.IconBg,
+                ),
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            )
+            StepButton(Icons.Rounded.Add) {
+                tick()
+                onChange((value + 1).coerceAtMost(range.last))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepButton(icon: ImageVector, onClick: () -> Unit) {
+    Box(
+        Modifier.size(36.dp).clip(CircleShape).background(Ui.IconBg).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(18.dp))
     }
 }
 

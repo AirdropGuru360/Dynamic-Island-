@@ -15,7 +15,9 @@ import com.akira.island.core.IslandBus
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
+import com.akira.island.R
 import com.akira.island.data.SettingsRepo
+import com.akira.island.island.Ios
 
 /**
  * Уведомления приложений в острове, как баннеры на iPhone: сообщения из Telegram,
@@ -88,7 +90,7 @@ object Messages {
         IslandBus.post(
             Notice(
                 title = title.ifEmpty { appName },
-                icon = Icons.Rounded.Notifications,
+                icon = Ios.load(service, R.drawable.ios_chatbubble_ellipses),
                 tint = Tints.Blue,
                 style = NoticeStyle.MESSAGE,
                 message = message,

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ionicons (MIT), https://ionic.io/ionicons -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:pathData="M 368 192 H 192 v -80 a 64 64 0 1 1 128 0 16 16 0 0 0 32 0 96 96 0 1 0 -192 0 v 80 h -16 a 64.07 64.07 0 0 0 -64 64 v 176 a 64.07 64.07 0 0 0 64 64 h 224 a 64.07 64.07 0 0 0 64 -64 V 256 a 64.07 64.07 0 0 0 -64 -64 z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

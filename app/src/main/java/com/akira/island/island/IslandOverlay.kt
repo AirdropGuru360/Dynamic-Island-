@@ -1,7 +1,12 @@
 package com.akira.island.island
 
 import android.content.Context
+import android.os.Build
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
@@ -160,7 +165,7 @@ fun IslandOverlay(
     val lastSecondary = remember { arrayOfNulls<Act>(1) }
     if (secondary != null) lastSecondary[0] = secondary
     val bubbleVisible = secondary != null && !showExpanded
-    val slot by animateDpAsState(if (bubbleVisible) h + 6.dp else 0.dp, islandSpec(s), label = "slot")
+    val slot by animateDpAsState(if (bubbleVisible) activeHeight(s) + 6.dp else 0.dp, islandSpec(s), label = "slot")
 
     // Раскрытая активность пропала (музыку закрыли, таймер отменили) — сворачиваемся, а не показываем часы
     val focusGone = expanded && focus != null && focus != Act.Idle.id && acts.none { it.id == focus }
@@ -253,10 +258,11 @@ private fun IslandBody(
 
     val cornerTarget = when {
         expanded -> 44.dp
-        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 38.dp
+        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 36.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
         primary is Act.CallA && primary.c.incoming -> 42.dp
-        else -> h / 2
+        primary is Act.Idle -> h / 2
+        else -> activeHeight(s) / 2
     }
     val corner by animateDpAsState(cornerTarget, islandSpec(s), label = "corner")
     val shape = RoundedCornerShape(corner)
@@ -403,10 +409,23 @@ private fun IslandBody(
             },
             label = "island",
         ) { f ->
-            if (f.expanded) {
-                ExpandedContent(f.act, s, lyrics, battery, expandedWidth)
-            } else {
-                CompactContent(f.act, s, lyrics, expandedWidth)
+            // Содержимое «перетекает» с лёгким размытием, как в острове iPhone (Android 12+)
+            val blur by transition.animateFloat(
+                transitionSpec = { tween(260) },
+                label = "blur",
+            ) { state -> if (state == EnterExitState.Visible || s.reduceEffects) 0f else 9f }
+            Box(
+                Modifier.graphicsLayer {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blur > 0.3f) {
+                        renderEffect = BlurEffect(blur.dp.toPx(), blur.dp.toPx(), TileMode.Decal)
+                    }
+                },
+            ) {
+                if (f.expanded) {
+                    ExpandedContent(f.act, s, lyrics, battery, expandedWidth)
+                } else {
+                    CompactContent(f.act, s, lyrics, expandedWidth)
+                }
             }
         }
     }
@@ -452,7 +471,7 @@ private fun perform(context: Context, action: TapAction, act: Act) {
 /** Вторая активность — круглый пузырь справа от острова. */
 @Composable
 private fun Bubble(act: Act, s: IslandSettings) {
-    val h = s.height.dp
+    val h = activeHeight(s)
     val haptic = rememberHaptic()
     val now = rememberNow(500, active = act is Act.TimerA)
     Box(
@@ -470,7 +489,7 @@ private fun Bubble(act: Act, s: IslandSettings) {
     ) {
         val inner: Dp = h * 0.62f
         when (act) {
-            is Act.MediaA -> Art(act.m.art, h - 10.dp, h / 2)
+            is Act.MediaA -> Art(act.m.art, h * 0.72f, h / 2)
             is Act.TimerA -> {
                 ProgressRing(
                     progress = if (act.t.totalMs > 0) act.t.left(now).toFloat() / act.t.totalMs else 0f,
@@ -478,17 +497,17 @@ private fun Bubble(act: Act, s: IslandSettings) {
                     modifier = Modifier.size(inner),
                     stroke = 2.5.dp,
                 )
-                Icon(Icons.Rounded.HourglassBottom, null, tint = Tints.Orange, modifier = Modifier.size(inner * 0.55f))
+                Icon(Ios.timer, null, tint = Tints.Orange, modifier = Modifier.size(inner * 0.5f))
             }
-            is Act.StopwatchA -> Icon(Icons.Rounded.Timer, null, tint = Tints.Orange, modifier = Modifier.size(inner))
-            is Act.TorchA -> Icon(Icons.Rounded.FlashlightOn, null, tint = Tints.Yellow, modifier = Modifier.size(inner))
-            is Act.ChronoA -> AppIcon(act.c.icon, inner, Icons.Rounded.Timer, Tints.Green)
+            is Act.StopwatchA -> Icon(Ios.stopwatch, null, tint = Tints.Orange, modifier = Modifier.size(inner * 0.8f))
+            is Act.TorchA -> Icon(Ios.flashlight, null, tint = Tints.Yellow, modifier = Modifier.size(inner * 0.75f))
+            is Act.ChronoA -> AppIcon(act.c.icon, inner, Ios.timer, Tints.Orange)
             is Act.ProgressA -> {
                 ProgressRing(act.p.fraction, Tints.Blue, Modifier.size(inner), stroke = 2.5.dp)
-                Icon(Icons.Rounded.Downloading, null, tint = Tints.Blue, modifier = Modifier.size(inner * 0.55f))
+                Icon(Ios.download, null, tint = Tints.Blue, modifier = Modifier.size(inner * 0.5f))
             }
-            is Act.CallA -> Icon(Icons.Rounded.Call, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.8f))
-            is Act.ChargingA -> Icon(Icons.Rounded.BatteryChargingFull, null, tint = Tints.Green, modifier = Modifier.size(inner))
+            is Act.CallA -> Icon(Ios.call, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.7f))
+            is Act.ChargingA -> Icon(Ios.flash, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.7f))
             else -> Unit
         }
     }

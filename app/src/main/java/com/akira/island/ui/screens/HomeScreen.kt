@@ -55,7 +55,11 @@ import com.akira.island.service.NotificationParser
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Act
+import com.akira.island.R
 import com.akira.island.island.CompactContent
+import com.akira.island.island.Ios
+import com.akira.island.island.activeHeight
+import androidx.compose.animation.animateContentSize
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
 import com.akira.island.ui.Page
@@ -145,12 +149,13 @@ fun HomeScreen(open: (Screen) -> Unit) {
         SectionHeader("Проверка")
         Group {
             GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", onClick = {
-                IslandBus.post(Notice("Зарядка", "75%", Icons.Rounded.Bolt, Tints.Green, battery = 75))
+                IslandBus.post(Notice("Зарядка", "75%", Ios.load(context, R.drawable.ios_flash), Tints.Green, battery = 75))
             })
             GroupItem(Pos.Middle, Icons.Rounded.ChatBubble, "Сообщение", "Так покажется сообщение из мессенджера", onClick = {
                 IslandBus.post(
                     Notice(
-                        "Динамический остров", icon = Icons.Rounded.ChatBubble, tint = Tints.Blue, style = NoticeStyle.MESSAGE,
+                        "Динамический остров", icon = Ios.load(context, R.drawable.ios_chatbubble_ellipses), tint = Tints.Blue,
+                        style = NoticeStyle.MESSAGE,
                         durationMs = 4500,
                         message = AppMessage("test", context.packageName, "Остров", "Привет! Так выглядят уведомления в острове 💜",
                             null, NotificationParser.icon(context, context.packageName), null),
@@ -158,7 +163,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
                 )
             })
             GroupItem(Pos.Middle, Icons.Rounded.NotificationsOff, "Режим звука", "Капсула вздрагивает, колокольчик качается", onClick = {
-                IslandBus.post(Notice("", "Без звука", Icons.Rounded.NotificationsOff, Tints.Red, style = NoticeStyle.PILL))
+                IslandBus.post(Notice("", "Без звука", Ios.load(context, R.drawable.ios_notifications_off), Tints.Red, style = NoticeStyle.PILL))
             })
             GroupItem(Pos.Middle, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
                 Controls.startTimer(1)
@@ -187,7 +192,7 @@ fun Arrow() {
     Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Ui.Sub)
 }
 
-/** Живой пример капсулы с текущими настройками цвета, контура и размера. */
+/** Живой пример капсулы с текущими настройками: толщина, боковые части, цвет и контур. */
 @Composable
 fun IslandPreview(expanded: Boolean = false) {
     val s by SettingsRepo.state.collectAsState()
@@ -201,20 +206,22 @@ fun IslandPreview(expanded: Boolean = false) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(150.dp)
+            .height(140.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(Brush.verticalGradient(listOf(Color(0xFF3B3860), Color(0xFF1F1E27)))),
         contentAlignment = Alignment.TopCenter,
     ) {
-        val shape = RoundedCornerShape(s.height.dp / 2)
+        val act = if (expanded) Act.Idle else Act.MediaA(demo)
+        val shape = RoundedCornerShape((if (expanded) s.height.dp else activeHeight(s)) / 2)
         Box(
             Modifier
                 .padding(top = 18.dp)
                 .clip(shape)
                 .background(Color(s.color))
-                .then(if (s.outline) Modifier.border(s.outlineWidth.dp, if (s.outlineFromArt) Tints.Lavender else Color(s.outlineColor), shape) else Modifier),
+                .then(if (s.outline) Modifier.border(s.outlineWidth.dp, if (s.outlineFromArt) Tints.Lavender else Color(s.outlineColor), shape) else Modifier)
+                .animateContentSize(),
         ) {
-            CompactContent(if (expanded) Act.Idle else Act.MediaA(demo), s, null, 400.dp)
+            CompactContent(act, s, null, 400.dp)
         }
     }
 }

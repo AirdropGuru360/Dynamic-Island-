@@ -15,6 +15,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -201,7 +205,7 @@ fun Art(art: ImageBitmap?, size: Dp, corner: Dp, modifier: Modifier = Modifier) 
         if (art != null) {
             Image(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
-            Icon(Icons.Rounded.MusicNote, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(size * 0.6f))
+            Icon(Ios.music, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(size * 0.5f))
         }
     }
 }
@@ -223,18 +227,27 @@ fun RoundButton(
     bg: Color = Color.White.copy(alpha = 0.14f),
     fg: Color = Color.White,
     iconScale: Float = 0.52f,
+    iconRotation: Float = 0f,
     onClick: () -> Unit,
 ) {
     val haptic = rememberHaptic()
+    // Кнопка чуть проседает под пальцем, как на iPhone
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.5f, stiffness = 600f), label = "press")
     Box(
         modifier
             .size(size)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(CircleShape)
             .background(bg)
-            .clickable { haptic(); onClick() },
+            .clickable(interaction, indication = null) { haptic(); onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, null, tint = fg, modifier = Modifier.size(size * iconScale))
+        Icon(icon, null, tint = fg, modifier = Modifier.size(size * iconScale).graphicsLayer { rotationZ = iconRotation })
     }
 }
 
