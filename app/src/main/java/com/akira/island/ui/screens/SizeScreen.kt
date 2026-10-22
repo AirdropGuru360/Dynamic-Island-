@@ -146,7 +146,7 @@ fun SizeScreen(onBack: () -> Unit) {
             Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
             Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CircleIcon(Icons.AutoMirrored.Rounded.ArrowBack, cancel)
+                CircleIcon(Icons.AutoMirrored.Rounded.ArrowBack, onClick = cancel)
                 Spacer(Modifier.width(18.dp))
                 Text("Размер и положение", color = Ui.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 CircleIcon(Icons.Rounded.Restore, bg = Color.Transparent) {
