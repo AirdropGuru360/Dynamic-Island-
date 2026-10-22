@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -17,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.IntSize
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.data.IslandSettings
@@ -43,8 +46,18 @@ class IslandService : AccessibilityService() {
     private var torch: TorchController? = null
     private var alarm: TimerAlarm? = null
 
+    private val handler = Handler(Looper.getMainLooper())
+    private var contentWidth = 0
+    private var contentHeight = 0
+    /** Большое окно на время анимации; в покое окно размером ровно с остров. */
+    private var full = true
+    private val shrink = Runnable {
+        full = false
+        resizeWindow()
+    }
+
     private val params = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -87,14 +100,17 @@ class IslandService : AccessibilityService() {
         val compose = ComposeView(this).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                MaterialTheme(colorScheme = darkColorScheme()) { IslandOverlay() }
+                MaterialTheme(colorScheme = darkColorScheme()) {
+                    IslandOverlay(onTransition = ::onTransition, onContentSize = ::onContentSize)
+                }
             }
         }
-        val view = OverlayRoot(this) {
+        val view = OverlayRoot(this, ::isOnIsland) {
             // Касание мимо раскрытого острова сворачивает его
             if (IslandBus.expanded.value) Controls.collapse()
         }
         view.addView(compose)
+        params.height = fullHeight()
         owner.create()
         owner.attach(view)
         runCatching { wm?.addView(view, params) }.onSuccess { root = view }
@@ -108,6 +124,50 @@ class IslandService : AccessibilityService() {
         params.x = dp(s.offsetX)
         params.y = dp(s.offsetY - ISLAND_PAD_DP)
         runCatching { wm?.updateViewLayout(view, params) }
+    }
+
+    private fun onTransition() {
+        if (!full) {
+            full = true
+            resizeWindow()
+        }
+        scheduleShrink()
+    }
+
+    private fun onContentSize(size: IntSize) {
+        contentWidth = size.width
+        contentHeight = size.height
+        if (!full && (size.width > params.width || size.height > params.height)) {
+            full = true
+            resizeWindow()
+        }
+        scheduleShrink()
+    }
+
+    private fun scheduleShrink() {
+        handler.removeCallbacks(shrink)
+        handler.postDelayed(shrink, SETTLE_MS)
+    }
+
+    /**
+     * Менять размер окна на каждом кадре нельзя: система применяет его с опозданием,
+     * и остров дёргается. Поэтому окно только переключается между «большим» и «по острову».
+     */
+    private fun resizeWindow() {
+        val view = root ?: return
+        val w = if (full) WindowManager.LayoutParams.MATCH_PARENT else contentWidth.coerceAtLeast(1)
+        val h = if (full) fullHeight() else contentHeight.coerceAtLeast(1)
+        if (params.width == w && params.height == h) return
+        params.width = w
+        params.height = h
+        runCatching { wm?.updateViewLayout(view, params) }
+    }
+
+    private fun fullHeight() = dp(480)
+
+    private fun isOnIsland(view: View, x: Float, y: Float): Boolean {
+        val left = (view.width - contentWidth) / 2f
+        return x >= left && x <= left + contentWidth && y <= contentHeight
     }
 
     private fun dp(v: Int): Int =
@@ -129,6 +189,7 @@ class IslandService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(shrink)
         IslandBus.serviceRunning.value = false
         events?.stop()
         torch?.stop()
@@ -143,12 +204,21 @@ class IslandService : AccessibilityService() {
 
 /** Корневой вид окна: ловит касания вне острова. */
 @SuppressLint("ViewConstructor")
-class OverlayRoot(context: Context, private val onOutside: () -> Unit) : FrameLayout(context) {
+class OverlayRoot(
+    context: Context,
+    private val isOnIsland: (View, Float, Float) -> Boolean,
+    private val onOutside: () -> Unit,
+) : FrameLayout(context) {
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.actionMasked == MotionEvent.ACTION_OUTSIDE) {
+        val outside = ev.actionMasked == MotionEvent.ACTION_OUTSIDE ||
+            (ev.actionMasked == MotionEvent.ACTION_DOWN && !isOnIsland(this, ev.x, ev.y))
+        if (outside) {
             onOutside()
             return true
         }
         return super.dispatchTouchEvent(ev)
     }
 }
+
+/** Сколько ждать после последнего изменения формы, прежде чем ужать окно до острова. */
+private const val SETTLE_MS = 700L

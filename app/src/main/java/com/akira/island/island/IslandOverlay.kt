@@ -21,6 +21,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +56,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.akira.island.core.BatteryInfo
 import com.akira.island.core.Controls
@@ -73,7 +78,10 @@ const val ISLAND_PAD_DP = 12
 private data class Frame(val act: Act, val expanded: Boolean)
 
 @Composable
-fun IslandOverlay() {
+fun IslandOverlay(
+    onTransition: () -> Unit = {},
+    onContentSize: (IntSize) -> Unit = {},
+) {
     val s by SettingsRepo.state.collectAsState()
     val media by IslandBus.media.collectAsState()
     val lyrics by IslandBus.lyrics.collectAsState()
@@ -123,16 +131,52 @@ fun IslandOverlay() {
     val bubbleVisible = secondary != null && !showExpanded
     val slot by animateDpAsState(if (bubbleVisible) h + 6.dp else 0.dp, islandSpec(s), label = "slot")
 
-    if (s.hideIdle && primary is Act.Idle && !showExpanded) {
-        Box(Modifier.size(1.dp))
+    val hidden = s.hideIdle && primary is Act.Idle && !showExpanded
+
+    // Перед сменой формы просим окно стать большим, чтобы анимация шла внутри неподвижного окна
+    val transitionKey = "${primary.id}|$showExpanded|${secondary?.id}|$hidden"
+    val lastKey = remember { arrayOfNulls<String>(1) }
+    SideEffect {
+        if (lastKey[0] != transitionKey) {
+            lastKey[0] = transitionKey
+            onTransition()
+        }
+    }
+
+    if (hidden) {
+        Box(Modifier.size(1.dp).onSizeChanged(onContentSize))
         return
     }
 
-    Row(Modifier.padding(ISLAND_PAD_DP.dp), verticalAlignment = Alignment.Top) {
+    // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], onContentSize)
+    }
+}
+
+@Composable
+private fun IslandRow(
+    slot: Dp,
+    s: IslandSettings,
+    primary: Act,
+    showExpanded: Boolean,
+    lyrics: Lyrics?,
+    battery: BatteryInfo,
+    bubbleVisible: Boolean,
+    bubbleAct: Act?,
+    onContentSize: (IntSize) -> Unit,
+) {
+    Row(
+        Modifier
+            .wrapContentSize(Alignment.TopCenter, unbounded = true)
+            .onSizeChanged(onContentSize)
+            .padding(ISLAND_PAD_DP.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
         // Пустое место слева уравновешивает пузырь, чтобы остров стоял над камерой
         Spacer(Modifier.width(slot))
         IslandBody(primary, showExpanded, s, lyrics, battery)
-        BubbleSlot(slot, bubbleVisible, lastSecondary[0], s)
+        BubbleSlot(slot, bubbleVisible, bubbleAct, s)
     }
 }
 
