@@ -28,6 +28,18 @@ object Perms {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
+    /** Звонки: состояние вызова обязательно, остальное — номер, имя и ответ кнопкой. */
+    val CALL_PERMISSIONS = buildList {
+        add(Manifest.permission.READ_PHONE_STATE)
+        add(Manifest.permission.READ_CALL_LOG)
+        add(Manifest.permission.READ_CONTACTS)
+        add(Manifest.permission.ANSWER_PHONE_CALLS)
+    }.toTypedArray()
+
+    fun calls(context: Context): Boolean = CALL_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+    }
+
     fun openAccessibility(context: Context) = start(context, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 
     fun openNotifications(context: Context) {

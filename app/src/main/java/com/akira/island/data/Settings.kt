@@ -64,11 +64,13 @@ data class IslandSettings(
     val evUsbOff: Boolean = true,
     val evUnlock: Boolean = false,
 
-    // Размер и положение, dp
-    val width: Int = 96,
-    val height: Int = 34,
+    // Размер и положение, dp — как у iPhone: капсула 126×37, отступ сверху 11
+    val width: Int = 126,
+    val height: Int = 37,
     val offsetX: Int = 0,
-    val offsetY: Int = 8,
+    val offsetY: Int = 11,
+    // Нет в старых настройках → 1, тогда размеры переносятся на новые
+    val layoutVersion: Int = 1,
 
     // Цвета
     val color: Long = 0xFF000000,
@@ -123,6 +125,18 @@ object SettingsRepo {
         prefs = p
         p.getString(KEY, null)?.let { raw ->
             runCatching { json.decodeFromString<IslandSettings>(raw) }.onSuccess { _state.value = it }
+        }
+        // 1.1 и раньше: размеры по умолчанию были меньше, чем у iPhone — переносим, если их не трогали
+        val cur = _state.value
+        if (cur.layoutVersion < 2) {
+            update {
+                copy(
+                    width = if (width == 96) 126 else width,
+                    height = if (height == 34) 37 else height,
+                    offsetY = if (offsetY == 8) 11 else offsetY,
+                    layoutVersion = 2,
+                )
+            }
         }
     }
 

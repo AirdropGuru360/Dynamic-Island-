@@ -27,6 +27,8 @@ object IslandBus {
 
     val media = MutableStateFlow<MediaInfo?>(null)
     val lyrics = MutableStateFlow<Lyrics?>(null)
+    /** Как идёт поиск текста для трека с ключом first */
+    val lyricsStatus = MutableStateFlow<Pair<String, LyricsStatus>?>(null)
     val progress = MutableStateFlow<Map<String, ProgressInfo>>(emptyMap())
     val chrono = MutableStateFlow<Map<String, ChronoInfo>>(emptyMap())
     val calls = MutableStateFlow<Map<String, CallInfo>>(emptyMap())

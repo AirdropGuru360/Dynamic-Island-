@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.HourglassBottom
@@ -74,7 +76,13 @@ fun HomeScreen(open: (Screen) -> Unit) {
     val a11y = remember(tick) { Perms.accessibility(context) }
     val notif = remember(tick) { Perms.notifications(context) }
     val bt = remember(tick) { Perms.bluetooth(context) }
+    val callsOk = remember(tick) { Perms.calls(context) }
     val btLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    val callLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        tick++
+        // Если система больше не показывает запрос — открываем настройки приложения
+        if (result.values.none { it } && !Perms.calls(context)) Perms.openAppDetails(context)
+    }
 
     Page("Динамический остров") {
         IslandPreview()
@@ -103,6 +111,11 @@ fun HomeScreen(open: (Screen) -> Unit) {
                 onClick = { Perms.openNotifications(context) },
             ) { Status(notif) }
             GroupItem(
+                Pos.Middle, Icons.Rounded.Call, "Звонки",
+                if (callsOk) "Входящий вызов, имя из контактов, ответ кнопкой" else "Чтобы остров показывал входящие звонки",
+                onClick = { if (callsOk) Perms.openAppDetails(context) else callLauncher.launch(Perms.CALL_PERMISSIONS) },
+            ) { Status(callsOk) }
+            GroupItem(
                 Pos.Last, Icons.Rounded.Bluetooth, "Bluetooth",
                 if (bt) "Имена наушников при подключении" else "Чтобы видеть подключение наушников",
                 onClick = {
@@ -127,10 +140,13 @@ fun HomeScreen(open: (Screen) -> Unit) {
         SectionHeader("Проверка")
         Group {
             GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", onClick = {
-                IslandBus.post(Notice("Остров", "Работает", Icons.Rounded.NotificationsActive, Tints.Purple))
+                IslandBus.post(Notice("Зарядка", "75%", Icons.Rounded.Bolt, Tints.Green, battery = 75))
             })
-            GroupItem(Pos.Last, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
                 Controls.startTimer(1)
+            })
+            GroupItem(Pos.Last, Icons.Rounded.Call, "Входящий звонок", "Пробный вызов: можно ответить и сбросить", onClick = {
+                Controls.showTestCall()
             })
         }
     }

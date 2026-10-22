@@ -17,6 +17,7 @@ import androidx.palette.graphics.Palette
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Lyrics
+import com.akira.island.core.LyricsStatus
 import com.akira.island.core.MediaInfo
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
@@ -46,6 +47,7 @@ class MediaMonitor(private val context: Context) {
     private var lyricsJob: Job? = null
     private var hideJob: Job? = null
     private var hiddenKey: String? = null
+    private var lyricsKey: String? = null
     private var pendingHideKey: String? = null
 
     private val sessionsListener = MediaSessionManager.OnActiveSessionsChangedListener { list ->
@@ -63,7 +65,7 @@ class MediaMonitor(private val context: Context) {
         scope.launch {
             SettingsRepo.state.map { it.lyricsEnabled }.distinctUntilChanged().collect { enabled ->
                 val m = IslandBus.media.value
-                if (enabled && m != null && IslandBus.lyrics.value?.key != m.key) loadLyrics(m)
+                if (m != null && (enabled && IslandBus.lyrics.value?.key != m.key || !enabled)) loadLyrics(m)
             }
         }
     }
@@ -168,7 +170,11 @@ class MediaMonitor(private val context: Context) {
             ?: meta.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
         if (!sameTrack || art !== lastArt) loadArt(key, art)
-        if (!sameTrack) loadLyrics(info)
+        // Текст ищем один раз на трек, а не после каждого скрытия карточки на паузе
+        if (key != lyricsKey) {
+            lyricsKey = key
+            loadLyrics(info)
+        }
     }
 
     private fun publish(info: MediaInfo?) {
@@ -197,11 +203,19 @@ class MediaMonitor(private val context: Context) {
     private fun loadLyrics(m: MediaInfo) {
         lyricsJob?.cancel()
         IslandBus.lyrics.value = null
-        if (!SettingsRepo.current.lyricsEnabled) return
+        if (!SettingsRepo.current.lyricsEnabled) {
+            IslandBus.lyricsStatus.value = null
+            return
+        }
+        IslandBus.lyricsStatus.value = m.key to LyricsStatus.LOADING
         lyricsJob = scope.launch {
-            val lines = LyricsRepo.find(m.title, m.artist, m.album, m.durationMs)
-            if (!lines.isNullOrEmpty() && IslandBus.media.value?.key == m.key) {
-                IslandBus.lyrics.value = Lyrics(m.key, lines)
+            val found = LyricsRepo.find(m.title, m.artist, m.album, m.durationMs)
+            if (lyricsKey != m.key) return@launch
+            if (found != null && found.lines.isNotEmpty()) {
+                IslandBus.lyrics.value = Lyrics(m.key, found.lines, found.synced)
+                IslandBus.lyricsStatus.value = m.key to LyricsStatus.FOUND
+            } else {
+                IslandBus.lyricsStatus.value = m.key to LyricsStatus.MISSING
             }
         }
     }

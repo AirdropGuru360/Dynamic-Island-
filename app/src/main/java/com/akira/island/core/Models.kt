@@ -30,7 +30,10 @@ data class MediaInfo(
 
 data class LyricLine(val timeMs: Long, val text: String)
 
-data class Lyrics(val key: String, val lines: List<LyricLine>) {
+enum class LyricsStatus { LOADING, MISSING, FOUND }
+
+/** [synced] = false — у трека нашёлся только обычный текст, строки разложены по его длине. */
+data class Lyrics(val key: String, val lines: List<LyricLine>, val synced: Boolean = true) {
     /** Индекс строки, которая поётся в момент [pos], или -1 до первой строки. */
     fun indexAt(pos: Long): Int {
         var lo = 0

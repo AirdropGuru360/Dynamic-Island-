@@ -55,6 +55,7 @@ class IslandService : AccessibilityService() {
     private var events: SystemEvents? = null
     private var torch: TorchController? = null
     private var alarm: TimerAlarm? = null
+    private var calls: CallMonitor? = null
 
     private var visible = true
     private var body = Rect.Zero
@@ -110,6 +111,7 @@ class IslandService : AccessibilityService() {
         events = SystemEvents(this).also { it.start() }
         torch = TorchController(this).also { it.start() }
         alarm = TimerAlarm(this, scope).also { it.start() }
+        calls = CallMonitor(this, scope).also { it.start() }
         IslandBus.serviceRunning.value = true
 
         scope.launch {
@@ -251,6 +253,7 @@ class IslandService : AccessibilityService() {
         events?.stop()
         torch?.stop()
         alarm?.stop()
+        calls?.stop()
         scope.cancel()
         touch?.let { runCatching { wm?.removeView(it) } }
         display?.let { runCatching { wm?.removeView(it) } }

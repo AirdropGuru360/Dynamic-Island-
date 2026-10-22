@@ -72,6 +72,7 @@ import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.data.TapAction
+import com.akira.island.service.CallMonitor
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -102,7 +103,20 @@ fun IslandOverlay(
     val expanded by IslandBus.expanded.collectAsState()
     val focus by IslandBus.focus.collectAsState()
 
-    val call = if (s.cardCall) calls.values.maxByOrNull { it.postTime } else null
+    val call = if (!s.cardCall) null else {
+        val tel = calls[CallMonitor.KEY]
+        val fromApp = calls.filterKeys { it != CallMonitor.KEY }.values.maxByOrNull { it.postTime }
+        when {
+            fromApp == null -> tel
+            tel == null -> fromApp
+            // У звонилки богаче карточка (имя, фото, кнопки), а состояние надёжнее у телефона
+            else -> fromApp.copy(
+                incoming = tel.incoming,
+                base = if (!tel.incoming && fromApp.incoming) tel.base else fromApp.base,
+                avatar = fromApp.avatar ?: tel.avatar,
+            )
+        }
+    }
     val acts = buildList {
         // Входящий звонок важнее всего, как на iPhone
         if (call != null && call.incoming) add(Act.CallA(call))
@@ -224,10 +238,17 @@ private fun IslandBody(
     val haptic = rememberHaptic()
     val scope = rememberCoroutineScope()
     val conf = LocalConfiguration.current
-    val expandedWidth = (conf.screenWidthDp.dp - 20.dp).coerceAtMost(440.dp)
+    // Раскрытый остров iPhone — 371 pt при ширине экрана 393 pt, то есть по 11 с каждой стороны
+    val expandedWidth = (conf.screenWidthDp.dp - 22.dp).coerceAtMost(460.dp)
     val h = s.height.dp
 
-    val corner by animateDpAsState(if (expanded) 38.dp else h / 2, islandSpec(s), label = "corner")
+    val cornerTarget = when {
+        expanded -> 44.dp
+        primary is Act.NoticeA && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
+        primary is Act.CallA && primary.c.incoming -> 42.dp
+        else -> h / 2
+    }
+    val corner by animateDpAsState(cornerTarget, islandSpec(s), label = "corner")
     val shape = RoundedCornerShape(corner)
     val accent = (primary as? Act.MediaA)?.m?.accent
     val outlineColor = if (s.outlineFromArt && accent != null) accent else Color(s.outlineColor)
@@ -372,7 +393,7 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
         is Act.Idle -> Controls.expand(act.id)
         is Act.TimerA -> if (act.t.ringing) Controls.cancelTimer() else perform(context, s.tapAction, act)
         is Act.CallA -> if (act.c.incoming) {
-            if (!Controls.send(context, act.c.open)) Controls.openApp(context, act.c.pkg)
+            Controls.openCall(context, act.c)
         } else {
             perform(context, s.tapAction, act)
         }

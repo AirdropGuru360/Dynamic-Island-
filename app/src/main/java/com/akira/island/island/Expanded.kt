@@ -56,6 +56,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,7 +80,9 @@ import com.akira.island.core.BatteryInfo
 import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.Controls
+import com.akira.island.core.IslandBus
 import com.akira.island.core.Lyrics
+import com.akira.island.core.LyricsStatus
 import com.akira.island.core.MediaInfo
 import com.akira.island.core.ProgressInfo
 import com.akira.island.core.StopwatchState
@@ -97,7 +100,7 @@ private val Dim = Color.White.copy(alpha = 0.55f)
 
 @Composable
 fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: BatteryInfo, width: Dp) {
-    Box(Modifier.width(width).padding(horizontal = 20.dp, vertical = 18.dp)) {
+    Box(Modifier.width(width).padding(horizontal = 22.dp, vertical = 20.dp)) {
         when (act) {
             is Act.MediaA -> MediaExpanded(act.m, s, lyrics)
             is Act.TimerA -> TimerExpanded(act.t)
@@ -119,10 +122,10 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
     val pos = m.positionAt(now)
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Art(m.art, 54.dp, 13.dp, Modifier.clickable { Controls.openApp(context, m.pkg) })
-            Spacer(Modifier.width(13.dp))
+            Art(m.art, 56.dp, 13.dp, Modifier.clickable { Controls.openApp(context, m.pkg) })
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(m.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                Text(m.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE))
                 if (m.artist.isNotBlank()) {
                     Text(m.artist, color = Dim, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -133,9 +136,17 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
         }
 
         val lines = lyrics?.takeIf { it.key == m.key && s.lyricsEnabled && it.lines.isNotEmpty() }
+        val status by IslandBus.lyricsStatus.collectAsState()
         if (lines != null) {
             Spacer(Modifier.height(12.dp))
             LyricsBlock(lines, pos, m.accent)
+        } else if (s.lyricsEnabled && status?.first == m.key) {
+            // Видно, что текст ищется или его нет — а не что функция сломалась
+            Spacer(Modifier.height(10.dp))
+            Text(
+                if (status?.second == LyricsStatus.LOADING) "Ищу текст песни…" else "Текст песни не найден",
+                color = Color.White.copy(alpha = 0.35f), fontSize = 13.sp,
+            )
         }
 
         // Время по краям полосы, как на iPhone
@@ -184,15 +195,13 @@ private fun CallExpanded(c: CallInfo) {
             }
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).clickable { if (!Controls.send(context, c.open)) Controls.openApp(context, c.pkg) }) {
+        Column(Modifier.weight(1f).clickable { Controls.openCall(context, c) }) {
             Text(c.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
             Text(formatDuration(now - c.base), color = Tints.Green, fontSize = 15.sp, style = Digits)
         }
-        if (c.hangUp != null) {
-            RoundButton(Icons.Rounded.CallEnd, size = 48.dp, bg = Tints.Red, iconScale = 0.5f) {
-                Controls.send(context, c.hangUp)
-            }
+        RoundButton(Icons.Rounded.CallEnd, size = 48.dp, bg = Tints.Red, iconScale = 0.5f) {
+            Controls.endCall(context, c)
         }
     }
 }

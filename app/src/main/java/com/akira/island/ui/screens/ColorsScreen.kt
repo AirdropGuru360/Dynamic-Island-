@@ -64,7 +64,7 @@ fun ColorsScreen(onBack: () -> Unit) {
                 SettingsRepo.update { copy(outline = v) }
             }
             GroupToggle(Pos.Middle, Icons.Rounded.Image, "Цвет из обложки", "Пока играет музыка, контур окрашивается в цвет обложки",
-                s.outlineFromArt) { v -> SettingsRepo.update { copy(outlineFromArt = v) } }
+                s.outlineFromArt) { v -> SettingsRepo.update { copy(outlineFromArt = v, outline = outline || v) } }
             GroupSlider(Pos.Last, Icons.Rounded.LineWeight, "Толщина", s.outlineWidth, 0.5f..4f, "%.1f dp".format(s.outlineWidth)) { v ->
                 SettingsRepo.update { copy(outlineWidth = (v * 2).toInt() / 2f) }
             }
