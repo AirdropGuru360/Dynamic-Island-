@@ -20,7 +20,12 @@ import com.akira.island.core.Tints
 import com.akira.island.core.Turn
 import com.akira.island.island.Ios
 import com.akira.island.island.liveTint
+import android.os.SystemClock
+import com.akira.island.core.IslandBus
+import com.akira.island.data.SettingsRepo
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Разбор постоянных уведомлений навигаторов, такси и доставки. Кроме обычных полей берётся то, что
@@ -74,6 +79,29 @@ object LiveParser {
             eta = findEta(all),
             turn = turn,
         )
+    }
+
+    private val lastBanner = HashMap<String, Long>()
+
+    /** Показать широкую плашку, но не чаще раза в минуту для одного приложения. */
+    fun postBanner(context: Context, l: LiveInfo) {
+        if (!SettingsRepo.current.cardLive) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - (lastBanner[l.pkg] ?: -120_000L) < 60_000) return
+        lastBanner[l.pkg] = now
+        IslandBus.post(banner(context, l))
+    }
+
+    /**
+     * Новая активность из уведомления: плашку показываем через полторы секунды — за это время остров
+     * успевает прочитать экран навигатора, и на плашке уже есть расстояние и стрелка.
+     */
+    fun postBannerLater(context: Context, key: String) {
+        IslandBus.scope.launch {
+            delay(1600)
+            val l = IslandBus.live.value[key] ?: return@launch
+            postBanner(context, NavScreen.merge(l, NavScreen.data.value[l.pkg]))
+        }
     }
 
     /** Широкая плашка при запуске: iPhone показывает новую «живую активность» развёрнутой, потом сворачивает. */
@@ -172,5 +200,19 @@ object LiveDebug {
             append("кнопки: " + (n.actions?.joinToString { it.title?.toString().orEmpty() } ?: "—"))
         }
         dumps.value = dumps.value + (sbn.key to body)
+    }
+
+    /** Подписи экрана навигатора — чтобы было видно, откуда остров берёт расстояние. */
+    fun recordScreen(context: Context, pkg: String, items: List<ScreenItem>) {
+        val body = buildString {
+            appendLine("Экран: " + NotificationParser.appLabel(context, pkg) + " (" + pkg + ")")
+            val r = NavScreenParser.parse(items)
+            appendLine("нашлось: расстояние ${r.distance ?: "—"}, улица ${r.street ?: "—"}, прибытие ${r.eta ?: "—"}, поворот ${r.turn ?: "по картинке"}")
+            items.filter { it.text.isNotEmpty() }.sortedWith(compareBy({ it.top }, { it.left })).take(40).forEach {
+                appendLine("  «${it.text}» ${it.left},${it.top}–${it.right},${it.bottom}")
+            }
+        }.trimEnd()
+        val key = "screen:$pkg"
+        if (dumps.value[key] != body) dumps.value = dumps.value + (key to body)
     }
 }

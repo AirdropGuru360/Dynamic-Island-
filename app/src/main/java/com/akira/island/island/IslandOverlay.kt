@@ -81,6 +81,7 @@ import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.data.TapAction
 import com.akira.island.service.CallMonitor
+import com.akira.island.service.NavScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -125,7 +126,11 @@ fun IslandOverlay(
             delay(1000)
         }
     }
+    // Навигатор, у которого в уведомлении пусто, дополняется тем, что видно на его экране
+    val screenNav by NavScreen.data.collectAsState()
     val liveActive = live.values.filter { it.expiresAt == 0L || wallNow < it.expiresAt }
+        .map { NavScreen.merge(it, screenNav[it.pkg]) }
+        .let { list -> list + screenNav.values.filter { sn -> sn.distance != null && list.none { it.pkg == sn.pkg } }.map(NavScreen::synthetic) }
 
     val call = if (!s.cardCall) null else {
         val tel = calls[CallMonitor.KEY]

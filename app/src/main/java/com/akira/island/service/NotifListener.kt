@@ -100,7 +100,7 @@ object NotificationParser {
         }
         // Новая «живая активность» сначала показывается широкой плашкой, потом сворачивается в капсулу
         if (live != null && !liveWasKnown && !initial && SettingsRepo.current.cardLive) {
-            IslandBus.post(LiveParser.banner(context, live))
+            LiveParser.postBannerLater(context, sbn.key)
         }
         // Навигатор и такси показываются своей карточкой, а не полоской прогресса или таймером
         if (live != null) {

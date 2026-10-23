@@ -64,6 +64,7 @@ class IslandService : AccessibilityService() {
     private var torch: TorchController? = null
     private var alarm: TimerAlarm? = null
     private var calls: CallMonitor? = null
+    private var navReader: NavScreenReader? = null
 
     private var tiltOn = false
     private var tiltSmooth = 0f
@@ -132,6 +133,7 @@ class IslandService : AccessibilityService() {
         torch = TorchController(this).also { it.start() }
         alarm = TimerAlarm(this, scope).also { it.start() }
         calls = CallMonitor(this, scope).also { it.start() }
+        navReader = NavScreenReader(this, scope)
         IslandBus.serviceRunning.value = true
 
         // Пока вводят ответ на уведомление, окну нужен фокус, иначе клавиатура не покажется
@@ -298,6 +300,8 @@ class IslandService : AccessibilityService() {
         if (pkg == packageName && !cls.endsWith("Activity")) return
         // Открыли банк или кошелёк из другого приложения — подсказка оплаты
         if (IslandBus.foregroundPackage.value != pkg && pkg != packageName) PayMonitor.onAppOpened(this, pkg)
+        // Открыт навигатор — читаем с его экрана расстояние и манёвр, ушли из него — перестаём
+        navReader?.onForeground(pkg)
         IslandBus.foregroundPackage.value = pkg
     }
 
@@ -316,6 +320,7 @@ class IslandService : AccessibilityService() {
         torch?.stop()
         alarm?.stop()
         calls?.stop()
+        navReader?.stop()
         scope.cancel()
         touch?.let { runCatching { wm?.removeView(it) } }
         display?.let { runCatching { wm?.removeView(it) } }
