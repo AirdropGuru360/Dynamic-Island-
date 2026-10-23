@@ -15,6 +15,10 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - If a reply fails to send, you see "Не удалось отправить ответ" ("Couldn't send the reply") and the field keeps your text.
 - Your own reply no longer comes back to the island as a new banner when the messenger adds it to the notification.
 
+### 🔕 System banners
+- A new **General → System banners** screen («Общие → Системные плашки»): the dialer, Clock, System UI (battery) and Android System (USB charging) — a tap opens their notification settings, right on the needed channel if the island has already seen it. Turn off "Pop on screen" there: the notification stays in the shade, and only the island shows the event on screen. Messenger notifications aren't affected.
+- With the system banner off, **the island turns the screen on**: for an incoming call, a Clock alarm or timer and its own timer. While it rings the screen stays on; if you turn it off with the power button, the island won't wake the phone again until the next alert.
+
 ### 🔒 Lock screen
 - On a locked phone the island behaves like the notification shade: no "Reply" or "Mark as read" buttons, and if the system hides notification content — only the app name and "Содержимое скрыто" ("Content hidden"). "Secret" notifications aren't shown there at all. The reply field closes when the screen turns off.
 

@@ -7,7 +7,7 @@ import android.view.WindowManager
 
 /**
  * Прозрачный экран без содержимого: включает дисплей, когда звонит таймер острова, и сразу закрывается.
- * Запасной способ — обычно экран включает само окно острова (см. IslandService.setAlarmScreen).
+ * Запасной способ (см. ScreenWaker) — обычно экран включает само окно острова.
  */
 class WakeActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {

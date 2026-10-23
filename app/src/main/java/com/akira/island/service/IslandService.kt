@@ -75,6 +75,10 @@ class IslandService : AccessibilityService() {
 
     /** Клавиатура уже появлялась, пока открыт ввод ответа: когда её спрячут, ввод закрывается */
     private var keyboardSeen = false
+    /** Звонит таймер или идёт входящий вызов; [wakeBlocked] — экран выключили кнопкой, пока звонило */
+    private var alerting = false
+    private var wakeBlocked = false
+    private var lastScreenOn = true
     private var replySince = 0L
     private var imePackages: Set<String> = emptySet()
     private var imeCheckedAt = 0L
@@ -157,9 +161,11 @@ class IslandService : AccessibilityService() {
                 setInputFocus(it != null)
             }
         }
-        // Таймер звонит: окно острова включает экран и не даёт ему погаснуть, пока звонок не выключат
+        // Звонит таймер, будильник «Часов» или входящий вызов: экран включается и не гаснет, пока звонит
         scope.launch {
-            IslandBus.timer.map { it?.ringing == true }.distinctUntilChanged().collect { setAlarmScreen(it) }
+            combine(IslandBus.timer, IslandBus.calls, IslandBus.ringingAlarms, IslandBus.screenOn) { t, calls, alarms, on ->
+                (t?.ringing == true || calls.values.any { it.incoming } || alarms.isNotEmpty()) to on
+            }.distinctUntilChanged().collect { (alert, on) -> onAlert(alert, on) }
         }
         // Телефон заблокировали — отвечать с экрана блокировки нельзя
         scope.launch { IslandBus.locked.collect { if (it) IslandBus.reply.value = null } }
@@ -342,14 +348,32 @@ class IslandService : AccessibilityService() {
     }
 
     /**
+     * Звонит таймер или идёт входящий вызов — экран включается и не гаснет. Если его выключили кнопкой
+     * питания, пока звонит, остров больше не включает его до следующего звонка.
+     */
+    private fun onAlert(alert: Boolean, screenOn: Boolean) {
+        if (!alert) {
+            wakeBlocked = false
+        } else if (alerting && lastScreenOn && !screenOn) {
+            wakeBlocked = true
+        }
+        if (alert && !alerting && !screenOn) ScreenWaker.wake(this, scope) { alerting && !wakeBlocked }
+        alerting = alert
+        lastScreenOn = screenOn
+        setAlarmScreen(keepOn = alert, turnOn = alert && !wakeBlocked)
+    }
+
+    /**
      * Флаг «включить экран» у окна без Activity система выполняет при каждой его перекладке, если экран
-     * погашен, — так остров будит телефон сам. «Не гасить экран» держит его включённым, пока таймер звонит.
+     * погашен, — так остров будит телефон сам. «Не гасить экран» держит его включённым, пока звонит.
      */
     @Suppress("DEPRECATION")
-    private fun setAlarmScreen(on: Boolean) {
+    private fun setAlarmScreen(keepOn: Boolean, turnOn: Boolean) {
         val view = display ?: return
         val mask = WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        val flags = if (on) displayParams.flags or mask else displayParams.flags and mask.inv()
+        var flags = displayParams.flags and mask.inv()
+        if (keepOn) flags = flags or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        if (turnOn) flags = flags or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         if (flags == displayParams.flags) return
         displayParams.flags = flags
         runCatching { wm?.updateViewLayout(view, displayParams) }

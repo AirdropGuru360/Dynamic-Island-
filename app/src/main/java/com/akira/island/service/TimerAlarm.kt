@@ -10,7 +10,6 @@ import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
-import android.os.PowerManager
 import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -110,7 +109,6 @@ class TimerAlarm(private val context: Context, private val scope: CoroutineScope
 
     private fun startRinging() {
         if (ringtone != null || vibrating) return
-        wakeScreen()
         val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         ringtone = runCatching {
@@ -131,32 +129,6 @@ class TimerAlarm(private val context: Context, private val scope: CoroutineScope
         autoStopJob = scope.launch {
             delay(60_000)
             if (IslandBus.timer.value?.ringing == true) IslandBus.timer.value = null
-        }
-    }
-
-    /**
-     * Экран погашен — включаем, чтобы было видно звонящий таймер. Главный способ — флаг окна острова
-     * (IslandService.setAlarmScreen); здесь запасные: будильник экрана у системы, а если и он не сработал
-     * (прошивка не пускает), — прозрачный экран приложения поверх блокировки.
-     */
-    private fun wakeScreen() {
-        val power = context.getSystemService(PowerManager::class.java) ?: return
-        if (power.isInteractive) return
-        runCatching {
-            @Suppress("DEPRECATION")
-            power.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP, "DynamicIsland:timer")
-                .acquire(3_000)
-        }
-        scope.launch {
-            delay(800)
-            if (power.isInteractive || IslandBus.timer.value?.ringing != true) return@launch
-            runCatching {
-                context.startActivity(
-                    Intent(context, WakeActivity::class.java).addFlags(
-                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
-                    ),
-                )
-            }
         }
     }
 

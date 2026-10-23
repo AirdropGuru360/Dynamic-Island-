@@ -38,6 +38,7 @@ class NotifListener : NotificationListenerService() {
         IslandBus.chrono.value = emptyMap()
         IslandBus.calls.value = emptyMap()
         IslandBus.live.value = emptyMap()
+        IslandBus.ringingAlarms.value = emptySet()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -74,6 +75,14 @@ object NotificationParser {
         }
 
         val call = if (n.category == Notification.CATEGORY_CALL && !isMedia) parseCall(context, sbn, title) else null
+        // Какой канал присылает всплывающую плашку звонка или будильника — для экрана «Системные плашки»
+        SystemBanners.onPosted(sbn, incomingCall = call?.incoming == true)
+        // Звонящий будильник или таймер «Часов» — у него полноэкранный сигнал; остров включит экран сам,
+        // даже если всплывающие плашки «Часов» выключены
+        val ringing = n.category == Notification.CATEGORY_ALARM && n.fullScreenIntent != null
+        if (ringing != (sbn.key in IslandBus.ringingAlarms.value)) {
+            IslandBus.ringingAlarms.value = if (ringing) IslandBus.ringingAlarms.value + sbn.key else IslandBus.ringingAlarms.value - sbn.key
+        }
         IslandBus.calls.value = IslandBus.calls.value.toMutableMap().apply {
             if (call != null) put(sbn.key, call) else remove(sbn.key)
         }
@@ -172,6 +181,7 @@ object NotificationParser {
         if (key in IslandBus.progress.value) IslandBus.progress.value = IslandBus.progress.value - key
         if (key in IslandBus.chrono.value) IslandBus.chrono.value = IslandBus.chrono.value - key
         if (key in IslandBus.live.value) IslandBus.live.value = IslandBus.live.value - key
+        if (key in IslandBus.ringingAlarms.value) IslandBus.ringingAlarms.value = IslandBus.ringingAlarms.value - key
     }
 
     fun icon(context: Context, pkg: String): ImageBitmap? = icons.getOrPut(pkg) {

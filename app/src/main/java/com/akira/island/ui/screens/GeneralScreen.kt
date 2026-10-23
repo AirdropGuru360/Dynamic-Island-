@@ -3,6 +3,7 @@ package com.akira.island.ui.screens
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Schedule
@@ -55,6 +56,9 @@ fun GeneralScreen(open: (Screen) -> Unit) {
                 "Карточка музыки не показывается, пока открыт сам плеер", s.hideWhenPlayerOpen, color = Tile.Blue) { v ->
                 SettingsRepo.update { copy(hideWhenPlayerOpen = v) }
             }
+            GroupItem(Pos.Middle, Icons.Rounded.NotificationsOff, "Системные плашки",
+                "Чтобы звонок, таймер и батарею показывал только остров, без плашек Android",
+                onClick = { open(Screen.BANNERS) }, color = Tile.Red) { Arrow() }
             GroupSlider(
                 Pos.Last, Icons.Rounded.Schedule, "Показ событий",
                 value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = "%.1f с".format(s.noticeDurationMs / 1000f), color = Tile.Orange,
