@@ -182,8 +182,12 @@ fun WhatsNewDialog() {
 /** Список изменений: «### Раздел» — заголовок, «- пункт» — маркер, **жирное** выделяется. */
 @Composable
 fun ReleaseNotes(markdown: String, modifier: Modifier = Modifier) {
+    // В релизе описание на двух языках: приложение на русском, поэтому показываем русскую часть
+    val all = markdown.lines()
+    val ru = all.indexOfFirst { it.startsWith("## ") && "Русский" in it }
+    val lines = if (ru >= 0) all.drop(ru + 1) else all
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        markdown.lines().forEach { raw ->
+        lines.forEach { raw ->
             val line = raw.trimEnd()
             when {
                 line.isBlank() || line.startsWith("## ") || line.startsWith("# ") || line == "---" || line.startsWith("**Установка") -> Unit

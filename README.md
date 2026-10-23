@@ -1,3 +1,7 @@
+<p align="center">
+<a href="README.md"><img src="docs/lang/ru-on.svg" height="46" alt="Русский"></a>&nbsp;&nbsp;<a href="README.en.md"><img src="docs/lang/en-off.svg" height="46" alt="English"></a>
+</p>
+
 <div align="center">
 
 # 🏝️ Динамический остров для Android
@@ -132,7 +136,7 @@ Kotlin, Jetpack Compose, Material 3. Нужны JDK 17 и Android SDK 35.
 ./gradlew assembleRelease   # app/build/outputs/apk/release/app-release.apk
 ```
 
-Каждый push собирает APK в [GitHub Actions](https://github.com/Akira9021/Dynamic-Island-/actions). Чтобы выпустить новую версию, повысьте `versionName` и `versionCode` в `app/build.gradle.kts` и значок версии в начале README и добавьте раздел `## [x.y.z]` в [CHANGELOG.md](CHANGELOG.md) — после push в основную ветку релиз с APK и описанием создастся сам. Тег `v*` тоже работает.
+Каждый push собирает APK в [GitHub Actions](https://github.com/Akira9021/Dynamic-Island-/actions). Чтобы выпустить новую версию, повысьте `versionName` и `versionCode` в `app/build.gradle.kts` и значок версии в начале обоих README и добавьте раздел `## [x.y.z]` в [CHANGELOG.md](CHANGELOG.md) и [CHANGELOG.en.md](CHANGELOG.en.md) — после push в основную ветку релиз с APK и описанием на двух языках создастся сам. Тег `v*` тоже работает.
 
 | Файл | За что отвечает |
 | --- | --- |

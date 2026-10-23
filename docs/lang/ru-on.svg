@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210" height="56" viewBox="0 0 210 56" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <rect x="1.5" y="1.5" width="207" height="53" rx="26.5" fill="#C6C3F7" stroke="#C6C3F7" stroke-width="3"/>
+  <svg x="24" y="17" width="34" height="22" viewBox="0 0 60 36" preserveAspectRatio="none">
+    <clipPath id="f"><rect width="60" height="36" rx="5"/></clipPath>
+    <g clip-path="url(#f)">
+      <rect width="60" height="12" fill="#fff"/>
+      <rect y="12" width="60" height="12" fill="#0039A6"/>
+      <rect y="24" width="60" height="12" fill="#D52B1E"/>
+    </g>
+    <rect width="60" height="36" rx="5" fill="none" stroke="rgba(0,0,0,0.15)"/>
+  </svg>
+  <text x="72" y="35.5" font-size="21" font-weight="700" fill="#1C1B22">Русский</text>
+</svg>
