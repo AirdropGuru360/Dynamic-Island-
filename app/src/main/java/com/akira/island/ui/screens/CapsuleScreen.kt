@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import com.akira.island.data.Elasticity
 import com.akira.island.data.ExpandStyle
+import com.akira.island.core.IslandBus
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.ChoiceDialog
 import com.akira.island.ui.Group
@@ -57,6 +58,15 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
                 Pos.First, Icons.Rounded.LineWeight, "Толщина с активностью",
                 value = s.activeExtra.toFloat(), range = 0f..14f, label = "+${s.activeExtra} dp", steps = 13,
             ) { v -> SettingsRepo.update { copy(activeExtra = v.toInt()) } }
+            GroupSlider(
+                Pos.Middle, Icons.Rounded.SwapHoriz, "Ширина с активностью",
+                value = s.activeWidth.toFloat(), range = 0f..120f, steps = 23,
+                label = if (s.activeWidth == 0) "Как без неё" else "+${s.activeWidth} dp",
+            ) { v ->
+                // Пока двигают ползунок, на острове пример активности — сразу видно, не налезает ли он на значки
+                IslandBus.widthPreviewUntil.value = android.os.SystemClock.elapsedRealtime() + 2500
+                SettingsRepo.update { copy(activeWidth = (v / 5).toInt() * 5) }
+            }
             GroupToggle(
                 if (s.liquidGlass) Pos.Middle else Pos.Last, Icons.Rounded.WaterDrop, "Liquid Glass",
                 "Остров и карточки — полупрозрачное стекло с бликами и сияющей кромкой, как в iOS 26. Выключено по умолчанию",

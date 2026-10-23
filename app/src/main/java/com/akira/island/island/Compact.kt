@@ -76,6 +76,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -247,8 +251,9 @@ private fun GlowDot(color: Color, size: Dp, animate: Boolean) {
 
 /**
  * Левая и правая части свёрнутой капсулы, как на iPhone: значок у левого края, текст или время
- * у правого, посередине камера. Капсула шире пустой на свою высоту с каждой стороны, а если
- * содержимое длиннее — расширяется ровно настолько, чтобы не заходить на камеру.
+ * у правого, посередине камера. Капсула шире пустой на «Ширину с активностью»; если содержимое
+ * не помещается, оно чуть уменьшается, а если и так длиннее — капсула расширяется ровно настолько,
+ * чтобы не заходить на камеру.
  * Отступ от края равен отступу сверху — содержимое вписано в скругление, как требует Apple.
  */
 @Composable
@@ -259,21 +264,34 @@ fun CompactRow(
     left: @Composable BoxScope.() -> Unit,
     right: @Composable BoxScope.() -> Unit,
 ) {
-    val baseWidth = SettingsRepo.state.collectAsState().value.width.dp + h * 2f
-    Layout(
-        content = {
-            Box(contentAlignment = Alignment.Center, content = left)
-            Box(contentAlignment = Alignment.Center, content = right)
-        },
-    ) { measurables, _ ->
+    // Капсула с активностью шире спокойной на «Ширину с активностью»; длинный текст раздвинет её сам
+    val st = SettingsRepo.state.collectAsState().value
+    val baseWidth = st.width.dp + st.activeWidth.dp
+    val density = LocalDensity.current
+    SubcomposeLayout { _ ->
         val hPx = h.roundToPx()
         val pad = (h * 0.3f).roundToPx()
         val gapPx = gap.roundToPx()
         val loose = Constraints(maxWidth = side.roundToPx().coerceAtLeast(1), maxHeight = hPx)
-        val l = measurables[0].measure(loose)
-        val r = measurables[1].measure(loose)
+        var l = subcompose("l") { Box(contentAlignment = Alignment.Center, content = left) }.first().measure(loose)
+        var r = subcompose("r") { Box(contentAlignment = Alignment.Center, content = right) }.first().measure(loose)
+        val base = baseWidth.roundToPx()
+        val sideNeed = maxOf(l.width, r.width)
+        // В узкой капсуле содержимое сначала уменьшается (до 70%) — как будто нарисовано мельче, —
+        // и только если и так не помещается, капсулу раздвигает
+        val sideRoom = (base - gapPx) / 2 - pad
+        val k = if (sideNeed > sideRoom && sideRoom > 0) (sideRoom.toFloat() / sideNeed).coerceIn(0.7f, 1f) else 1f
+        if (k < 1f) {
+            val small = Density(density.density * k, density.fontScale)
+            l = subcompose("ls") {
+                CompositionLocalProvider(LocalDensity provides small) { Box(contentAlignment = Alignment.Center, content = left) }
+            }.first().measure(loose)
+            r = subcompose("rs") {
+                CompositionLocalProvider(LocalDensity provides small) { Box(contentAlignment = Alignment.Center, content = right) }
+            }.first().measure(loose)
+        }
         val needed = 2 * (pad + maxOf(l.width, r.width)) + gapPx
-        val w = maxOf(needed, baseWidth.roundToPx())
+        val w = maxOf(needed, base)
         layout(w, hPx) {
             l.place(pad, (hPx - l.height) / 2)
             r.place(w - pad - r.width, (hPx - r.height) / 2)

@@ -86,6 +86,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+/** Пример активности для подбора ширины: стрелка направо и «300 м». */
+private val WidthDemo = com.akira.island.core.LiveInfo(
+    key = "width-demo", pkg = "", kind = com.akira.island.core.LiveKind.NAV, title = "", text = "", sub = "",
+    icon = null, art = null, postTime = 0L, open = null, distance = "300 м", turn = com.akira.island.core.Turn.RIGHT,
+)
+
 /** Цвет острова на экране «Размер и положение»: его нужно спрятать под вырезом камеры. */
 val CalibrationRed = Color(0xFFFF6B6B)
 
@@ -172,8 +178,24 @@ fun IslandOverlay(
         addAll(persistent)
     }
 
+    // Пока двигают ползунок «Ширина с активностью», на острове пример: стрелка и метры
+    val previewUntil by IslandBus.widthPreviewUntil.collectAsState()
+    var previewNow by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(previewUntil) {
+        while (true) {
+            previewNow = android.os.SystemClock.elapsedRealtime()
+            if (previewNow >= previewUntil) break
+            delay(250)
+        }
+    }
+    val previewing = previewNow < previewUntil
+
     // Во время подгонки размера показываем только пустую красную капсулу
-    val primary = if (calibrating) Act.Idle else acts.firstOrNull() ?: Act.Idle
+    val primary = when {
+        calibrating -> Act.Idle
+        previewing -> Act.LiveA(WidthDemo)
+        else -> acts.firstOrNull() ?: Act.Idle
+    }
     val incoming = (primary as? Act.CallA)?.c?.incoming == true
     val secondary = if (primary.transient || incoming || calibrating) null else acts.drop(1).firstOrNull { !it.transient }
     val showExpanded = expanded && !primary.transient && !incoming && !calibrating

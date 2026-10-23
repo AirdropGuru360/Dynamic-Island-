@@ -41,6 +41,8 @@ object IslandBus {
     val reply = MutableStateFlow<ReplyState?>(null)
     /** Наклон телефона от -1 до 1: по нему сдвигаются блики Liquid Glass */
     val glassTilt = MutableStateFlow(0f)
+    /** До какого момента (elapsedRealtime) показывать пример активности — пока двигают ползунок ширины */
+    val widthPreviewUntil = MutableStateFlow(0L)
     /** Человек читает или отвечает — уведомление не убирается по таймеру */
     val noticeHold = MutableStateFlow(false)
     val battery = MutableStateFlow(BatteryInfo())
