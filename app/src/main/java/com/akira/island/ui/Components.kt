@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -231,6 +233,7 @@ fun ItemIcon(icon: ImageVector, color: Color?, size: Dp = 36.dp) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GroupItem(
     pos: Pos,
@@ -238,6 +241,7 @@ fun GroupItem(
     title: String,
     subtitle: String? = null,
     color: Color? = null,
+    badge: String? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -253,7 +257,12 @@ fun GroupItem(
         ItemIcon(icon, color)
         Spacer(Modifier.width(if (color != null) 16.dp else 22.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, lineHeight = 21.sp)
+            // Метка переносится на следующую строку целиком, а название не разрывается
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(title, color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, lineHeight = 21.sp,
+                    modifier = Modifier.align(Alignment.CenterVertically))
+                if (badge != null) Badge(badge, Modifier.align(Alignment.CenterVertically))
+            }
             if (subtitle != null) Text(subtitle, color = Ui.Sub, fontSize = 15.sp, lineHeight = 19.sp)
         }
         if (trailing != null) {
@@ -271,9 +280,35 @@ fun GroupToggle(
     subtitle: String?,
     checked: Boolean,
     color: Color? = null,
+    badge: String? = null,
     onChange: (Boolean) -> Unit,
 ) {
-    GroupItem(pos, icon, title, subtitle, color = color, onClick = { onChange(!checked) }) { IslandSwitch(checked, onChange) }
+    GroupItem(pos, icon, title, subtitle, color = color, badge = badge, onClick = { onChange(!checked) }) { IslandSwitch(checked, onChange) }
+}
+
+/** Маленькая метка рядом с названием, например «Эксперимент». */
+@Composable
+fun Badge(text: String, modifier: Modifier = Modifier, color: Color = Tile.Orange) {
+    Text(
+        text,
+        color = color,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = 14.sp,
+        maxLines = 1,
+        modifier = modifier.clip(CircleShape).background(color.copy(alpha = 0.16f)).padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+/** Круглая кнопка со значком в шапке страницы — в пару к кнопке «Назад», не отнимает место у заголовка. */
+@Composable
+fun IconAction(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(48.dp).clip(CircleShape).background(Ui.Card).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, description, tint = Ui.Text)
+    }
 }
 
 @Composable

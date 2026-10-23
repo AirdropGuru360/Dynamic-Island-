@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.HourglassEmpty
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.Reply
@@ -41,7 +42,7 @@ import com.akira.island.data.SettingsRepo
 import com.akira.island.data.TapAction
 import com.akira.island.ui.ChoiceDialog
 import com.akira.island.ui.Page
-import com.akira.island.ui.PillAction
+import com.akira.island.ui.IconAction
 import com.akira.island.ui.Tile
 import com.akira.island.ui.ToggleCard
 import com.akira.island.ui.Ui
@@ -53,7 +54,7 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
     var tapDialog by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-        Page("Динамические карточки", onBack, action = { PillAction("Инструкция", onInstruction) }) {
+        Page("Динамические карточки", onBack, action = { IconAction(Icons.Rounded.Lightbulb, "Инструкция", onInstruction) }) {
             ToggleCard(Icons.Outlined.PlayCircle, "Управление проигрывателем", "Когда воспроизведение активно и плеер свернут",
                 s.cardMedia, color = Tile.Pink) { v -> SettingsRepo.update { copy(cardMedia = v) } }
             ToggleCard(Icons.Rounded.FlashlightOn, "Управление вспышкой", "Когда включен фонарик",

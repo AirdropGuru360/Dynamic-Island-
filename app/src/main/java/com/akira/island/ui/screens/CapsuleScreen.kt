@@ -61,7 +61,7 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
             GroupToggle(
                 if (s.liquidGlass) Pos.Middle else Pos.Last, Icons.Rounded.WaterDrop, "Liquid Glass",
                 "Стекло с бликами и сияющей кромкой, как в iOS. Блики двигаются при наклоне",
-                s.liquidGlass, color = Tile.Teal,
+                s.liquidGlass, color = Tile.Teal, badge = "Эксперимент",
             ) { v -> SettingsRepo.update { copy(liquidGlass = v) } }
             if (s.liquidGlass) {
                 GroupSlider(
