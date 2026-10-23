@@ -12,12 +12,16 @@ import android.hardware.SensorManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -31,13 +35,16 @@ import com.akira.island.data.SettingsRepo
 import com.akira.island.island.ISLAND_PAD_DP
 import com.akira.island.island.IslandOverlay
 import com.akira.island.ui.InterTypography
+import com.akira.island.update.UpdateChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -65,6 +72,12 @@ class IslandService : AccessibilityService() {
     private var alarm: TimerAlarm? = null
     private var calls: CallMonitor? = null
     private var navReader: NavScreenReader? = null
+
+    /** Клавиатура уже появлялась, пока открыт ввод ответа: когда её спрячут, ввод закрывается */
+    private var keyboardSeen = false
+    private var replySince = 0L
+    private var imePackages: Set<String> = emptySet()
+    private var imeCheckedAt = 0L
 
     private var tiltOn = false
     private var tiltSmooth = 0f
@@ -137,7 +150,23 @@ class IslandService : AccessibilityService() {
         IslandBus.serviceRunning.value = true
 
         // Пока вводят ответ на уведомление, окну нужен фокус, иначе клавиатура не покажется
-        scope.launch { IslandBus.reply.collect { setInputFocus(it != null) } }
+        scope.launch {
+            IslandBus.reply.collect {
+                keyboardSeen = false
+                replySince = SystemClock.elapsedRealtime()
+                setInputFocus(it != null)
+            }
+        }
+        // Телефон заблокировали — отвечать с экрана блокировки нельзя
+        scope.launch { IslandBus.locked.collect { if (it) IslandBus.reply.value = null } }
+
+        // Новая версия на GitHub: проверка сама ограничена разом в 6 часов, здесь только будим её
+        scope.launch {
+            while (isActive) {
+                if (IslandBus.screenOn.value) UpdateChecker.check(this@IslandService, force = false, announce = true)
+                delay(60 * 60 * 1000L)
+            }
+        }
 
         // Liquid Glass: блики сдвигаются при наклоне телефона, датчик слушаем только пока стекло включено и экран горит
         scope.launch {
@@ -165,21 +194,46 @@ class IslandService : AccessibilityService() {
                 }
             }
         }
-        val drawRoot = FrameLayout(this)
+        val drawRoot = object : FrameLayout(this) {
+            // Пока вводят ответ, окно острова в фокусе и «Назад» приходит сюда: закрываем ввод, а не глотаем жест
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode == KeyEvent.KEYCODE_BACK && IslandBus.reply.value != null) {
+                    if (event.action == KeyEvent.ACTION_UP) IslandBus.reply.value = null
+                    return true
+                }
+                return super.dispatchKeyEvent(event)
+            }
+        }
         drawRoot.addView(compose)
         owner.create()
         owner.attach(drawRoot)
         displayParams.height = tallHeight()
         runCatching { wm?.addView(drawRoot, displayParams) }.onSuccess { display = drawRoot }
 
-        val touchRoot = TouchRoot(this, { display }) {
-            // Касание мимо раскрытого острова сворачивает его, мимо поля ответа — закрывает ввод
-            if (IslandBus.reply.value != null) IslandBus.reply.value = null
-            if (IslandBus.expanded.value) Controls.collapse()
-        }
+        val touchRoot = TouchRoot(this, { display }, ::onOutsideTouch)
         runCatching { wm?.addView(touchRoot, touchParams) }.onSuccess { touch = touchRoot }
         scheduleSettle()
     }
+
+    /**
+     * Касание мимо раскрытого острова сворачивает его, мимо поля ответа — закрывает ввод.
+     * Нажатия на клавиатуру тоже приходят сюда как «мимо» (она — отдельное окно), а где именно
+     * коснулись, система не сообщает. Поэтому, пока клавиатура на экране, ввод не закрываем:
+     * его закрывает «Назад» (клавиатура прячется) или смахивание плашки вверх.
+     */
+    private fun onOutsideTouch() {
+        if (IslandBus.reply.value != null) {
+            if (!keyboardShown()) IslandBus.reply.value = null
+            return
+        }
+        if (IslandBus.expanded.value) Controls.collapse()
+    }
+
+    /** Видна ли клавиатура. Если список окон недоступен, считаем, что видна, — так ввод не оборвётся. */
+    private fun keyboardShown(): Boolean = runCatching {
+        val list = windows
+        list.isEmpty() || list.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+    }.getOrDefault(true)
 
     private fun applySettings(s: IslandSettings, landscape: Boolean) {
         visible = s.enabled && !(s.hideInLandscape && landscape)
@@ -289,11 +343,28 @@ class IslandService : AccessibilityService() {
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        when (event?.eventType) {
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> onWindowsChanged()
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowState(event)
+        }
+    }
+
+    /** Пока открыт ввод ответа: клавиатуру спрятали («Назад») — ввод закрывается, как в шторке. */
+    private fun onWindowsChanged() {
+        if (IslandBus.reply.value == null) return
+        if (keyboardShown()) {
+            keyboardSeen = true
+        } else if (keyboardSeen && SystemClock.elapsedRealtime() - replySince > 1000) {
+            // Первую секунду не смотрим: клавиатура другого приложения может спрятаться перед нашей
+            IslandBus.reply.value = null
+        }
+    }
+
+    private fun onWindowState(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
         // Шторка, клавиатура и сам остров не меняют «открытое приложение»
         val cls = event.className?.toString().orEmpty()
-        if (pkg == "com.android.systemui" || "InputMethod" in cls) return
+        if (pkg == "com.android.systemui" || isKeyboard(pkg, cls)) return
         // Окно оплаты из сервисов Google (поднесли телефон к терминалу) — не «открытое приложение»
         if (pkg == PayMonitor.GMS && "tapandpay" in cls.lowercase()) {
             PayMonitor.onTapAndPay(this)
@@ -305,6 +376,22 @@ class IslandService : AccessibilityService() {
         // Открыт навигатор — читаем с его экрана расстояние и манёвр, ушли из него — перестаём
         navReader?.onForeground(pkg)
         IslandBus.foregroundPackage.value = pkg
+    }
+
+    /**
+     * Окно клавиатуры: у всех клавиатур это android.inputmethodservice.SoftInputWindow, на всякий
+     * случай сверяемся и со списком включённых клавиатур (обновляется раз в минуту).
+     */
+    private fun isKeyboard(pkg: String, cls: String): Boolean {
+        if (cls.contains("inputmethod", ignoreCase = true)) return true
+        val now = SystemClock.elapsedRealtime()
+        if (now - imeCheckedAt > 60_000) {
+            imeCheckedAt = now
+            imePackages = runCatching {
+                getSystemService(InputMethodManager::class.java)?.enabledInputMethodList.orEmpty().map { it.packageName }.toSet()
+            }.getOrDefault(emptySet())
+        }
+        return pkg in imePackages
     }
 
     override fun onInterrupt() = Unit

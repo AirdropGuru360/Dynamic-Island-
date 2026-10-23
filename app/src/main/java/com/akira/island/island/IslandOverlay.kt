@@ -429,8 +429,9 @@ private fun IslandBody(
                                 haptic()
                                 Controls.collapse()
                             }
-                            // Смахнуть уведомление вверх, как баннер на iPhone
-                            !isExpanded && vertical && dy < -threshold / 2 && act is Act.NoticeA -> {
+                            // Смахнуть уведомление вверх, как баннер на iPhone. Порог полный, чтобы палец,
+                            // чуть съехавший при нажатии «Ответить», не убирал плашку
+                            !isExpanded && vertical && dy < -threshold && act is Act.NoticeA -> {
                                 IslandBus.notice.value = null
                             }
                             !isExpanded && !vertical && abs(dx) > side && act is Act.MediaA && settings.swipeTracks -> {
@@ -501,6 +502,7 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
             act.n.message?.let { m ->
                 if (!Controls.send(context, m.intent)) Controls.openApp(context, m.pkg)
             }
+            act.n.openPkg?.let { Controls.openApp(context, it) }
             IslandBus.notice.value = null
         }
         is Act.Idle -> Controls.expand(act.id)

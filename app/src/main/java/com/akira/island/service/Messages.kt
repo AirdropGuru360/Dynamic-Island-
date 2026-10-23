@@ -1,11 +1,18 @@
 package com.akira.island.service
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.Person
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
+import android.os.SystemClock
+import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -34,6 +41,9 @@ object Messages {
     private val shown = object : LinkedHashMap<String, String>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 100
     }
+
+    /** Куда только что ответили из острова: обновление этого уведомления с нашим же ответом не показываем */
+    private val repliedAt = HashMap<String, Long>()
 
     private val skipCategories = setOf(
         Notification.CATEGORY_TRANSPORT,
@@ -66,7 +76,25 @@ object Messages {
             if (!ranking.matchesInterruptionFilter()) return
         }
 
+        // Экран блокировки: как в шторке — уведомления там скрыты, «секретные» не показываются,
+        // у остальных без разрешения показывать содержимое видно только название приложения
+        val locked = IslandBus.locked.value
+        if (locked && !Lockscreen.showsNotifications(service)) return
+        val visibility = if (ranked && ranking.lockscreenVisibilityOverride != NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE) {
+            ranking.lockscreenVisibilityOverride
+        } else {
+            n.visibility
+        }
+        val secret = visibility == Notification.VISIBILITY_SECRET
+        if (locked && secret) return
+        val sensitive = Lockscreen.isSecure(service) &&
+            (secret || visibility == Notification.VISIBILITY_PRIVATE && !Lockscreen.showsPrivate(service))
+
         val ex = n.extras ?: return
+        // Мессенджер дописал в уведомление ваш же ответ — это не новое сообщение
+        if (ownLastMessage(ex)) return
+        val replied = repliedAt[sbn.key]
+        if (replied != null && SystemClock.elapsedRealtime() - replied < 5_000) return
         val title = (ex.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)
             ?: ex.getCharSequence(Notification.EXTRA_TITLE))?.toString()?.trim().orEmpty()
         val text = lastMessage(ex)
@@ -97,6 +125,7 @@ object Messages {
             // Разбор палитры нужен только для цвета кнопок «Из аватара»
             accent = if (s.accentMode == AccentMode.ADAPTIVE) accentOf(avatar ?: NotificationParser.icon(service, sbn.packageName)) else null,
             history = history(ex),
+            sensitive = sensitive,
         )
         IslandBus.post(
             Notice(
@@ -169,7 +198,59 @@ object Messages {
         return if (group && !sender.isNullOrBlank()) "$sender: $text" else text
     }
 
+    /**
+     * Последнее сообщение переписки написали вы: в MessagingStyle у своих сообщений нет отправителя
+     * или отправитель — сам пользователь (EXTRA_MESSAGING_PERSON).
+     */
+    private fun ownLastMessage(ex: Bundle): Boolean {
+        @Suppress("DEPRECATION")
+        val arr: Array<Parcelable> = ex.getParcelableArray(Notification.EXTRA_MESSAGES) ?: return false
+        val last = arr.lastOrNull() as? Bundle ?: return false
+        if (!last.containsKey("sender") && !last.containsKey("sender_person") && !last.containsKey("person")) return true
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && sentByMe(last, ex)
+    }
+
+    /** Отправитель сообщения [message] — тот же человек, что EXTRA_MESSAGING_PERSON уведомления. */
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun sentByMe(message: Bundle, ex: Bundle): Boolean {
+        @Suppress("DEPRECATION")
+        val sender = runCatching { message.getParcelable<Person>("sender_person") }.getOrNull()
+        @Suppress("DEPRECATION")
+        val me = runCatching { ex.getParcelable<Person>(Notification.EXTRA_MESSAGING_PERSON) }.getOrNull() ?: return false
+        if (me.key != null && sender?.key == me.key) return true
+        val name = (sender?.name ?: message.getCharSequence("sender"))?.toString()
+        return !name.isNullOrBlank() && name == me.name?.toString()
+    }
+
+    /** Ответ ушёл из острова: ближайшее обновление этого уведомления — наш же ответ, его не показываем. */
+    fun onReplied(key: String) {
+        repliedAt[key] = SystemClock.elapsedRealtime()
+    }
+
     fun forget(key: String) {
         shown.remove(key)
+        repliedAt.remove(key)
+    }
+}
+
+/** Настройки экрана блокировки, как их понимает шторка. */
+private object Lockscreen {
+    /** Есть ли PIN-код, графический ключ или пароль: без них система содержимое не прячет. */
+    fun isSecure(context: Context): Boolean =
+        context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
+
+    /** «Уведомления на заблокированном экране» не выключены. */
+    fun showsNotifications(context: Context): Boolean = secureInt(context, "lock_screen_show_notifications", 1) != 0
+
+    /** Разрешено показывать содержимое уведомлений; если настройку не прочитать — считаем, что нет. */
+    fun showsPrivate(context: Context): Boolean = secureInt(context, "lock_screen_allow_private_notifications", 0) != 0
+
+    /** Настройку ни разу не меняли — у системы она включена; прочитать нельзя — [unreadable]. */
+    private fun secureInt(context: Context, name: String, unreadable: Int): Int = try {
+        Settings.Secure.getInt(context.contentResolver, name)
+    } catch (_: Settings.SettingNotFoundException) {
+        1
+    } catch (_: Exception) {
+        unreadable
     }
 }

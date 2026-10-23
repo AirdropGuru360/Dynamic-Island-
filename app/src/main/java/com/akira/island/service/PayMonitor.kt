@@ -73,11 +73,17 @@ object PayMonitor {
     }
 
     private val success = Regex("покупк|оплат|списан|списал|paid|payment|purchase|charged|spent", RegexOption.IGNORE_CASE)
+    /**
+     * Не оплата: пополнения, переводы, возвраты, неудачные платежи, а также напоминания и счета
+     * («К оплате», «Не забудьте оплатить», «будет списано», «Payment due»).
+     */
     private val skip = Regex(
-        "пополн|зачисл|поступил|перевод|кэшбэк|кешбэк|cashback|возврат|refund|отклон|отказ|declined|не удал|ошибк",
+        "пополн|зачисл|поступил|перевод|кэшбэк|кешбэк|cashback|возврат|refund|отклон|отказ|declined|не удал|ошибк|" +
+            "не прошл|не выполн|недостаточно|не хватает|не оплач|к оплате|на оплату|оплатит|заплатит|" +
+            "напомина|будет списан|спишем|спишется|предстоящ|due|remind|failed|unsuccessful|insufficient|request|received",
         RegexOption.IGNORE_CASE,
     )
-    private val amount = Regex("""\d[\d\s .,]*\s?(?:₽|руб\.?|р\.|RUB|\$|USD|€|EUR|£|₸|₴|BYN)""", RegexOption.IGNORE_CASE)
+    private val amount = Regex("""\d[\d\s .,]*\s?(?:₽|руб\.?|р\.?(?!\p{L})|RUB|\$|USD|€|EUR|£|₸|₴|BYN)""", RegexOption.IGNORE_CASE)
 
     /**
      * Уведомление от банка или кошелька об оплате. Возвращает true, если оно показано
@@ -93,8 +99,8 @@ object PayMonitor {
         val text = (ex.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: ex.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         val all = "$title $text"
         if (!success.containsMatchIn(all) || skip.containsMatchIn(all)) return false
-
-        val sum = amount.find(all)?.value?.replace(' ', ' ')?.trim()
+        // У настоящей оплаты всегда есть сумма; без неё это скорее реклама или новость банка
+        val sum = amount.find(all)?.value?.replace(' ', ' ')?.trim() ?: return false
         IslandBus.postNow(
             Notice(
                 title = "Оплачено",

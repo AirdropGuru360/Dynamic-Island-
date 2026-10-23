@@ -5,7 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import com.akira.island.R
+import com.akira.island.core.IslandBus
+import com.akira.island.core.Notice
+import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
+import com.akira.island.island.Ios
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
@@ -56,6 +61,9 @@ object UpdateChecker {
     val state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val download = MutableStateFlow<DownloadState>(DownloadState.Idle)
 
+    /** О какой версии остров уже сообщил плашкой — чтобы не повторять каждые 6 часов */
+    private var announced: String? = null
+
     fun currentVersion(context: Context): String = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull() ?: "0"
@@ -63,15 +71,18 @@ object UpdateChecker {
     /**
      * [force] — проверка по кнопке: показывает «последняя версия» и ошибки связи.
      * Фоновая раз в 6 часов молчит, если сети нет или версия, от которой отказались, не изменилась.
+     * [announce] — проверка из службы острова: о новой версии сообщает плашка на острове
+     * (нажатие открывает приложение с кнопкой «Обновить»).
      */
-    suspend fun check(context: Context, force: Boolean) {
+    suspend fun check(context: Context, force: Boolean, announce: Boolean = false) {
         val s = SettingsRepo.current
         val now = System.currentTimeMillis()
         if (!force && (!s.autoUpdateCheck || now - s.lastUpdateCheck < CHECK_EVERY_MS)) return
         if (state.value is UpdateState.Checking) return
         state.value = UpdateState.Checking
         val result = runCatching { withContext(Dispatchers.IO) { fetchLatest() } }
-        SettingsRepo.update { copy(lastUpdateCheck = now) }
+        // Без связи проверка не считается: повторим при следующей возможности, а не через 6 часов
+        if (result.isSuccess) SettingsRepo.update { copy(lastUpdateCheck = now) }
         val release = result.getOrNull()
         state.value = when {
             result.isFailure -> if (force) UpdateState.Error("Нет связи с GitHub. Проверьте интернет и попробуйте ещё раз.") else UpdateState.Idle
@@ -79,6 +90,21 @@ object UpdateChecker {
             !isNewer(release.version, currentVersion(context)) -> if (force) UpdateState.UpToDate else UpdateState.Idle
             !force && release.version == s.skippedVersion -> UpdateState.Idle
             else -> UpdateState.Available(release)
+        }
+        val available = (state.value as? UpdateState.Available)?.release
+        if (announce && available != null && available.version != announced) {
+            announced = available.version
+            IslandBus.post(
+                Notice(
+                    title = "Обновление",
+                    state = available.version,
+                    icon = Ios.load(context, R.drawable.ios_arrow_down_circle),
+                    tint = Tints.Blue,
+                    caption = "Доступна версия",
+                    openPkg = context.packageName,
+                    durationMs = 6000,
+                ),
+            )
         }
     }
 
@@ -111,10 +137,10 @@ object UpdateChecker {
                 try {
                     if (conn.responseCode !in 200..299) error("HTTP ${conn.responseCode}")
                     val total = conn.contentLengthLong.takeIf { it > 0 } ?: release.sizeBytes
+                    var done = 0L
                     conn.inputStream.use { input ->
                         file.outputStream().use { out ->
                             val buf = ByteArray(64 * 1024)
-                            var done = 0L
                             var lastShown = -1
                             while (true) {
                                 val n = input.read(buf)
@@ -131,8 +157,14 @@ object UpdateChecker {
                             }
                         }
                     }
+                    // Связь оборвалась посреди файла — недокачанный APK установка не примет
+                    if (total > 0 && done < total) error("Скачано $done из $total байт")
                 } finally {
                     conn.disconnect()
+                }
+                if (context.packageManager.getPackageArchiveInfo(file.path, 0) == null) {
+                    file.delete()
+                    error("Файл обновления повреждён")
                 }
                 file
             }

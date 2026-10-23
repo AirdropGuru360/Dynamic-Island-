@@ -1,5 +1,6 @@
 package com.akira.island.service
 
+import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
@@ -33,6 +34,7 @@ import com.akira.island.core.Tints
 import com.akira.island.R
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
+import kotlin.math.abs
 
 /** Системные события, которые остров показывает короткими уведомлениями. */
 class SystemEvents(private val context: Context) {
@@ -43,6 +45,7 @@ class SystemEvents(private val context: Context) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
     private val notifications = context.getSystemService(NotificationManager::class.java)
+    private val keyguard = context.getSystemService(KeyguardManager::class.java)
     private val s get() = SettingsRepo.current
 
     private var lowWarned = false
@@ -51,6 +54,8 @@ class SystemEvents(private val context: Context) {
     private var dnd: Boolean? = null
     private val headsetBattery = HashMap<String, Int>()
     private val wifiNetworks = HashSet<Network>()
+    /** Когда подключили или отключили зарядку — кабель от компьютера не должен давать вторую плашку «USB» */
+    private var lastPowerChange = 0L
 
     /** Первые секунды после запуска система присылает текущее состояние — это не события. */
     private val warmingUp get() = SystemClock.elapsedRealtime() - startedAt < 3000
@@ -123,6 +128,7 @@ class SystemEvents(private val context: Context) {
 
         dnd = isDnd()
         IslandBus.screenOn.value = context.getSystemService(PowerManager::class.java)?.isInteractive ?: true
+        IslandBus.locked.value = isLocked()
         brightnessMode = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
         context.contentResolver.registerContentObserver(
             Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE), false, brightnessObserver,
@@ -147,6 +153,7 @@ class SystemEvents(private val context: Context) {
             Intent.ACTION_BATTERY_CHANGED -> onBattery(intent)
 
             Intent.ACTION_POWER_CONNECTED -> {
+                lastPowerChange = SystemClock.elapsedRealtime()
                 val level = IslandBus.battery.value.level
                 notice(
                     s.evChargeStart,
@@ -156,6 +163,7 @@ class SystemEvents(private val context: Context) {
             }
 
             Intent.ACTION_POWER_DISCONNECTED -> {
+                lastPowerChange = SystemClock.elapsedRealtime()
                 val level = IslandBus.battery.value.level
                 notice(
                     s.evChargeStop,
@@ -164,15 +172,23 @@ class SystemEvents(private val context: Context) {
                 )
             }
 
-            Intent.ACTION_USER_PRESENT ->
+            Intent.ACTION_USER_PRESENT -> {
+                IslandBus.locked.value = false
                 notice(s.evUnlock, Notice("", null, ic(R.drawable.ios_lock_open), Color.White, style = NoticeStyle.PILL))
+            }
 
             Intent.ACTION_SCREEN_OFF -> {
                 IslandBus.screenOn.value = false
+                // Блокировка может включиться чуть позже экрана — заранее прячем тексты, если она вообще есть
+                if (keyguard?.isDeviceSecure == true) IslandBus.locked.value = true
+                IslandBus.reply.value = null
                 Controls.collapse()
             }
 
-            Intent.ACTION_SCREEN_ON -> IslandBus.screenOn.value = true
+            Intent.ACTION_SCREEN_ON -> {
+                IslandBus.screenOn.value = true
+                IslandBus.locked.value = isLocked()
+            }
 
             NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
                 val on = isDnd()
@@ -209,9 +225,10 @@ class SystemEvents(private val context: Context) {
                     ?: return
                 // Без разрешения BLUETOOTH_CONNECT имени и класса устройства не узнать
                 val name = runCatching { device.name }.getOrNull()
+                // Класс не прочитать — не знаем, наушники ли это (могут быть часы или машина), молчим
                 val isAudio = runCatching {
                     device.bluetoothClass?.majorDeviceClass == BluetoothClass.Device.Major.AUDIO_VIDEO
-                }.getOrDefault(true)
+                }.getOrDefault(false)
                 if (!isAudio) return
                 if (intent.action == BluetoothDevice.ACTION_ACL_CONNECTED) {
                     val battery = headsetBattery[device.address]
@@ -248,11 +265,19 @@ class SystemEvents(private val context: Context) {
                 val prev = usbConnected
                 usbConnected = connected
                 if (initialSticky || prev == null || prev == connected) return
-                if (connected) notice(s.evUsbOn, Notice("USB", "Подключено", ic(R.drawable.ios_hardware_chip), Tints.Teal))
-                else notice(s.evUsbOff, Notice("USB", "Отключено", ic(R.drawable.ios_hardware_chip), Tints.Gray))
+                // Кабель от компьютера ещё и заряжает: плашки «Зарядка» достаточно. Порядок сообщений
+                // системы не определён, поэтому смотрим чуть позже, менялась ли зарядка рядом по времени
+                main.postDelayed({
+                    if (abs(SystemClock.elapsedRealtime() - lastPowerChange) < 3000) return@postDelayed
+                    if (connected) notice(s.evUsbOn, Notice("USB", "Подключено", ic(R.drawable.ios_hardware_chip), Tints.Teal))
+                    else notice(s.evUsbOff, Notice("USB", "Отключено", ic(R.drawable.ios_hardware_chip), Tints.Gray))
+                }, 1500)
             }
         }
     }
+
+    /** Заблокирован ли телефон так, что для входа нужен PIN-код, ключ или пароль. */
+    private fun isLocked(): Boolean = keyguard?.isDeviceLocked == true
 
     private fun isDnd(): Boolean {
         val filter = notifications?.currentInterruptionFilter ?: return false

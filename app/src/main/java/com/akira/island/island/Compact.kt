@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.akira.island.core.AppMessage
 import com.akira.island.core.CallInfo
 import com.akira.island.core.Controls
@@ -90,6 +91,7 @@ import com.akira.island.core.Tints
 import com.akira.island.core.formatDuration
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
+import com.akira.island.service.Messages
 import androidx.compose.runtime.collectAsState
 import com.akira.island.ui.Inter
 import kotlinx.coroutines.delay
@@ -410,7 +412,10 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, wideWidth: 
     val haptic = rememberHaptic()
     val iconSize = 46.dp
     val reply by IslandBus.reply.collectAsState()
-    val replyAction = reply?.takeIf { it.noticeId == n.id }?.action
+    val locked by IslandBus.locked.collectAsState()
+    // На заблокированном телефоне — как в шторке: без кнопок, а скрытые уведомления без имени и текста
+    val hidden = locked && m.sensitive
+    val replyAction = reply?.takeIf { it.noticeId == n.id && !locked }?.action
     val accent = rememberAccent(s, m.accent)
     var open by remember(n.id) { mutableStateOf(false) }
 
@@ -431,20 +436,20 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, wideWidth: 
             .padding(start = 18.dp, end = 18.dp, top = cameraInset(s) - 10.dp, bottom = 16.dp),
     ) {
         Row(verticalAlignment = Alignment.Top) {
-            NotifIcon(m, n, iconSize, Color(s.color))
+            NotifIcon(if (hidden) m.copy(avatar = null) else m, n, iconSize, Color(s.color))
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(Modifier.fillMaxWidth().heightIn(min = 30.dp), verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                            if (hidden) m.appName else n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                         )
                         Text(" • сейчас", color = Color.White.copy(alpha = 0.55f), fontSize = 14.sp, maxLines = 1, softWrap = false)
                         Spacer(Modifier.width(6.dp))
                         Icon(Ios.bell, null, tint = Color.White.copy(alpha = 0.55f), modifier = Modifier.size(15.dp))
                     }
-                    if (m.history.size > 1) {
+                    if (m.history.size > 1 && !hidden) {
                         Spacer(Modifier.width(8.dp))
                         CountPill(m.history.size, open, accent) {
                             haptic()
@@ -452,7 +457,9 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, wideWidth: 
                         }
                     }
                 }
-                if (open && m.history.size > 1) {
+                if (hidden) {
+                    Text("Содержимое скрыто", color = Color.White.copy(alpha = 0.6f), fontSize = 17.sp, lineHeight = 22.sp, maxLines = 1)
+                } else if (open && m.history.size > 1) {
                     m.history.forEachIndexed { i, line ->
                         Text(
                             line, color = Color.White.copy(alpha = if (i == m.history.lastIndex) 0.92f else 0.6f),
@@ -470,13 +477,17 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, wideWidth: 
         }
         if (replyAction != null) {
             ReplyField(replyAction, accent) { text ->
-                if (text.isNotBlank()) {
-                    Controls.sendReply(context, replyAction, text)
+                if (text.isBlank()) return@ReplyField
+                if (Controls.sendReply(context, replyAction, text)) {
+                    Messages.onReplied(m.key)
                     IslandBus.reply.value = null
                     IslandBus.notice.value = null
+                } else {
+                    // Поле остаётся открытым с текстом — можно попробовать ещё раз или ответить в приложении
+                    Toast.makeText(context, "Не удалось отправить ответ", Toast.LENGTH_SHORT).show()
                 }
             }
-        } else if (m.actions.isNotEmpty()) {
+        } else if (m.actions.isNotEmpty() && !locked) {
             // Кнопки стоят под текстом, на одной линии с ним, как в шторке
             Row(
                 Modifier.fillMaxWidth().padding(start = iconSize + 14.dp, top = 8.dp),

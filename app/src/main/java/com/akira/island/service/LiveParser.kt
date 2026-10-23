@@ -48,7 +48,10 @@ object LiveParser {
         val sub = (ex.getCharSequence(Notification.EXTRA_SUB_TEXT) ?: ex.getCharSequence(Notification.EXTRA_INFO_TEXT))
             ?.toString()?.trim().orEmpty()
         val fields = listOf(head, text, big, sub)
-        val remote = if (findDistance(fields) != null && findEta(fields) != null) {
+        // Собрать чужую раскладку — дорого, а обычные уведомления (акции, «заказ доставлен») её не требуют
+        val remote = if (!sbn.isOngoing) {
+            Remote(emptyList(), null, "не разбиралась: уведомление не постоянное")
+        } else if (findDistance(fields) != null && findEta(fields) != null) {
             Remote(emptyList(), null, "не разбиралась: расстояние и время есть в полях")
         } else {
             remoteFor(context, sbn.key, n)
@@ -233,8 +236,21 @@ object LiveDebug {
             remote.forEachIndexed { i, t -> appendLine("  [$i] $t") }
             append("кнопки: " + (n.actions?.joinToString { it.title?.toString().orEmpty() } ?: "—"))
         }
-        dumps.value = dumps.value + (sbn.key to body)
+        put(sbn.key, body)
     }
+
+    /** Уведомление убрали — его разбор больше не нужен. */
+    fun forget(key: String) {
+        if (key in dumps.value) dumps.value = dumps.value - key
+    }
+
+    /** Храним только последние записи: приложения доставки присылают много обычных уведомлений. */
+    private fun put(key: String, body: String) {
+        val next = (dumps.value - key) + (key to body)
+        dumps.value = if (next.size > MAX_DUMPS) next.entries.drop(next.size - MAX_DUMPS).associate { it.toPair() } else next
+    }
+
+    private const val MAX_DUMPS = 20
 
     /** Подписи экрана навигатора — чтобы было видно, откуда остров берёт расстояние. */
     fun recordScreen(context: Context, pkg: String, items: List<ScreenItem>, r: NavScreenParser.Result) {
@@ -246,6 +262,6 @@ object LiveDebug {
             }
         }.trimEnd()
         val key = "screen:$pkg"
-        if (dumps.value[key] != body) dumps.value = dumps.value + (key to body)
+        if (dumps.value[key] != body) put(key, body)
     }
 }

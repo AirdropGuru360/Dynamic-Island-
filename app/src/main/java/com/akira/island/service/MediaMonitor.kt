@@ -169,7 +169,10 @@ class MediaMonitor(private val context: Context) {
         val art = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: meta.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-        if (!sameTrack || art !== lastArt) loadArt(key, art)
+        // Плеер при каждой паузе и перемотке отдаёт обложку новым объектом, хотя картинка та же.
+        // Цвет пересчитываем, только если сменился трек или размер обложки (пришла более чёткая)
+        val artChanged = art?.width != lastArt?.width || art?.height != lastArt?.height
+        if (!sameTrack || artChanged) loadArt(key, art)
         // Текст ищем один раз на трек, а не после каждого скрытия карточки на паузе
         if (key != lyricsKey) {
             lyricsKey = key

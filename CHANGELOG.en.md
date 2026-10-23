@@ -6,6 +6,27 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 > The app's interface is currently in Russian. Setting names below are given in English with the Russian label in brackets, so you can find them in the app.
 
+## [1.6.1] — 2026-10-23
+
+### 💬 Replying from the island works
+- Tapping the keyboard no longer closes the reply field: before, the very first letter collapsed the banner, so you couldn't reply at all.
+- The input closes when you hide the keyboard (Back), swipe the banner up, or tap outside the island while there's no keyboard. While a reply is open, Back closes the input instead of doing nothing.
+- The banner can't be swiped away by accident when your finger slides a little while tapping "Reply" — the swipe-up threshold is twice as large.
+- If a reply fails to send, you see "Не удалось отправить ответ" ("Couldn't send the reply") and the field keeps your text.
+- Your own reply no longer comes back to the island as a new banner when the messenger adds it to the notification.
+
+### 🔒 Lock screen
+- On a locked phone the island behaves like the notification shade: no "Reply" or "Mark as read" buttons, and if the system hides notification content — only the app name and "Содержимое скрыто" ("Content hidden"). "Secret" notifications aren't shown there at all. The reply field closes when the screen turns off.
+
+### 🐞 Fixes
+- **Paid** no longer shows up for "payment failed", "amount due", "don't forget to pay", "will be charged", "Payment due" or notifications without an amount. Amounts like "500р" are now recognized.
+- **The keyboard** no longer counts as the open app: while you type in a messenger, its own messages aren't duplicated in the island, the player card doesn't come back, and navigator screen reading doesn't stop.
+- **Timer** rings on time with the screen off — a system alarm wakes the phone.
+- **Updates** are checked in the background every 6 hours, as promised, and a banner on the island tells you about a new version (tap opens the app). A failed check without internet is retried sooner; a partly downloaded or damaged APK doesn't open in the installer.
+- **USB**: a cable from a computer shows one "Charging" banner, without a second "USB" one.
+- **Bluetooth**: a device whose type can't be read is no longer called "Headphones".
+- **Battery and memory**: the artwork color isn't recomputed on every pause, regular notifications from delivery apps aren't parsed as navigation, and navigation diagnostics keep only the latest entries.
+
 ## [1.6.0] — 2026-10-23
 
 ### 🔔 Big notification banner, like the notification shade

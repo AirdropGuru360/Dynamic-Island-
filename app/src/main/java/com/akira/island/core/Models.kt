@@ -200,6 +200,8 @@ data class AppMessage(
     val accent: Color? = null,
     /** Все непрочитанные сообщения переписки, новое — последним: их показывает счётчик со стрелкой */
     val history: List<String> = emptyList(),
+    /** На заблокированном экране вместо имени и текста — только название приложения, как в шторке */
+    val sensitive: Boolean = false,
 )
 
 /**
@@ -223,6 +225,8 @@ data class Notice(
     val appIcon: ImageBitmap? = null,
     /** Данные «живой активности» для плашки NoticeStyle.LIVE */
     val live: LiveInfo? = null,
+    /** Какое приложение открыть нажатием на плашку (например, само это — «Доступна новая версия») */
+    val openPkg: String? = null,
     val id: Long = ids.incrementAndGet(),
 ) {
     private companion object {
