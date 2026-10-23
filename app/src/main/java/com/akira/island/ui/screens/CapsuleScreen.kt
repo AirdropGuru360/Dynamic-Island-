@@ -12,6 +12,8 @@ import androidx.compose.material.icons.rounded.OpenWith
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material3.Text
@@ -46,15 +48,26 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
 
     Page("Настройки Капсулы") {
         IslandPreview()
-        GroupItem(Pos.Single, Icons.Rounded.OpenWith, "Размер и положение", "Изменить размер и положение капсулы",
+        GroupItem(Pos.Single, Icons.Rounded.OpenWith, "Положение", "Сдвинуть капсулу по горизонтали и вертикали",
             onClick = { open(Screen.SIZE) }) { Arrow() }
 
         SectionHeader("Вид острова")
         Group {
             GroupSlider(
-                Pos.Single, Icons.Rounded.LineWeight, "Толщина с активностью",
+                Pos.First, Icons.Rounded.LineWeight, "Толщина с активностью",
                 value = s.activeExtra.toFloat(), range = 0f..14f, label = "+${s.activeExtra} dp", steps = 13,
             ) { v -> SettingsRepo.update { copy(activeExtra = v.toInt()) } }
+            GroupToggle(
+                if (s.liquidGlass) Pos.Middle else Pos.Last, Icons.Rounded.WaterDrop, "Liquid Glass",
+                "Остров и карточки — полупрозрачное стекло с бликами и сияющей кромкой, как в iOS 26. Выключено по умолчанию",
+                s.liquidGlass,
+            ) { v -> SettingsRepo.update { copy(liquidGlass = v) } }
+            if (s.liquidGlass) {
+                GroupSlider(
+                    Pos.Last, Icons.Rounded.Opacity, "Плотность стекла",
+                    value = s.glassOpacity.toFloat(), range = 40f..95f, label = "${s.glassOpacity}%",
+                ) { v -> SettingsRepo.update { copy(glassOpacity = v.toInt()) } }
+            }
         }
 
         SectionHeader("Цвета")

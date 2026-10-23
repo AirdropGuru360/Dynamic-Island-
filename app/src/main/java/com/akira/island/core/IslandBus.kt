@@ -32,11 +32,17 @@ object IslandBus {
     val progress = MutableStateFlow<Map<String, ProgressInfo>>(emptyMap())
     val chrono = MutableStateFlow<Map<String, ChronoInfo>>(emptyMap())
     val calls = MutableStateFlow<Map<String, CallInfo>>(emptyMap())
+    val live = MutableStateFlow<Map<String, LiveInfo>>(emptyMap())
     val torch = MutableStateFlow(TorchState())
     val timer = MutableStateFlow<TimerState?>(null)
     val stopwatch = MutableStateFlow<StopwatchState?>(null)
     val notice = MutableStateFlow<Notice?>(null)
-    val volume = MutableStateFlow<VolumeInfo?>(null)
+    /** Идёт ввод ответа на уведомление: окну острова нужен фокус, чтобы показать клавиатуру */
+    val reply = MutableStateFlow<ReplyState?>(null)
+    /** Наклон телефона от -1 до 1: по нему сдвигаются блики Liquid Glass */
+    val glassTilt = MutableStateFlow(0f)
+    /** Человек читает или отвечает — уведомление не убирается по таймеру */
+    val noticeHold = MutableStateFlow(false)
     val battery = MutableStateFlow(BatteryInfo())
     val foregroundPackage = MutableStateFlow<String?>(null)
     val landscape = MutableStateFlow(false)
@@ -47,7 +53,6 @@ object IslandBus {
     var lastTouch = 0L
 
     private val queue = Channel<Notice>(capacity = 6, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    private var volumeJob: Job? = null
 
     init {
         scope.launch {
@@ -56,6 +61,11 @@ object IslandBus {
                 val duration = n.durationMs ?: SettingsRepo.current.noticeDurationMs.toLong()
                 // Уведомление уходит по времени или раньше, если его смахнули кликом
                 withTimeoutOrNull(duration) { notice.first { it?.id != n.id } }
+                // Пока отвечают или листают переписку, карточка остаётся; потом ещё чуть-чуть
+                if (notice.value?.id == n.id && noticeHold.value) {
+                    while (notice.value?.id == n.id && noticeHold.value) delay(200)
+                    if (notice.value?.id == n.id) withTimeoutOrNull(1500) { notice.first { it?.id != n.id } }
+                }
                 if (notice.value?.id == n.id) notice.value = null
                 delay(220)
             }
@@ -66,12 +76,11 @@ object IslandBus {
         queue.trySend(n)
     }
 
-    fun showVolume(level: Int, max: Int) {
-        volume.value = VolumeInfo(level, max)
-        volumeJob?.cancel()
-        volumeJob = scope.launch {
-            delay(1800)
-            volume.value = null
-        }
+    /** Срочное событие (оплата прошла): ждущая подсказка «Приложите к терминалу» уступает место. */
+    fun postNow(n: Notice) {
+        queue.trySend(n)
+        val cur = notice.value
+        if (cur != null && cur.style == NoticeStyle.PAY_READY) notice.value = null
     }
+
 }

@@ -112,6 +112,7 @@ import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
+import com.akira.island.core.LiveInfo
 import com.akira.island.core.Lyrics
 import com.akira.island.core.LyricsStatus
 import com.akira.island.core.MediaInfo
@@ -146,6 +147,7 @@ fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: Batte
             is Act.ChronoA -> ChronoExpanded(act.c)
             is Act.ProgressA -> ProgressExpanded(act.p)
             is Act.ChargingA -> ChargingExpanded(act.b)
+            is Act.LiveA -> LiveExpanded(act.l)
             is Act.CallA -> CallExpanded(act.c)
             else -> IdleExpanded(s, battery)
         }
@@ -598,6 +600,37 @@ private fun ProgressExpanded(p: ProgressInfo) {
         Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.15f))) {
             Box(Modifier.fillMaxWidth(if (p.indeterminate) 1f else p.fraction).fillMaxHeight().clip(CircleShape)
                 .background(if (p.indeterminate) Tints.Blue.copy(alpha = 0.4f) else Tints.Blue))
+        }
+    }
+}
+
+/** Навигатор, такси, доставка: стрелка или картинка, расстояние крупно, подсказка, время и кнопка «Открыть». */
+@Composable
+private fun LiveExpanded(l: LiveInfo) {
+    val context = LocalContext.current
+    val tint = liveTint(l.kind)
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(56.dp).clip(CircleShape).background(tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                LiveGlyph(l, 32.dp, tint)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(l.distance ?: l.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis)
+                if (l.text.isNotEmpty()) {
+                    Text(l.text, color = Dim, fontSize = 14.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                val line = l.eta ?: l.sub.takeIf { it.isNotEmpty() }
+                if (line != null) {
+                    Text(line, color = tint, fontSize = 13.sp, style = Digits, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        PillButton(Ios.navigate, "Открыть", bg = tint, fg = Color.Black) {
+            if (!Controls.send(context, l.open)) Controls.openApp(context, l.pkg)
+            Controls.collapse()
         }
     }
 }

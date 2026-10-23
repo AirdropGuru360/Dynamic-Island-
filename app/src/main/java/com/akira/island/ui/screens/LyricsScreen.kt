@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,10 +26,8 @@ fun LyricsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     Page("Текст песен", onBack) {
         Group {
-            GroupToggle(Pos.First, Icons.Rounded.LibraryMusic, "Текст песен", "Три строки в раскрытом плеере: текущая крупно, соседние бледнее",
+            GroupToggle(Pos.Single, Icons.Rounded.LibraryMusic, "Текст песен", "Три строки в раскрытом плеере: текущая крупно, соседние бледнее",
                 s.lyricsEnabled) { v -> SettingsRepo.update { copy(lyricsEnabled = v) } }
-            GroupToggle(Pos.Last, Icons.Rounded.Subtitles, "Строка в капсуле", "Текущая строка справа от камеры вместо полосок",
-                s.lyricsInCapsule && s.lyricsEnabled) { v -> SettingsRepo.update { copy(lyricsInCapsule = v, lyricsEnabled = lyricsEnabled || v) } }
         }
         Text(
             "Текст ищется по названию, исполнителю и длительности трека: сначала на LRCLIB (lrclib.net), " +

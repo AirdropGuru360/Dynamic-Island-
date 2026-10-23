@@ -32,6 +32,7 @@ object Ios {
     val flash @Composable get() = ImageVector.vectorResource(R.drawable.ios_flash)
     val flashlight @Composable get() = ImageVector.vectorResource(R.drawable.ios_flashlight)
     val headset @Composable get() = ImageVector.vectorResource(R.drawable.ios_headset)
+    val navigate @Composable get() = ImageVector.vectorResource(R.drawable.ios_navigate)
     val music @Composable get() = ImageVector.vectorResource(R.drawable.ios_musical_notes)
     val bell @Composable get() = ImageVector.vectorResource(R.drawable.ios_notifications)
     val pause @Composable get() = ImageVector.vectorResource(R.drawable.ios_pause)
@@ -44,7 +45,4 @@ object Ios {
     val stopwatch @Composable get() = ImageVector.vectorResource(R.drawable.ios_stopwatch)
     val sunny @Composable get() = ImageVector.vectorResource(R.drawable.ios_sunny)
     val timer @Composable get() = ImageVector.vectorResource(R.drawable.ios_timer)
-    val volumeHigh @Composable get() = ImageVector.vectorResource(R.drawable.ios_volume_high)
-    val volumeLow @Composable get() = ImageVector.vectorResource(R.drawable.ios_volume_low)
-    val volumeOff @Composable get() = ImageVector.vectorResource(R.drawable.ios_volume_mute)
 }

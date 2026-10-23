@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
@@ -47,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -103,16 +105,27 @@ fun IslandOverlay(
     val progress by IslandBus.progress.collectAsState()
     val chrono by IslandBus.chrono.collectAsState()
     val calls by IslandBus.calls.collectAsState()
+    val live by IslandBus.live.collectAsState()
     val torch by IslandBus.torch.collectAsState()
     val timer by IslandBus.timer.collectAsState()
     val stopwatch by IslandBus.stopwatch.collectAsState()
     val notice by IslandBus.notice.collectAsState()
-    val volume by IslandBus.volume.collectAsState()
     val battery by IslandBus.battery.collectAsState()
     val foreground by IslandBus.foregroundPackage.collectAsState()
     val expanded by IslandBus.expanded.collectAsState()
     val focus by IslandBus.focus.collectAsState()
     val calibrating by IslandBus.calibrating.collectAsState()
+
+    // Пробная «живая активность» исчезает по времени, даже если таймер удаления не сработал (сон телефона)
+    val hasExpiring = live.values.any { it.expiresAt > 0 }
+    var wallNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(hasExpiring) {
+        while (hasExpiring) {
+            wallNow = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    val liveActive = live.values.filter { it.expiresAt == 0L || wallNow < it.expiresAt }
 
     val call = if (!s.cardCall) null else {
         val tel = calls[CallMonitor.KEY]
@@ -132,7 +145,6 @@ fun IslandOverlay(
         // Входящий звонок важнее всего, как на iPhone
         if (call != null && call.incoming) add(Act.CallA(call))
         notice?.let { add(Act.NoticeA(it)) }
-        if (volume != null && s.cardVolume) add(Act.VolumeA(volume!!))
 
         val persistent = mutableListOf<Act>()
         val t = timer
@@ -140,6 +152,7 @@ fun IslandOverlay(
         if (call != null && !call.incoming) persistent += Act.CallA(call)
         if (torch.on && s.cardTorch) persistent += Act.TorchA(torch)
         if (t != null && !t.ringing) persistent += Act.TimerA(t)
+        if (s.cardLive) liveActive.maxByOrNull { it.postTime }?.let { persistent += Act.LiveA(it) }
         stopwatch?.let { persistent += Act.StopwatchA(it) }
         if (s.cardTimer) chrono.values.maxByOrNull { it.postTime }?.let { persistent += Act.ChronoA(it) }
         val m = media
@@ -258,8 +271,9 @@ private fun IslandBody(
 
     val cornerTarget = when {
         expanded -> 44.dp
-        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 36.dp
+        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 30.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
+        primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE || primary.n.style == NoticeStyle.LIVE) -> noticeHeight(s) / 2
         primary is Act.CallA && primary.c.incoming -> 42.dp
         primary is Act.Idle -> h / 2
         else -> activeHeight(s) / 2
@@ -293,6 +307,16 @@ private fun IslandBody(
     // Оттягивание вниз пальцем
     val pull = remember { Animatable(0f) }
 
+    // Liquid Glass: при смене содержимого по стеклу пробегает блик, при наклоне телефона блики сдвигаются
+    val tilt = IslandBus.glassTilt.collectAsState()
+    val sheen = remember { Animatable(-1f) }
+    LaunchedEffect(primary.id, expanded, s.liquidGlass) {
+        if (!s.liquidGlass || s.reduceEffects) return@LaunchedEffect
+        sheen.snapTo(0f)
+        sheen.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
+        sheen.snapTo(-1f)
+    }
+
     // Короткая пилюля (режим звука) вздрагивает вбок, как остров на iPhone при переключении «Звонок/Бесшумно»
     val shake = remember { Animatable(0f) }
     val pillId = (primary as? Act.NoticeA)?.n?.takeIf { it.style == NoticeStyle.PILL }?.id
@@ -315,9 +339,22 @@ private fun IslandBody(
                 translationX = shake.value.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
-            .then(if (s.shadow && !s.reduceEffects) Modifier.shadow(10.dp, shape) else Modifier)
+            .then(
+                when {
+                    s.liquidGlass && !calibrating && !s.reduceEffects ->
+                        Modifier.shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.6f))
+                    s.shadow && !s.reduceEffects -> Modifier.shadow(10.dp, shape)
+                    else -> Modifier
+                },
+            )
             .clip(shape)
-            .background(if (calibrating) CalibrationRed else Color(s.color))
+            .then(
+                if (s.liquidGlass && !calibrating) {
+                    Modifier.glassSurface(shape, Color(s.color), s.glassOpacity / 100f, tilt = { tilt.value }) { sheen.value }
+                } else {
+                    Modifier.background(if (calibrating) CalibrationRed else Color(s.color))
+                },
+            )
             .then(
                 when {
                     calibrating -> Modifier.border(2.dp, Color.White, shape)
@@ -424,7 +461,7 @@ private fun IslandBody(
                 if (f.expanded) {
                     ExpandedContent(f.act, s, lyrics, battery, expandedWidth)
                 } else {
-                    CompactContent(f.act, s, lyrics, expandedWidth)
+                    CompactContent(f.act, s, expandedWidth)
                 }
             }
         }
@@ -438,13 +475,14 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
     }
     when (act) {
         is Act.NoticeA -> {
+            // Пока вводят ответ, нажатие по карточке не должно открывать приложение
+            if (IslandBus.reply.value != null) return
             // Нажатие на уведомление приложения открывает его, как на iPhone
             act.n.message?.let { m ->
                 if (!Controls.send(context, m.intent)) Controls.openApp(context, m.pkg)
             }
             IslandBus.notice.value = null
         }
-        is Act.VolumeA -> Unit
         is Act.Idle -> Controls.expand(act.id)
         is Act.TimerA -> if (act.t.ringing) Controls.cancelTimer() else perform(context, s.tapAction, act)
         is Act.CallA -> if (act.c.incoming) {
@@ -473,13 +511,17 @@ private fun perform(context: Context, action: TapAction, act: Act) {
 private fun Bubble(act: Act, s: IslandSettings) {
     val h = activeHeight(s)
     val haptic = rememberHaptic()
+    val tilt = IslandBus.glassTilt.collectAsState()
     val now = rememberNow(500, active = act is Act.TimerA)
     Box(
         Modifier
             .size(h)
             .then(if (s.shadow && !s.reduceEffects) Modifier.shadow(8.dp, CircleShape) else Modifier)
             .clip(CircleShape)
-            .background(Color(s.color))
+            .then(
+                if (s.liquidGlass) Modifier.glassSurface(CircleShape, Color(s.color), s.glassOpacity / 100f, tilt = { tilt.value })
+                else Modifier.background(Color(s.color)),
+            )
             .then(if (s.outline) Modifier.border(s.outlineWidth.dp, Color(s.outlineColor), CircleShape) else Modifier)
             .clickable {
                 haptic()
@@ -507,6 +549,7 @@ private fun Bubble(act: Act, s: IslandSettings) {
                 Icon(Ios.download, null, tint = Tints.Blue, modifier = Modifier.size(inner * 0.5f))
             }
             is Act.CallA -> Icon(Ios.call, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.7f))
+            is Act.LiveA -> LiveGlyph(act.l, inner, liveTint(act.l.kind))
             is Act.ChargingA -> Icon(Ios.flash, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.7f))
             else -> Unit
         }

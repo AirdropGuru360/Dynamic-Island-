@@ -1,6 +1,7 @@
 package com.akira.island.core
 
 import android.app.PendingIntent
+import android.app.RemoteInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -100,6 +101,34 @@ data class CallInfo(
     val open: PendingIntent?,
 )
 
+enum class LiveKind { NAV, RIDE, DELIVERY }
+
+/** Куда поворачивать по подсказке навигатора. */
+enum class Turn { STRAIGHT, LEFT, RIGHT, UTURN }
+
+/** «Живая активность» из постоянного уведомления: навигатор, такси, доставка. */
+data class LiveInfo(
+    val key: String,
+    val pkg: String,
+    val kind: LiveKind,
+    val title: String,
+    val text: String,
+    val sub: String,
+    val icon: ImageBitmap?,
+    /** Крупная картинка из уведомления: стрелка манёвра, машина, курьер */
+    val art: ImageBitmap?,
+    val postTime: Long,
+    val open: PendingIntent?,
+    /** Расстояние до манёвра или цели («300 м», «3,7 км»), если нашлось в уведомлении */
+    val distance: String? = null,
+    /** Прибытие и время в пути («15:52 · 9 мин») */
+    val eta: String? = null,
+    /** Куда поворачивать — по тексту или описанию значка в уведомлении навигатора */
+    val turn: Turn? = null,
+    /** До какого времени (System.currentTimeMillis) показывать; 0 — пока живо само уведомление. Нужно пробной активности. */
+    val expiresAt: Long = 0,
+)
+
 data class TorchState(
     val on: Boolean = false,
     val cameraId: String? = null,
@@ -123,10 +152,6 @@ data class StopwatchState(val startedAt: Long?, val accumulated: Long) {
     val running: Boolean get() = startedAt != null
 }
 
-data class VolumeInfo(val level: Int, val max: Int) {
-    val fraction: Float get() = if (max > 0) level.toFloat() / max else 0f
-}
-
 data class BatteryInfo(val level: Int = -1, val charging: Boolean = false)
 
 /** Как событие выглядит в острове. */
@@ -137,7 +162,28 @@ enum class NoticeStyle {
     PILL,
     /** Уведомление приложения: аватар, имя и текст */
     MESSAGE,
+    /** Открыли кошелёк или банк: карточка и волны бесконтактной оплаты */
+    PAY_READY,
+    /** Оплата прошла: зелёная галочка и сумма */
+    PAY_DONE,
+    /** Навигатор, такси или доставка только что запустились: широкая плашка, потом капсула */
+    LIVE,
 }
+
+/**
+ * Кнопка из уведомления: «Ответить», «Пометить прочитанным» и т. п.
+ * [inputs] не пуст у кнопки с полем ответа — тогда остров показывает строку ввода.
+ */
+class MsgAction(
+    val title: String,
+    val intent: PendingIntent,
+    val inputs: List<RemoteInput> = emptyList(),
+) {
+    val isReply: Boolean get() = inputs.isNotEmpty()
+}
+
+/** Идёт ввод ответа на уведомление [noticeId] через кнопку [action]. */
+class ReplyState(val noticeId: Long, val action: MsgAction)
 
 /** Уведомление другого приложения, показанное в острове. */
 data class AppMessage(
@@ -148,6 +194,12 @@ data class AppMessage(
     val avatar: ImageBitmap?,
     val appIcon: ImageBitmap?,
     val intent: PendingIntent?,
+    /** Кнопки из уведомления, не больше двух: ответить и ещё одна */
+    val actions: List<MsgAction> = emptyList(),
+    /** Цвет, подобранный по аватару или значку приложения, — для режима «Из аватара» */
+    val accent: Color? = null,
+    /** Все непрочитанные сообщения переписки, новое — последним: их показывает счётчик со стрелкой */
+    val history: List<String> = emptyList(),
 )
 
 /**
@@ -167,6 +219,10 @@ data class Notice(
     val message: AppMessage? = null,
     /** Сколько показывать; null — из настроек */
     val durationMs: Long? = null,
+    /** Значок приложения, например банка при оплате */
+    val appIcon: ImageBitmap? = null,
+    /** Данные «живой активности» для плашки NoticeStyle.LIVE */
+    val live: LiveInfo? = null,
     val id: Long = ids.incrementAndGet(),
 ) {
     private companion object {

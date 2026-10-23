@@ -13,6 +13,8 @@ import androidx.core.graphics.drawable.toBitmap
 import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.IslandBus
+import com.akira.island.core.LiveInfo
+import com.akira.island.core.LiveKind
 import com.akira.island.core.ProgressInfo
 import com.akira.island.data.SettingsRepo
 
@@ -36,6 +38,7 @@ class NotifListener : NotificationListenerService() {
         IslandBus.progress.value = emptyMap()
         IslandBus.chrono.value = emptyMap()
         IslandBus.calls.value = emptyMap()
+        IslandBus.live.value = emptyMap()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -90,8 +93,25 @@ object NotificationParser {
             }
         }
 
+        val live = if (call == null && !isMedia) LiveParser.parse(context, sbn, title) else null
+        val liveWasKnown = sbn.key in IslandBus.live.value
+        IslandBus.live.value = IslandBus.live.value.toMutableMap().apply {
+            if (live != null) put(sbn.key, live) else remove(sbn.key)
+        }
+        // Новая «живая активность» сначала показывается широкой плашкой, потом сворачивается в капсулу
+        if (live != null && !liveWasKnown && !initial && SettingsRepo.current.cardLive) {
+            IslandBus.post(LiveParser.banner(context, live))
+        }
+        // Навигатор и такси показываются своей карточкой, а не полоской прогресса или таймером
+        if (live != null) {
+            IslandBus.progress.value = IslandBus.progress.value - sbn.key
+            IslandBus.chrono.value = IslandBus.chrono.value - sbn.key
+        }
+
         val service = context as? NotificationListenerService
-        if (!initial && service != null && !isMedia && call == null && !chrono && !hasProgress) {
+        if (!initial && service != null && !isMedia && call == null && !chrono && !hasProgress && live == null) {
+            // Уведомление об оплате из банка — «Оплачено» с галочкой, а не карточка сообщения
+            if (PayMonitor.onNotification(context, sbn)) return
             Messages.maybeShow(service, sbn, appLabel(context, sbn.packageName))
         }
     }
@@ -150,6 +170,7 @@ object NotificationParser {
         if (key in IslandBus.calls.value) IslandBus.calls.value = IslandBus.calls.value - key
         if (key in IslandBus.progress.value) IslandBus.progress.value = IslandBus.progress.value - key
         if (key in IslandBus.chrono.value) IslandBus.chrono.value = IslandBus.chrono.value - key
+        if (key in IslandBus.live.value) IslandBus.live.value = IslandBus.live.value - key
     }
 
     fun icon(context: Context, pkg: String): ImageBitmap? = icons.getOrPut(pkg) {
@@ -160,4 +181,49 @@ object NotificationParser {
         val pm = context.packageManager
         pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
     }.getOrDefault(pkg)
+}
+
+/** Приложения, чьи постоянные уведомления остров показывает как «живые активности». */
+object LiveApps {
+    private val nav = setOf(
+        "com.google.android.apps.maps",
+        "ru.yandex.yandexmaps",
+        "ru.yandex.yandexnavi",
+        "ru.dublgis.dgismobile",
+        "com.waze",
+        "net.osmand",
+        "net.osmand.plus",
+        "com.here.app.maps",
+        "cz.seznam.mapy",
+        "app.organicmaps",
+        "com.mapswithme.maps.pro",
+    )
+    private val ride = setOf(
+        "ru.yandex.taxi",
+        "com.yandex.go",
+        "com.ubercab",
+        "ee.mtakso.client",
+        "ru.citymobil",
+        "sinet.startup.indriver",
+        "com.lyft.android",
+    )
+    private val delivery = setOf(
+        "ru.yandex.eda",
+        "ru.foodfox.client",
+        "ru.samokat.app",
+        "ru.instamart",
+        "ru.sbermarket",
+        "com.deliveryclub",
+        "com.ubercab.eats",
+        "ru.ozon.app.android",
+        "com.wildberries.ru",
+        "ru.beru.android",
+    )
+
+    fun kind(pkg: String, category: String?): LiveKind? = when {
+        pkg in nav || category == Notification.CATEGORY_NAVIGATION -> LiveKind.NAV
+        pkg in ride -> LiveKind.RIDE
+        pkg in delivery -> LiveKind.DELIVERY
+        else -> null
+    }
 }

@@ -1,5 +1,6 @@
 package com.akira.island.service
 
+import android.app.NotificationManager
 import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
@@ -59,11 +60,13 @@ class SystemEvents(private val context: Context) {
     private val startedAt = SystemClock.elapsedRealtime()
     private val audio = context.getSystemService(AudioManager::class.java)
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
+    private val notifications = context.getSystemService(NotificationManager::class.java)
     private val s get() = SettingsRepo.current
 
     private var lowWarned = false
     private var usbConnected: Boolean? = null
     private var brightnessMode = -1
+    private var dnd: Boolean? = null
     private val headsetBattery = HashMap<String, Int>()
     private val wifiNetworks = HashSet<Network>()
 
@@ -125,16 +128,17 @@ class SystemEvents(private val context: Context) {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
             addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
-            addAction(VOLUME_CHANGED)
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
             addAction(BT_BATTERY_CHANGED)
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
             addAction(USB_STATE)
+            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
         }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
 
+        dnd = isDnd()
         brightnessMode = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
         context.contentResolver.registerContentObserver(
             Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE), false, brightnessObserver,
@@ -181,6 +185,18 @@ class SystemEvents(private val context: Context) {
 
             Intent.ACTION_SCREEN_OFF -> Controls.collapse()
 
+            NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
+                val on = isDnd()
+                if (on == dnd) return
+                dnd = on
+                // Как фокус «Не беспокоить» на iPhone: луна и состояние
+                notice(
+                    s.evDnd,
+                    Notice("Фокус", if (on) "Вкл" else "Выкл", ic(R.drawable.ios_moon), if (on) Tints.Purple else Tints.Gray,
+                        caption = "Не беспокоить"),
+                )
+            }
+
             Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
                 val on = intent.getBooleanExtra("state", false)
                 if (on) notice(s.evAirplaneOn, Notice("Режим полёта", "Вкл", ic(R.drawable.ios_airplane), Tints.Orange))
@@ -198,14 +214,6 @@ class SystemEvents(private val context: Context) {
                 if (n != null) notice(s.evRinger, n)
             }
 
-            VOLUME_CHANGED -> {
-                if (intent.getIntExtra(EXTRA_STREAM, -1) != AudioManager.STREAM_MUSIC) return
-                val value = intent.getIntExtra(EXTRA_VALUE, -1)
-                val prev = intent.getIntExtra(EXTRA_PREV_VALUE, -1)
-                val a = audio ?: return
-                if (value < 0 || value == prev || !s.cardVolume || !a.isMusicActive) return
-                IslandBus.showVolume(value, a.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
-            }
 
             BluetoothDevice.ACTION_ACL_CONNECTED, BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                 val device = IntentCompat.getParcelableExtra(intent, BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
@@ -257,6 +265,12 @@ class SystemEvents(private val context: Context) {
         }
     }
 
+    private fun isDnd(): Boolean {
+        val filter = notifications?.currentInterruptionFilter ?: return false
+        return filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+            filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+    }
+
     private fun onBattery(intent: Intent) {
         val raw = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
@@ -277,10 +291,6 @@ class SystemEvents(private val context: Context) {
 
     private companion object {
         // Скрытые, но давно стабильные широковещательные сообщения системы
-        const val VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
-        const val EXTRA_STREAM = "android.media.EXTRA_VOLUME_STREAM_TYPE"
-        const val EXTRA_VALUE = "android.media.EXTRA_VOLUME_STREAM_VALUE"
-        const val EXTRA_PREV_VALUE = "android.media.EXTRA_PREV_VOLUME_STREAM_VALUE"
         const val BT_BATTERY_CHANGED = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED"
         const val EXTRA_BT_BATTERY = "android.bluetooth.device.extra.BATTERY_LEVEL"
         const val USB_STATE = "android.hardware.usb.action.USB_STATE"

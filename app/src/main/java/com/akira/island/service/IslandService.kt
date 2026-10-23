@@ -5,6 +5,10 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -32,7 +36,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -57,6 +64,18 @@ class IslandService : AccessibilityService() {
     private var torch: TorchController? = null
     private var alarm: TimerAlarm? = null
     private var calls: CallMonitor? = null
+
+    private var tiltOn = false
+    private var tiltSmooth = 0f
+    private val tiltListener = object : SensorEventListener {
+        override fun onSensorChanged(e: SensorEvent) {
+            // Наклон влево-вправо от -1 до 1; сглаживаем, чтобы блик плыл, а не дрожал
+            tiltSmooth += (e.values[0] / 9.81f).coerceIn(-1f, 1f).minus(tiltSmooth) * 0.12f
+            if (abs(tiltSmooth - IslandBus.glassTilt.value) > 0.015f) IslandBus.glassTilt.value = tiltSmooth
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    }
 
     private var visible = true
     private var body = Rect.Zero
@@ -115,6 +134,14 @@ class IslandService : AccessibilityService() {
         calls = CallMonitor(this, scope).also { it.start() }
         IslandBus.serviceRunning.value = true
 
+        // Пока вводят ответ на уведомление, окну нужен фокус, иначе клавиатура не покажется
+        scope.launch { IslandBus.reply.collect { setInputFocus(it != null) } }
+
+        // Liquid Glass: блики сдвигаются при наклоне телефона, датчик слушаем только пока стекло включено
+        scope.launch {
+            SettingsRepo.state.map { it.liquidGlass && it.enabled }.distinctUntilChanged().collect { setTiltEnabled(it) }
+        }
+
         scope.launch {
             combine(SettingsRepo.state, IslandBus.landscape) { s, land -> s to land }
                 .collect { (s, land) -> applySettings(s, land) }
@@ -142,7 +169,8 @@ class IslandService : AccessibilityService() {
         runCatching { wm?.addView(drawRoot, displayParams) }.onSuccess { display = drawRoot }
 
         val touchRoot = TouchRoot(this, { display }) {
-            // Касание мимо раскрытого острова сворачивает его
+            // Касание мимо раскрытого острова сворачивает его, мимо поля ответа — закрывает ввод
+            if (IslandBus.reply.value != null) IslandBus.reply.value = null
             if (IslandBus.expanded.value) Controls.collapse()
         }
         runCatching { wm?.addView(touchRoot, touchParams) }.onSuccess { touch = touchRoot }
@@ -226,6 +254,31 @@ class IslandService : AccessibilityService() {
         runCatching { wm?.updateViewLayout(view, touchParams) }
     }
 
+    private fun setTiltEnabled(on: Boolean) {
+        if (on == tiltOn) return
+        tiltOn = on
+        val sm = getSystemService(SensorManager::class.java) ?: return
+        if (on) {
+            val sensor = sm.getDefaultSensor(Sensor.TYPE_GRAVITY) ?: sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
+            sm.registerListener(tiltListener, sensor, SensorManager.SENSOR_DELAY_UI)
+        } else {
+            sm.unregisterListener(tiltListener)
+            tiltSmooth = 0f
+            IslandBus.glassTilt.value = 0f
+        }
+    }
+
+    private fun setInputFocus(on: Boolean) {
+        val view = display ?: return
+        val flag = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        val flags = if (on) displayParams.flags and flag.inv() else displayParams.flags or flag
+        if (flags == displayParams.flags) return
+        displayParams.flags = flags
+        displayParams.softInputMode = if (on) WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+        else WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
+        runCatching { wm?.updateViewLayout(view, displayParams) }
+    }
+
     private fun tallHeight() = dp(480)
 
     private fun dp(v: Int): Int =
@@ -237,7 +290,14 @@ class IslandService : AccessibilityService() {
         // Шторка, клавиатура и сам остров не меняют «открытое приложение»
         val cls = event.className?.toString().orEmpty()
         if (pkg == "com.android.systemui" || "InputMethod" in cls) return
+        // Окно оплаты из сервисов Google (поднесли телефон к терминалу) — не «открытое приложение»
+        if (pkg == PayMonitor.GMS && "tapandpay" in cls.lowercase()) {
+            PayMonitor.onTapAndPay(this)
+            return
+        }
         if (pkg == packageName && !cls.endsWith("Activity")) return
+        // Открыли банк или кошелёк из другого приложения — подсказка оплаты
+        if (IslandBus.foregroundPackage.value != pkg && pkg != packageName) PayMonitor.onAppOpened(this, pkg)
         IslandBus.foregroundPackage.value = pkg
     }
 
@@ -250,6 +310,7 @@ class IslandService : AccessibilityService() {
 
     override fun onDestroy() {
         handler.removeCallbacks(settle)
+        setTiltEnabled(false)
         IslandBus.serviceRunning.value = false
         events?.stop()
         torch?.stop()

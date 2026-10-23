@@ -79,10 +79,7 @@ fun SizeScreen(onBack: () -> Unit) {
 
     val cancel = {
         SettingsRepo.update {
-            copy(
-                width = original.width, height = original.height, offsetX = original.offsetX,
-                offsetY = original.offsetY,
-            )
+            copy(offsetX = original.offsetX, offsetY = original.offsetY)
         }
         onBack()
     }
@@ -92,13 +89,13 @@ fun SizeScreen(onBack: () -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
         Page(
-            "Размер и положение",
+            "Положение",
             onBack = cancel,
             action = {
                 Box(
                     Modifier.size(48.dp).clip(CircleShape).background(Ui.Card).clickable {
                         val d = IslandSettings()
-                        set { copy(width = d.width, height = d.height, offsetX = d.offsetX, offsetY = d.offsetY) }
+                        set { copy(offsetX = d.offsetX, offsetY = d.offsetY) }
                     },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -113,8 +110,7 @@ fun SizeScreen(onBack: () -> Unit) {
                 Example()
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Пока открыт этот экран, остров красный. Двигайте его, пока красное не спрячется под камерой " +
-                        "и вокруг неё не останется ровная белая линия.",
+                    "Пока открыт этот экран, остров красный. Двигайте его, пока красное не окажется ровно над камерой.",
                     color = Ui.Sub, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
                 )
             }
@@ -130,14 +126,8 @@ fun SizeScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionHeader("Размер")
-            Group {
-                GroupStepSlider(Pos.First, Icons.Rounded.Straighten, "Ширина", s.width, 50..260) { v -> set { copy(width = v) } }
-                GroupStepSlider(Pos.Last, Icons.Rounded.Height, "Высота", s.height, 22..60) { v -> set { copy(height = v) } }
-            }
             Text(
-                "По умолчанию остров как на iPhone: 126 × 37 dp и 11 dp от верхнего края. " +
-                    "Если камера на вашем телефоне стоит иначе, сдвиньте и растяните остров, пока красное не скроет камеру.",
+                "По умолчанию остров стоит как на iPhone: 11 dp от верхнего края, по центру.",
                 color = Ui.Sub.copy(alpha = 0.7f), fontSize = 13.sp, lineHeight = 18.sp,
                 modifier = Modifier.padding(horizontal = 8.dp),
             )

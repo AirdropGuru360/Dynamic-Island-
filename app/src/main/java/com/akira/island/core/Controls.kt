@@ -125,6 +125,20 @@ object Controls {
         }.isSuccess
     }
 
+    /** Отправить ответ через кнопку «Ответить» из уведомления — так же, как это делает шторка. */
+    fun sendReply(context: Context, action: MsgAction, text: String): Boolean {
+        val clean = text.trim()
+        if (clean.isEmpty() || action.inputs.isEmpty()) return false
+        return runCatching {
+            val inputs = action.inputs.toTypedArray()
+            val results = android.os.Bundle()
+            inputs.forEach { results.putCharSequence(it.resultKey, clean) }
+            val fill = Intent()
+            android.app.RemoteInput.addResultsToIntent(inputs, fill, results)
+            action.intent.send(context, 0, fill)
+        }.isSuccess
+    }
+
     // Звонки: сначала кнопка из уведомления звонилки, иначе системный сервис звонков
 
     @Suppress("DEPRECATION", "MissingPermission")
@@ -174,6 +188,27 @@ object Controls {
 
     const val TEST_CALL = "test-call"
 
+    /** Пробная навигация: широкая плашка, потом капсула; через 10 секунд пропадает сама, даже если выйти из приложения. */
+    fun showTestLive(context: Context) {
+        val live = LiveInfo(
+            key = TEST_LIVE, pkg = context.packageName, kind = LiveKind.NAV,
+            title = "300 м", text = "Поверните направо на Тверскую улицу", sub = "",
+            icon = com.akira.island.service.NotificationParser.icon(context, context.packageName), art = null,
+            postTime = System.currentTimeMillis(), open = null,
+            distance = "300 м", eta = "18:42 · 12 мин", turn = Turn.RIGHT,
+            expiresAt = System.currentTimeMillis() + TEST_LIVE_MS,
+        )
+        IslandBus.live.value = IslandBus.live.value + (TEST_LIVE to live)
+        IslandBus.post(com.akira.island.service.LiveParser.banner(context, live))
+        IslandBus.scope.launch {
+            delay(TEST_LIVE_MS)
+            IslandBus.live.value = IslandBus.live.value - TEST_LIVE
+        }
+    }
+
+    private const val TEST_LIVE_MS = 10_000L
+    const val TEST_LIVE = "test-live"
+
     /** Куда выводится звук: системная панель громкости с выбором устройства. */
     fun openOutput(context: Context) {
         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -185,13 +220,4 @@ object Controls {
         collapse()
     }
 
-    fun setVolume(context: Context, fraction: Float) {
-        val audio = context.getSystemService(AudioManager::class.java) ?: return
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val level = (fraction.coerceIn(0f, 1f) * max).let { Math.round(it) }
-        if (level != audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
-            runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0) }
-        }
-        IslandBus.showVolume(level, max)
-    }
 }

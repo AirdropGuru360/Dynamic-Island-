@@ -35,6 +35,15 @@ enum class TapAction(val title: String) {
     NOTHING("Ничего"),
 }
 
+/** Откуда берётся цвет кнопок «Ответить», «Пометить прочитанным» и отправки в карточке уведомления. */
+@Serializable
+enum class AccentMode(val title: String, val hint: String) {
+    DEFAULT("Сиреневый", "Цвет приложения"),
+    SYSTEM("Системный", "Цвет из обоев Android 12+ (Material You)"),
+    ADAPTIVE("Из аватара", "Подбирается по аватару или значку приложения"),
+    CUSTOM("Свой", "Любой цвет из набора"),
+}
+
 @Serializable
 data class IslandSettings(
     val enabled: Boolean = true,
@@ -42,12 +51,15 @@ data class IslandSettings(
     // Динамические карточки
     val cardMedia: Boolean = true,
     val cardTorch: Boolean = true,
-    val cardVolume: Boolean = true,
     val cardProgress: Boolean = true,
     val cardTimer: Boolean = true,
     val cardCharging: Boolean = true,
     val cardCall: Boolean = true,
     val cardMessages: Boolean = true,
+    /** Кнопки «Ответить» и «Пометить прочитанным» в карточке уведомления */
+    val msgActions: Boolean = true,
+    /** Навигация, такси и доставка — «живые активности» из постоянных уведомлений */
+    val cardLive: Boolean = true,
 
     // События
     val evChargeStart: Boolean = true,
@@ -64,6 +76,11 @@ data class IslandSettings(
     val evUsbOn: Boolean = true,
     val evUsbOff: Boolean = true,
     val evUnlock: Boolean = false,
+    val evDnd: Boolean = true,
+    /** Открыли банковское приложение или кошелёк — «Приложите к терминалу» */
+    val evPayReady: Boolean = true,
+    /** Пришло уведомление об оплате — «Оплачено» с галочкой */
+    val evPaySuccess: Boolean = true,
 
     // Размер и положение, dp — как у iPhone: капсула 126×37, отступ сверху 11
     val width: Int = 126,
@@ -85,6 +102,22 @@ data class IslandSettings(
     val outlineFromArt: Boolean = true,
     val shadow: Boolean = false,
 
+    // Цвет кнопок в карточке уведомления
+    val accentMode: AccentMode = AccentMode.DEFAULT,
+    val accentColor: Long = 0xFF0A84FF,
+
+    // Обновления из GitHub Releases
+    val autoUpdateCheck: Boolean = true,
+    /** Версия, от которой отказались, — про неё больше не напоминаем */
+    val skippedVersion: String = "",
+    /** Версия, для которой уже показали «Что нового» */
+    val lastSeenVersion: String = "",
+    val lastUpdateCheck: Long = 0,
+
+    // Liquid Glass: полупрозрачное стекло с бликами вместо чёрной заливки. По умолчанию выключено
+    val liquidGlass: Boolean = false,
+    val glassOpacity: Int = 68,
+
     // Анимации
     val expandStyle: ExpandStyle = ExpandStyle.FRUIT,
     val durationPercent: Int = 35,
@@ -101,7 +134,6 @@ data class IslandSettings(
 
     // Текст песен
     val lyricsEnabled: Boolean = true,
-    val lyricsInCapsule: Boolean = false,
 
     // Поведение
     val hideIdle: Boolean = false,
@@ -120,6 +152,10 @@ object SettingsRepo {
     }
 
     private var prefs: SharedPreferences? = null
+
+    /** Настройки уже были сохранены до этого запуска: значит, это обновление, а не первая установка. */
+    var hadSavedSettings = false
+        private set
     private val _state = MutableStateFlow(IslandSettings())
     val state: StateFlow<IslandSettings> = _state.asStateFlow()
     val current: IslandSettings get() = _state.value
@@ -128,6 +164,7 @@ object SettingsRepo {
         if (prefs != null) return
         val p = context.applicationContext.getSharedPreferences("island", Context.MODE_PRIVATE)
         prefs = p
+        hadSavedSettings = p.contains(KEY)
         p.getString(KEY, null)?.let { raw ->
             runCatching { json.decodeFromString<IslandSettings>(raw) }.onSuccess { _state.value = it }
         }

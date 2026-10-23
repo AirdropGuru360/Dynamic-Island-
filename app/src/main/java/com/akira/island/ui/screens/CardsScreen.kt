@@ -12,14 +12,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.HourglassEmpty
+import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.OfflineBolt
+import androidx.compose.material.icons.rounded.Reply
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -56,8 +57,6 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
                 s.cardMedia) { v -> SettingsRepo.update { copy(cardMedia = v) } }
             ToggleCard(Icons.Rounded.FlashlightOn, "Управление вспышкой", "Когда включен фонарик",
                 s.cardTorch) { v -> SettingsRepo.update { copy(cardTorch = v) } }
-            ToggleCard(Icons.AutoMirrored.Rounded.VolumeUp, "Управление громкостью", "Когда что-то воспроизводится",
-                s.cardVolume) { v -> SettingsRepo.update { copy(cardVolume = v) } }
             ToggleCard(Icons.Rounded.Downloading, "Индикатор прогресса",
                 "Когда разные приложения (Google Play, Telegram и т.д.) показывают прогресс",
                 s.cardProgress) { v -> SettingsRepo.update { copy(cardProgress = v) } }
@@ -69,6 +68,12 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
             ToggleCard(Icons.Rounded.ChatBubble, "Уведомления приложений",
                 "Сообщения из Telegram, WhatsApp, почты и других приложений — карточкой в острове, как на iPhone",
                 s.cardMessages) { v -> SettingsRepo.update { copy(cardMessages = v) } }
+            ToggleCard(Icons.Rounded.Reply, "Кнопки в уведомлениях",
+                "«Ответить» с вводом текста прямо в острове и «Пометить прочитанным» — кнопки из самого уведомления",
+                s.msgActions) { v -> SettingsRepo.update { copy(msgActions = v) } }
+            ToggleCard(Icons.Rounded.Navigation, "Навигация, такси и доставка",
+                "Google Карты, Яндекс Карты и Навигатор, 2ГИС, Яндекс Go, Uber, Яндекс Еда и другие — расстояние и время в капсуле, подробности в раскрытом виде",
+                s.cardLive) { v -> SettingsRepo.update { copy(cardLive = v) } }
             ToggleCard(Icons.Rounded.Call, "Звонки", "Входящий вызов с кнопками ответа и время разговора",
                 s.cardCall) { v -> SettingsRepo.update { copy(cardCall = v) } }
         }

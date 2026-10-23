@@ -32,6 +32,9 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import com.akira.island.update.UpdateChecker
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.screens.AboutScreen
 import com.akira.island.ui.screens.CapsuleScreen
+import com.akira.island.ui.screens.DiagScreen
 import com.akira.island.ui.screens.CardsScreen
 import com.akira.island.ui.screens.ColorsScreen
 import com.akira.island.ui.screens.EventsScreen
@@ -56,7 +60,7 @@ import com.akira.island.ui.screens.InstructionScreen
 import com.akira.island.ui.screens.LyricsScreen
 import com.akira.island.ui.screens.SizeScreen
 
-enum class Screen { CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT }
+enum class Screen { CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT, DIAG }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,6 +89,11 @@ private fun AppRoot() {
     }
     BackHandler(enabled = stack.isNotEmpty(), onBack = back)
 
+    // Раз в 6 часов спрашиваем GitHub, не вышла ли новая версия; после обновления — «Что нового»
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { UpdateChecker.check(context.applicationContext, force = false) }
+    WhatsNewDialog()
+
     Box(Modifier.fillMaxSize().background(Ui.Bg)) {
         val key = stack.lastOrNull()?.name ?: "tab$tab"
         AnimatedContent(
@@ -112,6 +121,7 @@ private fun AppRoot() {
                 Screen.COLORS.name -> ColorsScreen(back)
                 Screen.INSTRUCTION.name -> InstructionScreen(back)
                 Screen.ABOUT.name -> AboutScreen(back)
+                Screen.DIAG.name -> DiagScreen(back)
             }
         }
 

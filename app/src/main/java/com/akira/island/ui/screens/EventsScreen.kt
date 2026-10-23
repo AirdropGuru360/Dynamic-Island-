@@ -8,6 +8,9 @@ import androidx.compose.material.icons.rounded.BluetoothConnected
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BrightnessAuto
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.Nfc
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.PowerOff
 import androidx.compose.material.icons.rounded.Usb
@@ -57,6 +60,17 @@ fun EventsScreen(onBack: () -> Unit) {
         SectionHeader("USB-устройство")
         ToggleCard(Icons.Rounded.Usb, "USB-устройство подключено", "Когда вы подключаете USB-устройство", s.evUsbOn) { set { copy(evUsbOn = it) } }
         ToggleCard(Icons.Rounded.UsbOff, "USB-устройство отключено", "Когда вы отключаете USB-устройство", s.evUsbOff) { set { copy(evUsbOff = it) } }
+
+        SectionHeader("Оплата")
+        ToggleCard(Icons.Rounded.Nfc, "Приложите к терминалу",
+            "Когда открываете Google Кошелёк, Т-Банк, Альфа-Банк, Сбер, ВТБ или другое приложение оплаты — карта и волны, как у Apple Pay",
+            s.evPayReady) { set { copy(evPayReady = it) } }
+        ToggleCard(Icons.Rounded.CheckCircle, "Оплачено",
+            "Когда банк или кошелёк присылает уведомление об оплате — зелёная галочка и сумма",
+            s.evPaySuccess) { set { copy(evPaySuccess = it) } }
+
+        SectionHeader("Режимы")
+        ToggleCard(Icons.Rounded.DoNotDisturbOn, "Не беспокоить", "При включении и выключении режима «Не беспокоить»", s.evDnd) { set { copy(evDnd = it) } }
 
         SectionHeader("Другое")
         ToggleCard(Icons.Rounded.LockOpen, "Разблокировка устройства", "После разблокировки устройства", s.evUnlock) { set { copy(evUnlock = it) } }

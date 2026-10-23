@@ -24,6 +24,8 @@ import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.Nfc
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PowerSettingsNew
@@ -48,7 +50,13 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.MediaInfo
+import android.app.PendingIntent
+import android.app.RemoteInput
+import android.content.Intent
 import com.akira.island.core.AppMessage
+import com.akira.island.core.MsgAction
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.service.NotificationParser
@@ -59,6 +67,7 @@ import com.akira.island.R
 import com.akira.island.island.CompactContent
 import com.akira.island.island.Ios
 import com.akira.island.island.activeHeight
+import com.akira.island.island.glassSurface
 import androidx.compose.animation.animateContentSize
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
@@ -69,6 +78,7 @@ import com.akira.island.ui.Screen
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.ToggleCard
 import com.akira.island.ui.Ui
+import com.akira.island.ui.UpdateSection
 
 @Composable
 fun HomeScreen(open: (Screen) -> Unit) {
@@ -95,6 +105,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
 
     Page("Динамический остров") {
         IslandPreview()
+        UpdateSection()
 
         ToggleCard(
             Icons.Rounded.PowerSettingsNew,
@@ -136,7 +147,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
 
         SectionHeader("Функции")
         Group {
-            GroupItem(Pos.First, Icons.Rounded.Dashboard, "Динамические карточки", "Плеер, фонарик, громкость, прогресс, таймер, зарядка",
+            GroupItem(Pos.First, Icons.Rounded.Dashboard, "Динамические карточки", "Плеер, фонарик, прогресс, таймер, зарядка, навигация",
                 onClick = { open(Screen.CARDS) }) { Arrow() }
             GroupItem(Pos.Middle, Icons.Rounded.NotificationsActive, "События", "Зарядка, Wi-Fi, наушники, режим полёта, USB…",
                 onClick = { open(Screen.EVENTS) }) { Arrow() }
@@ -151,14 +162,25 @@ fun HomeScreen(open: (Screen) -> Unit) {
             GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", onClick = {
                 IslandBus.post(Notice("Зарядка", "75%", Ios.load(context, R.drawable.ios_flash), Tints.Green, battery = 75))
             })
-            GroupItem(Pos.Middle, Icons.Rounded.ChatBubble, "Сообщение", "Так покажется сообщение из мессенджера", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.ChatBubble, "Сообщение", "Карточка с кнопками «Ответить» и «Пометить прочитанным»", onClick = {
+                // Пробные кнопки: «Ответить» с полем ввода, как у Telegram и WhatsApp
+                val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+                val test = PendingIntent.getBroadcast(context, 0, Intent("com.akira.island.TEST").setPackage(context.packageName), flags)
+                val input = RemoteInput.Builder("reply").setLabel("Ответить").build()
                 IslandBus.post(
                     Notice(
-                        "Динамический остров", icon = Ios.load(context, R.drawable.ios_chatbubble_ellipses), tint = Tints.Blue,
+                        "Анна", icon = Ios.load(context, R.drawable.ios_chatbubble_ellipses), tint = Tints.Blue,
                         style = NoticeStyle.MESSAGE,
-                        durationMs = 4500,
-                        message = AppMessage("test", context.packageName, "Остров", "Привет! Так выглядят уведомления в острове 💜",
-                            null, NotificationParser.icon(context, context.packageName), null),
+                        durationMs = 7000,
+                        message = AppMessage("test", context.packageName, "Остров", "Привет! Так выглядит уведомление в острове",
+                            null, NotificationParser.icon(context, context.packageName), null,
+                            actions = listOf(
+                                MsgAction("Ответить", test, listOf(input)),
+                                MsgAction("Пометить прочитанным", test),
+                            ),
+                            history = listOf("Как дела?", "Есть минутка?", "Привет! Так выглядит уведомление в острове"),
+                        ),
                     ),
                 )
             })
@@ -168,8 +190,28 @@ fun HomeScreen(open: (Screen) -> Unit) {
             GroupItem(Pos.Middle, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
                 Controls.startTimer(1)
             })
-            GroupItem(Pos.Last, Icons.Rounded.Call, "Входящий звонок", "Пробный вызов: можно ответить и сбросить", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.Call, "Входящий звонок", "Пробный вызов: можно ответить и сбросить", onClick = {
                 Controls.showTestCall()
+            })
+            GroupItem(Pos.Middle, Icons.Rounded.Nfc, "Оплата картой", "Приложите к терминалу, затем «Оплачено» с галочкой", onClick = {
+                IslandBus.post(
+                    Notice(
+                        "Оплата", icon = Ios.load(context, R.drawable.ios_wifi), tint = Tints.Blue, caption = "Приложите к терминалу",
+                        style = NoticeStyle.PAY_READY, appIcon = NotificationParser.icon(context, context.packageName), durationMs = 2800,
+                    ),
+                )
+                IslandBus.scope.launch {
+                    delay(2400)
+                    IslandBus.postNow(
+                        Notice(
+                            "Оплачено", "1 250 ₽", Ios.load(context, R.drawable.ios_checkmark_circle), Tints.Green, caption = "Остров",
+                            style = NoticeStyle.PAY_DONE, durationMs = 3400,
+                        ),
+                    )
+                }
+            })
+            GroupItem(Pos.Last, Icons.Rounded.Navigation, "Навигатор", "Пробная «живая активность» в капсуле", onClick = {
+                Controls.showTestLive(context)
             })
         }
     }
@@ -217,11 +259,14 @@ fun IslandPreview(expanded: Boolean = false) {
             Modifier
                 .padding(top = 18.dp)
                 .clip(shape)
-                .background(Color(s.color))
+                .then(
+                    if (s.liquidGlass) Modifier.glassSurface(shape, Color(s.color), s.glassOpacity / 100f)
+                    else Modifier.background(Color(s.color)),
+                )
                 .then(if (s.outline) Modifier.border(s.outlineWidth.dp, if (s.outlineFromArt) Tints.Lavender else Color(s.outlineColor), shape) else Modifier)
                 .animateContentSize(),
         ) {
-            CompactContent(act, s, null, 400.dp)
+            CompactContent(act, s, 400.dp)
         }
     }
 }
