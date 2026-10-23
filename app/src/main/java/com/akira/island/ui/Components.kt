@@ -46,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -164,6 +166,7 @@ fun ToggleCard(
     subtitle: String?,
     checked: Boolean,
     enabled: Boolean = true,
+    color: Color? = null,
     onChange: (Boolean) -> Unit,
 ) {
     Row(
@@ -177,10 +180,10 @@ fun ToggleCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(48.dp).clip(RoundedCornerShape(18.dp)).background(Ui.IconBg),
+            Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(color ?: Ui.IconBg),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(24.dp))
+            Icon(icon, null, tint = if (color != null) Color.White else Ui.Text, modifier = Modifier.size(if (color != null) 28.dp else 24.dp))
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
@@ -216,12 +219,25 @@ fun Group(content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp), content = content)
 }
 
+/** Значок пункта: белый на цветном скруглённом квадрате, как в «Настройках» iPhone; без цвета — просто значок. */
+@Composable
+fun ItemIcon(icon: ImageVector, color: Color?, size: Dp = 36.dp) {
+    if (color == null) {
+        Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(26.dp))
+    } else {
+        Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(color), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(size * 0.6f))
+        }
+    }
+}
+
 @Composable
 fun GroupItem(
     pos: Pos,
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
+    color: Color? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -234,8 +250,8 @@ fun GroupItem(
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(26.dp))
-        Spacer(Modifier.width(22.dp))
+        ItemIcon(icon, color)
+        Spacer(Modifier.width(if (color != null) 16.dp else 22.dp))
         Column(Modifier.weight(1f)) {
             Text(title, color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, lineHeight = 21.sp)
             if (subtitle != null) Text(subtitle, color = Ui.Sub, fontSize = 15.sp, lineHeight = 19.sp)
@@ -248,8 +264,16 @@ fun GroupItem(
 }
 
 @Composable
-fun GroupToggle(pos: Pos, icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
-    GroupItem(pos, icon, title, subtitle, onClick = { onChange(!checked) }) { IslandSwitch(checked, onChange) }
+fun GroupToggle(
+    pos: Pos,
+    icon: ImageVector,
+    title: String,
+    subtitle: String?,
+    checked: Boolean,
+    color: Color? = null,
+    onChange: (Boolean) -> Unit,
+) {
+    GroupItem(pos, icon, title, subtitle, color = color, onClick = { onChange(!checked) }) { IslandSwitch(checked, onChange) }
 }
 
 @Composable
@@ -261,6 +285,7 @@ fun GroupSlider(
     range: ClosedFloatingPointRange<Float>,
     label: String,
     steps: Int = 0,
+    color: Color? = null,
     onChange: (Float) -> Unit,
 ) {
     Column(
@@ -271,8 +296,8 @@ fun GroupSlider(
             .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(26.dp))
-            Spacer(Modifier.width(22.dp))
+            ItemIcon(icon, color)
+            Spacer(Modifier.width(if (color != null) 16.dp else 22.dp))
             Text(title, color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text(label, color = Ui.Sub, fontSize = 15.sp)
         }
@@ -300,6 +325,7 @@ fun GroupStepSlider(
     range: IntRange,
     unit: String = "dp",
     action: Pair<String, () -> Unit>? = null,
+    color: Color? = null,
     onChange: (Int) -> Unit,
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
@@ -312,8 +338,8 @@ fun GroupStepSlider(
             .padding(start = 20.dp, end = 14.dp, top = 16.dp, bottom = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = Ui.Text, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(20.dp))
+            ItemIcon(icon, color)
+            Spacer(Modifier.width(if (color != null) 16.dp else 22.dp))
             Text(title, color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             if (action != null) {
                 Text(

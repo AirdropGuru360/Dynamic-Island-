@@ -21,6 +21,20 @@ object Ui {
     val Outline = Color(0xFF908D99)
 }
 
+/** Цвета значков у пунктов настроек — как в «Настройках» iPhone: у каждой категории свой. */
+object Tile {
+    val Blue = Color(0xFF0A84FF)
+    val Green = Color(0xFF34C759)
+    val Orange = Color(0xFFFF9F0A)
+    val Red = Color(0xFFFF453A)
+    val Purple = Color(0xFFBF5AF2)
+    val Pink = Color(0xFFFF2D78)
+    val Teal = Color(0xFF30B0C7)
+    val Indigo = Color(0xFF5E5CE6)
+    val Yellow = Color(0xFFFFB800)
+    val Gray = Color(0xFF8E8E93)
+}
+
 @Composable
 fun IslandTheme(content: @Composable () -> Unit) {
     MaterialTheme(

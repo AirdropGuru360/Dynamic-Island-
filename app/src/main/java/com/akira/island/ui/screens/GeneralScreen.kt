@@ -25,6 +25,7 @@ import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
 import com.akira.island.ui.Perms
 import com.akira.island.ui.Pos
+import com.akira.island.ui.Tile
 import com.akira.island.ui.Screen
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.Ui
@@ -51,42 +52,42 @@ fun GeneralScreen(open: (Screen) -> Unit) {
         SectionHeader("Поведение")
         Group {
             GroupToggle(Pos.First, Icons.Rounded.Apps, "Прятать плеер в его приложении",
-                "Карточка музыки не показывается, пока открыт сам плеер", s.hideWhenPlayerOpen) { v ->
+                "Карточка музыки не показывается, пока открыт сам плеер", s.hideWhenPlayerOpen, color = Tile.Blue) { v ->
                 SettingsRepo.update { copy(hideWhenPlayerOpen = v) }
             }
             GroupSlider(
                 Pos.Last, Icons.Rounded.Schedule, "Показ событий",
-                value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = "%.1f с".format(s.noticeDurationMs / 1000f),
+                value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = "%.1f с".format(s.noticeDurationMs / 1000f), color = Tile.Orange,
             ) { v -> SettingsRepo.update { copy(noticeDurationMs = (v * 1000).toInt()) } }
         }
 
         SectionHeader("Обновления")
         Group {
             GroupToggle(Pos.First, Icons.Rounded.SystemUpdate, "Проверять обновления",
-                "Раз в 6 часов смотреть на GitHub, не вышла ли новая версия", s.autoUpdateCheck) { v ->
+                "Раз в 6 часов смотреть на GitHub, не вышла ли новая версия", s.autoUpdateCheck, color = Tile.Green) { v ->
                 SettingsRepo.update { copy(autoUpdateCheck = v) }
             }
             GroupItem(Pos.Last, Icons.Rounded.Refresh, "Проверить сейчас",
                 updateStatusText(update, UpdateChecker.currentVersion(context)),
-                onClick = { scope.launch { UpdateChecker.check(context.applicationContext, force = true) } })
+                onClick = { scope.launch { UpdateChecker.check(context.applicationContext, force = true) } }, color = Tile.Blue)
         }
 
         SectionHeader("Помощь")
         Group {
             GroupItem(Pos.First, Icons.Rounded.Lightbulb, "Инструкция", "Как включить остров на Android 13+",
-                onClick = { open(Screen.INSTRUCTION) }) { Arrow() }
+                onClick = { open(Screen.INSTRUCTION) }, color = Tile.Yellow) { Arrow() }
             GroupItem(Pos.Middle, Icons.Rounded.Navigation, "Диагностика навигации",
                 "Что присылает навигатор, такси или доставка — если не видно расстояния",
-                onClick = { open(Screen.DIAG) }) { Arrow() }
+                onClick = { open(Screen.DIAG) }, color = Tile.Teal) { Arrow() }
             GroupItem(Pos.Middle, Icons.Rounded.Security, "О приложении в системе", "Разрешения, ограниченные настройки, батарея",
-                onClick = { Perms.openAppDetails(context) })
+                onClick = { Perms.openAppDetails(context) }, color = Tile.Gray)
             GroupItem(Pos.Last, Icons.Rounded.Info, "О приложении", "Версия и откуда идея",
-                onClick = { open(Screen.ABOUT) }) { Arrow() }
+                onClick = { open(Screen.ABOUT) }, color = Tile.Indigo) { Arrow() }
         }
 
         SectionHeader("Сброс")
         GroupItem(Pos.Single, Icons.Rounded.Restore, "Сбросить все настройки", "Вернуть всё как было после установки",
-            onClick = { confirmReset = true })
+            onClick = { confirmReset = true }, color = Tile.Red)
     }
 
     if (confirmReset) {

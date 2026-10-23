@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -283,6 +284,8 @@ class NavScreenReader(private val service: AccessibilityService, private val sco
         current = pkg
         job = scope.launch {
             while (isActive) {
+                // Экран погашен — читать нечего, ждём, пока его включат
+                if (!IslandBus.screenOn.value) IslandBus.screenOn.first { it }
                 if (SettingsRepo.current.cardLive) runCatching { read(pkg) }
                 delay(1500)
             }
@@ -303,11 +306,13 @@ class NavScreenReader(private val service: AccessibilityService, private val sco
 
     private fun read(pkg: String) {
         val root = service.rootInActiveWindow ?: return
-        if (root.packageName?.toString() != pkg) return
         val items = ArrayList<ScreenItem>()
-        collect(root, items, 0)
+        if (root.packageName?.toString() == pkg) collect(root, items, 0)
+        @Suppress("DEPRECATION")
+        root.recycle()
+        if (items.isEmpty()) return
         val r = NavScreenParser.parse(items)
-        LiveDebug.recordScreen(service, pkg, items)
+        LiveDebug.recordScreen(service, pkg, items, r)
 
         val meters = r.distance?.let(::meters) ?: -1.0
         val newManeuver = r.street != lastStreet || (meters > 0 && lastMeters > 0 && meters > lastMeters * 1.3)
@@ -326,8 +331,8 @@ class NavScreenReader(private val service: AccessibilityService, private val sco
         val prev = NavScreen.data.value[pkg]
         val sn = ScreenNav(
             pkg = pkg,
-            label = NotificationParser.appLabel(service, pkg),
-            icon = NotificationParser.icon(service, pkg),
+            label = prev?.label ?: NotificationParser.appLabel(service, pkg),
+            icon = prev?.icon ?: NotificationParser.icon(service, pkg),
             distance = r.distance,
             street = r.street,
             eta = r.eta,

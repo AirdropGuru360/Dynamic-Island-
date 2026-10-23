@@ -42,6 +42,7 @@ import com.akira.island.data.TapAction
 import com.akira.island.ui.ChoiceDialog
 import com.akira.island.ui.Page
 import com.akira.island.ui.PillAction
+import com.akira.island.ui.Tile
 import com.akira.island.ui.ToggleCard
 import com.akira.island.ui.Ui
 
@@ -54,28 +55,28 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         Page("Динамические карточки", onBack, action = { PillAction("Инструкция", onInstruction) }) {
             ToggleCard(Icons.Outlined.PlayCircle, "Управление проигрывателем", "Когда воспроизведение активно и плеер свернут",
-                s.cardMedia) { v -> SettingsRepo.update { copy(cardMedia = v) } }
+                s.cardMedia, color = Tile.Pink) { v -> SettingsRepo.update { copy(cardMedia = v) } }
             ToggleCard(Icons.Rounded.FlashlightOn, "Управление вспышкой", "Когда включен фонарик",
-                s.cardTorch) { v -> SettingsRepo.update { copy(cardTorch = v) } }
+                s.cardTorch, color = Tile.Yellow) { v -> SettingsRepo.update { copy(cardTorch = v) } }
             ToggleCard(Icons.Rounded.Downloading, "Индикатор прогресса",
                 "Когда разные приложения (Google Play, Telegram и т.д.) показывают прогресс",
-                s.cardProgress) { v -> SettingsRepo.update { copy(cardProgress = v) } }
+                s.cardProgress, color = Tile.Teal) { v -> SettingsRepo.update { copy(cardProgress = v) } }
             ToggleCard(Icons.Rounded.HourglassEmpty, "Таймер/Секундомер",
                 "Когда таймер или секундомер Google Clock работает в фоне",
-                s.cardTimer) { v -> SettingsRepo.update { copy(cardTimer = v) } }
+                s.cardTimer, color = Tile.Orange) { v -> SettingsRepo.update { copy(cardTimer = v) } }
             ToggleCard(Icons.Rounded.OfflineBolt, "Индикатор зарядки", "Когда устройство заряжается",
-                s.cardCharging) { v -> SettingsRepo.update { copy(cardCharging = v) } }
+                s.cardCharging, color = Tile.Green) { v -> SettingsRepo.update { copy(cardCharging = v) } }
             ToggleCard(Icons.Rounded.ChatBubble, "Уведомления приложений",
                 "Сообщения из Telegram, WhatsApp, почты и других приложений — карточкой в острове, как на iPhone",
-                s.cardMessages) { v -> SettingsRepo.update { copy(cardMessages = v) } }
+                s.cardMessages, color = Tile.Blue) { v -> SettingsRepo.update { copy(cardMessages = v) } }
             ToggleCard(Icons.Rounded.Reply, "Кнопки в уведомлениях",
                 "«Ответить» с вводом текста прямо в острове и «Пометить прочитанным» — кнопки из самого уведомления",
-                s.msgActions) { v -> SettingsRepo.update { copy(msgActions = v) } }
+                s.msgActions, color = Tile.Indigo) { v -> SettingsRepo.update { copy(msgActions = v) } }
             ToggleCard(Icons.Rounded.Navigation, "Навигация, такси и доставка",
                 "Google Карты, Яндекс Карты и Навигатор, 2ГИС, Яндекс Go, Uber, Яндекс Еда и другие — расстояние и время в капсуле, подробности в раскрытом виде",
-                s.cardLive) { v -> SettingsRepo.update { copy(cardLive = v) } }
+                s.cardLive, color = Tile.Teal) { v -> SettingsRepo.update { copy(cardLive = v) } }
             ToggleCard(Icons.Rounded.Call, "Звонки", "Входящий вызов с кнопками ответа и время разговора",
-                s.cardCall) { v -> SettingsRepo.update { copy(cardCall = v) } }
+                s.cardCall, color = Tile.Green) { v -> SettingsRepo.update { copy(cardCall = v) } }
         }
 
         // Розовая кнопка внизу: что делает одиночное нажатие на капсулу

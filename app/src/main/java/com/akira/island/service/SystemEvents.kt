@@ -18,27 +18,9 @@ import android.net.NetworkRequest
 import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.AirplanemodeActive
-import androidx.compose.material.icons.rounded.AirplanemodeInactive
-import androidx.compose.material.icons.rounded.BatteryAlert
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.BrightnessAuto
-import androidx.compose.material.icons.rounded.BrightnessMedium
-import androidx.compose.material.icons.rounded.Headphones
-import androidx.compose.material.icons.rounded.HeadsetOff
-import androidx.compose.material.icons.rounded.LockOpen
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.NotificationsOff
-import androidx.compose.material.icons.rounded.PowerOff
-import androidx.compose.material.icons.rounded.Usb
-import androidx.compose.material.icons.rounded.UsbOff
-import androidx.compose.material.icons.rounded.Vibration
-import androidx.compose.material.icons.rounded.Wifi
-import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
@@ -126,6 +108,7 @@ class SystemEvents(private val context: Context) {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(Intent.ACTION_USER_PRESENT)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
             addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
@@ -139,6 +122,7 @@ class SystemEvents(private val context: Context) {
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
 
         dnd = isDnd()
+        IslandBus.screenOn.value = context.getSystemService(PowerManager::class.java)?.isInteractive ?: true
         brightnessMode = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
         context.contentResolver.registerContentObserver(
             Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE), false, brightnessObserver,
@@ -183,7 +167,12 @@ class SystemEvents(private val context: Context) {
             Intent.ACTION_USER_PRESENT ->
                 notice(s.evUnlock, Notice("", null, ic(R.drawable.ios_lock_open), Color.White, style = NoticeStyle.PILL))
 
-            Intent.ACTION_SCREEN_OFF -> Controls.collapse()
+            Intent.ACTION_SCREEN_OFF -> {
+                IslandBus.screenOn.value = false
+                Controls.collapse()
+            }
+
+            Intent.ACTION_SCREEN_ON -> IslandBus.screenOn.value = true
 
             NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
                 val on = isDnd()

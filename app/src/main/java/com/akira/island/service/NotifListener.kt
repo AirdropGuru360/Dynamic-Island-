@@ -13,7 +13,6 @@ import androidx.core.graphics.drawable.toBitmap
 import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.IslandBus
-import com.akira.island.core.LiveInfo
 import com.akira.island.core.LiveKind
 import com.akira.island.core.ProgressInfo
 import com.akira.island.data.SettingsRepo
@@ -167,6 +166,7 @@ object NotificationParser {
 
     fun onRemoved(key: String) {
         Messages.forget(key)
+        LiveParser.forget(key)
         if (key in IslandBus.calls.value) IslandBus.calls.value = IslandBus.calls.value - key
         if (key in IslandBus.progress.value) IslandBus.progress.value = IslandBus.progress.value - key
         if (key in IslandBus.chrono.value) IslandBus.chrono.value = IslandBus.chrono.value - key

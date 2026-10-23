@@ -48,7 +48,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.screens.AboutScreen
+import com.akira.island.ui.screens.AnimScreen
 import com.akira.island.ui.screens.CapsuleScreen
+import com.akira.island.ui.screens.LookScreen
 import com.akira.island.ui.screens.DiagScreen
 import com.akira.island.ui.screens.CardsScreen
 import com.akira.island.ui.screens.ColorsScreen
@@ -60,7 +62,7 @@ import com.akira.island.ui.screens.InstructionScreen
 import com.akira.island.ui.screens.LyricsScreen
 import com.akira.island.ui.screens.SizeScreen
 
-enum class Screen { CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT, DIAG }
+enum class Screen { CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT, DIAG, LOOK, ANIM }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -122,6 +124,8 @@ private fun AppRoot() {
                 Screen.INSTRUCTION.name -> InstructionScreen(back)
                 Screen.ABOUT.name -> AboutScreen(back)
                 Screen.DIAG.name -> DiagScreen(back)
+                Screen.LOOK.name -> LookScreen(back)
+                Screen.ANIM.name -> AnimScreen(back)
             }
         }
 

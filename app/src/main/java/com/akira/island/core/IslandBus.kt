@@ -3,7 +3,6 @@ package com.akira.island.core
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -48,6 +47,8 @@ object IslandBus {
     val battery = MutableStateFlow(BatteryInfo())
     val foregroundPackage = MutableStateFlow<String?>(null)
     val landscape = MutableStateFlow(false)
+    /** Экран включён. Пока он погашен, датчик наклона и чтение экрана навигатора не работают — бережём батарею */
+    val screenOn = MutableStateFlow(true)
     /** Открыт экран «Размер и положение»: остров красный, чтобы подогнать его под камеру */
     val calibrating = MutableStateFlow(false)
     /** Последнее касание раскрытого острова — чтобы не сворачивать его из-под пальца */

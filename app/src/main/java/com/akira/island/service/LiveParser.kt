@@ -13,10 +13,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import com.akira.island.R
 import com.akira.island.core.LiveInfo
-import com.akira.island.core.LiveKind
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
-import com.akira.island.core.Tints
 import com.akira.island.core.Turn
 import com.akira.island.island.Ios
 import com.akira.island.island.liveTint
@@ -44,17 +42,22 @@ object LiveParser {
         val n = sbn.notification
         val ex = n.extras
         val kind = LiveApps.kind(sbn.packageName, n.category) ?: return null
-        val remote = remoteViews(context, n)
         val head = ex.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val text = ex.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
         val big = ex.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim().orEmpty()
         val sub = (ex.getCharSequence(Notification.EXTRA_SUB_TEXT) ?: ex.getCharSequence(Notification.EXTRA_INFO_TEXT))
             ?.toString()?.trim().orEmpty()
+        val fields = listOf(head, text, big, sub)
+        val remote = if (findDistance(fields) != null && findEta(fields) != null) {
+            Remote(emptyList(), null, "не разбиралась: расстояние и время есть в полях")
+        } else {
+            remoteFor(context, sbn.key, n)
+        }
         LiveDebug.record(context, sbn, head, text, big, sub, remote.texts, remote.note)
         if (!sbn.isOngoing) return null
         if (head.isEmpty() && text.isEmpty() && remote.texts.isEmpty()) return null
 
-        val all = listOf(head, text, big, sub) + remote.texts
+        val all = fields + remote.texts
         val hint = instructionOf(all)
         val turn = hint?.let { detectTurn(listOf(it)) }
         val art = if (turn == null) {
@@ -159,6 +162,24 @@ object LiveParser {
 
     /** Раскладка, которую приложение рисует само: достаём тексты и описания картинок по порядку. */
     @Suppress("DEPRECATION")
+    /** Последняя разобранная раскладка по ключу уведомления и когда её разобрали */
+    private val remoteCache = HashMap<String, Pair<Long, Remote>>()
+
+    /**
+     * Навигатор обновляет уведомление каждую секунду, а собрать его раскладку — это создать целое дерево
+     * View. Поэтому разбираем её не чаще раза в 2 секунды, а при погашенном экране берём прошлую.
+     */
+    private fun remoteFor(context: Context, key: String, n: Notification): Remote {
+        val now = SystemClock.elapsedRealtime()
+        val cached = remoteCache[key]
+        if (cached != null && (now - cached.first < 2000 || !IslandBus.screenOn.value)) return cached.second
+        return remoteViews(context, n).also { remoteCache[key] = now to it }
+    }
+
+    fun forget(key: String) {
+        remoteCache.remove(key)
+    }
+
     private fun remoteViews(context: Context, n: Notification): Remote {
         val rv = n.bigContentView ?: n.contentView ?: n.headsUpContentView
             ?: return Remote(emptyList(), null, "своей раскладки нет")
@@ -216,10 +237,9 @@ object LiveDebug {
     }
 
     /** Подписи экрана навигатора — чтобы было видно, откуда остров берёт расстояние. */
-    fun recordScreen(context: Context, pkg: String, items: List<ScreenItem>) {
+    fun recordScreen(context: Context, pkg: String, items: List<ScreenItem>, r: NavScreenParser.Result) {
         val body = buildString {
             appendLine("Экран: " + NotificationParser.appLabel(context, pkg) + " (" + pkg + ")")
-            val r = NavScreenParser.parse(items)
             appendLine("нашлось: расстояние ${r.distance ?: "—"}, улица ${r.street ?: "—"}, прибытие ${r.eta ?: "—"}, поворот ${r.turn ?: "по картинке"}")
             items.filter { it.text.isNotEmpty() }.sortedWith(compareBy({ it.top }, { it.left })).take(40).forEach {
                 appendLine("  «${it.text}» ${it.left},${it.top}–${it.right},${it.bottom}")

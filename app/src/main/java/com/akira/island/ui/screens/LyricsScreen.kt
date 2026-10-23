@@ -19,6 +19,7 @@ import com.akira.island.ui.Group
 import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
 import com.akira.island.ui.Pos
+import com.akira.island.ui.Tile
 import com.akira.island.ui.Ui
 
 @Composable
@@ -27,7 +28,7 @@ fun LyricsScreen(onBack: () -> Unit) {
     Page("Текст песен", onBack) {
         Group {
             GroupToggle(Pos.Single, Icons.Rounded.LibraryMusic, "Текст песен", "Три строки в раскрытом плеере: текущая крупно, соседние бледнее",
-                s.lyricsEnabled) { v -> SettingsRepo.update { copy(lyricsEnabled = v) } }
+                s.lyricsEnabled, color = Tile.Pink) { v -> SettingsRepo.update { copy(lyricsEnabled = v) } }
         }
         Text(
             "Текст ищется по названию, исполнителю и длительности трека: сначала на LRCLIB (lrclib.net), " +

@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.NotificationsOff
@@ -74,6 +73,7 @@ import com.akira.island.ui.GroupItem
 import com.akira.island.ui.Page
 import com.akira.island.ui.Perms
 import com.akira.island.ui.Pos
+import com.akira.island.ui.Tile
 import com.akira.island.ui.Screen
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.ToggleCard
@@ -115,7 +115,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
                 running -> "Капсула показывается над камерой"
                 else -> "Служба запускается…"
             },
-            s.enabled,
+            s.enabled, color = Tile.Green,
         ) { v -> SettingsRepo.update { copy(enabled = v) } }
 
         SectionHeader("Разрешения")
@@ -123,17 +123,17 @@ fun HomeScreen(open: (Screen) -> Unit) {
             GroupItem(
                 Pos.First, Icons.Rounded.AccessibilityNew, "Спец. возможности",
                 if (a11y) "Включено — остров рисуется поверх строки состояния" else "Нужно включить: без этого острова не будет",
-                onClick = { Perms.openAccessibility(context) },
+                onClick = { Perms.openAccessibility(context) }, color = Tile.Blue,
             ) { Status(a11y) }
             GroupItem(
                 Pos.Middle, Icons.Rounded.Notifications, "Доступ к уведомлениям",
                 if (notif) "Включено — музыка, прогресс и таймеры" else "Нужен для музыки, прогресса и таймеров",
-                onClick = { Perms.openNotifications(context) },
+                onClick = { Perms.openNotifications(context) }, color = Tile.Red,
             ) { Status(notif) }
             GroupItem(
                 Pos.Middle, Icons.Rounded.Call, "Звонки",
                 if (callsOk) "Входящий вызов, имя из контактов, ответ кнопкой" else "Чтобы остров показывал входящие звонки",
-                onClick = { if (callsOk) Perms.openAppDetails(context) else callLauncher.launch(Perms.CALL_PERMISSIONS) },
+                onClick = { if (callsOk) Perms.openAppDetails(context) else callLauncher.launch(Perms.CALL_PERMISSIONS) }, color = Tile.Green,
             ) { Status(callsOk) }
             GroupItem(
                 Pos.Last, Icons.Rounded.Bluetooth, "Bluetooth",
@@ -141,28 +141,28 @@ fun HomeScreen(open: (Screen) -> Unit) {
                 onClick = {
                     if (!bt && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) btLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
                     else Perms.openAppDetails(context)
-                },
+                }, color = Tile.Indigo,
             ) { Status(bt) }
         }
 
         SectionHeader("Функции")
         Group {
             GroupItem(Pos.First, Icons.Rounded.Dashboard, "Динамические карточки", "Плеер, фонарик, прогресс, таймер, зарядка, навигация",
-                onClick = { open(Screen.CARDS) }) { Arrow() }
+                onClick = { open(Screen.CARDS) }, color = Tile.Purple) { Arrow() }
             GroupItem(Pos.Middle, Icons.Rounded.NotificationsActive, "События", "Зарядка, Wi-Fi, наушники, режим полёта, USB…",
-                onClick = { open(Screen.EVENTS) }) { Arrow() }
+                onClick = { open(Screen.EVENTS) }, color = Tile.Orange) { Arrow() }
             GroupItem(Pos.Middle, Icons.Rounded.Gesture, "Жесты", "Нажатия и свайпы по капсуле",
-                onClick = { open(Screen.GESTURES) }) { Arrow() }
+                onClick = { open(Screen.GESTURES) }, color = Tile.Teal) { Arrow() }
             GroupItem(Pos.Last, Icons.Rounded.LibraryMusic, "Текст песен", "Синхронный текст в раскрытом плеере",
-                onClick = { open(Screen.LYRICS) }) { Arrow() }
+                onClick = { open(Screen.LYRICS) }, color = Tile.Pink) { Arrow() }
         }
 
         SectionHeader("Проверка")
         Group {
-            GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", onClick = {
+            GroupItem(Pos.First, Icons.Rounded.Science, "Показать уведомление", "Тестовое событие в капсуле", color = Tile.Gray, onClick = {
                 IslandBus.post(Notice("Зарядка", "75%", Ios.load(context, R.drawable.ios_flash), Tints.Green, battery = 75))
             })
-            GroupItem(Pos.Middle, Icons.Rounded.ChatBubble, "Сообщение", "Карточка с кнопками «Ответить» и «Пометить прочитанным»", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.ChatBubble, "Сообщение", "Карточка с кнопками «Ответить» и «Пометить прочитанным»", color = Tile.Green, onClick = {
                 // Пробные кнопки: «Ответить» с полем ввода, как у Telegram и WhatsApp
                 val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                     (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
@@ -184,19 +184,19 @@ fun HomeScreen(open: (Screen) -> Unit) {
                     ),
                 )
             })
-            GroupItem(Pos.Middle, Icons.Rounded.NotificationsOff, "Режим звука", "Капсула вздрагивает, колокольчик качается", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.NotificationsOff, "Режим звука", "Капсула вздрагивает, колокольчик качается", color = Tile.Red, onClick = {
                 IslandBus.post(Notice("", "Без звука", Ios.load(context, R.drawable.ios_notifications_off), Tints.Red, style = NoticeStyle.PILL))
             })
-            GroupItem(Pos.Middle, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.HourglassBottom, "Таймер на 1 минуту", "Капсула покажет обратный отсчёт", color = Tile.Orange, onClick = {
                 Controls.startTimer(1)
             })
-            GroupItem(Pos.Middle, Icons.Rounded.Call, "Входящий звонок", "Пробный вызов: можно ответить и сбросить", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.Call, "Входящий звонок", "Пробный вызов: можно ответить и сбросить", color = Tile.Green, onClick = {
                 Controls.showTestCall()
             })
-            GroupItem(Pos.Middle, Icons.Rounded.Nfc, "Оплата картой", "Приложите к терминалу, затем «Оплачено» с галочкой", onClick = {
+            GroupItem(Pos.Middle, Icons.Rounded.Nfc, "Оплата картой", "Приложите к терминалу, затем «Оплачено» с галочкой", color = Tile.Blue, onClick = {
                 IslandBus.post(
                     Notice(
-                        "Оплата", icon = Ios.load(context, R.drawable.ios_wifi), tint = Tints.Blue, caption = "Приложите к терминалу",
+                        "Оплата", icon = Ios.load(context, R.drawable.ios_wifi), tint = Tints.Blue, caption = "К терминалу",
                         style = NoticeStyle.PAY_READY, appIcon = NotificationParser.icon(context, context.packageName), durationMs = 2800,
                     ),
                 )
@@ -210,7 +210,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
                     )
                 }
             })
-            GroupItem(Pos.Last, Icons.Rounded.Navigation, "Навигатор", "Пробная «живая активность» в капсуле", onClick = {
+            GroupItem(Pos.Last, Icons.Rounded.Navigation, "Навигатор", "Пробная «живая активность» в капсуле", color = Tile.Teal, onClick = {
                 Controls.showTestLive(context)
             })
         }

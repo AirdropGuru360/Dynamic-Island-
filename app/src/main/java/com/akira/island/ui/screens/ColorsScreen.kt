@@ -54,6 +54,7 @@ import com.akira.island.ui.GroupSlider
 import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
 import com.akira.island.ui.Pos
+import com.akira.island.ui.Tile
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.Ui
 
@@ -76,7 +77,7 @@ private val accentColors = listOf(
 fun ColorsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     var accentDialog by remember { mutableStateOf(false) }
-    Page("Цвет капсулы", onBack) {
+    Page("Цвета", onBack) {
         IslandPreview()
 
         SectionHeader("Цвет")
@@ -84,26 +85,26 @@ fun ColorsScreen(onBack: () -> Unit) {
 
         SectionHeader("Контур")
         Group {
-            GroupToggle(Pos.First, Icons.Rounded.BorderStyle, "Контур", "Тонкая обводка вокруг капсулы", s.outline) { v ->
+            GroupToggle(Pos.First, Icons.Rounded.BorderStyle, "Контур", "Тонкая обводка вокруг капсулы", s.outline, color = Tile.Gray) { v ->
                 SettingsRepo.update { copy(outline = v) }
             }
             GroupToggle(Pos.Middle, Icons.Rounded.Image, "Цвет из обложки", "Пока играет музыка, контур окрашивается в цвет обложки",
-                s.outlineFromArt) { v -> SettingsRepo.update { copy(outlineFromArt = v, outline = outline || v) } }
-            GroupSlider(Pos.Last, Icons.Rounded.LineWeight, "Толщина", s.outlineWidth, 0.5f..4f, "%.1f dp".format(s.outlineWidth)) { v ->
+                s.outlineFromArt, color = Tile.Pink) { v -> SettingsRepo.update { copy(outlineFromArt = v, outline = outline || v) } }
+            GroupSlider(Pos.Last, Icons.Rounded.LineWeight, "Толщина", s.outlineWidth, 0.5f..4f, "%.1f dp".format(s.outlineWidth), color = Tile.Gray) { v ->
                 SettingsRepo.update { copy(outlineWidth = (v * 2).toInt() / 2f) }
             }
         }
         Swatches(outlineColors, s.outlineColor) { c -> SettingsRepo.update { copy(outlineColor = c, outline = true) } }
 
         SectionHeader("Тень")
-        GroupToggle(Pos.Single, Icons.Rounded.Layers, "Тень", "Мягкая тень под капсулой — заметна на светлых экранах", s.shadow) { v ->
+        GroupToggle(Pos.Single, Icons.Rounded.Layers, "Тень", "Мягкая тень под капсулой — заметна на светлых экранах", s.shadow, color = Tile.Indigo) { v ->
             SettingsRepo.update { copy(shadow = v) }
         }
 
         SectionHeader("Кнопки в уведомлениях")
         AccentPreview(s)
         GroupItem(Pos.Single, Icons.Rounded.Palette, "Цвет кнопок", "${s.accentMode.title} — ${s.accentMode.hint}",
-            onClick = { accentDialog = true })
+            onClick = { accentDialog = true }, color = Tile.Orange)
         if (s.accentMode == AccentMode.CUSTOM) {
             Swatches(accentColors, s.accentColor) { c -> SettingsRepo.update { copy(accentColor = c) } }
         }

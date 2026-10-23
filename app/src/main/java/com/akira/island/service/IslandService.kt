@@ -139,9 +139,11 @@ class IslandService : AccessibilityService() {
         // Пока вводят ответ на уведомление, окну нужен фокус, иначе клавиатура не покажется
         scope.launch { IslandBus.reply.collect { setInputFocus(it != null) } }
 
-        // Liquid Glass: блики сдвигаются при наклоне телефона, датчик слушаем только пока стекло включено
+        // Liquid Glass: блики сдвигаются при наклоне телефона, датчик слушаем только пока стекло включено и экран горит
         scope.launch {
-            SettingsRepo.state.map { it.liquidGlass && it.enabled }.distinctUntilChanged().collect { setTiltEnabled(it) }
+            combine(SettingsRepo.state.map { it.liquidGlass && it.enabled }, IslandBus.screenOn) { glass, on -> glass && on }
+                .distinctUntilChanged()
+                .collect { setTiltEnabled(it) }
         }
 
         scope.launch {

@@ -6,8 +6,6 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -23,6 +21,7 @@ import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.R
+import com.akira.island.data.AccentMode
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
 
@@ -95,7 +94,8 @@ object Messages {
             appIcon = NotificationParser.icon(service, sbn.packageName),
             intent = n.contentIntent,
             actions = actions,
-            accent = accentOf(avatar ?: NotificationParser.icon(service, sbn.packageName)),
+            // Разбор палитры нужен только для цвета кнопок «Из аватара»
+            accent = if (s.accentMode == AccentMode.ADAPTIVE) accentOf(avatar ?: NotificationParser.icon(service, sbn.packageName)) else null,
             history = history(ex),
         )
         IslandBus.post(
