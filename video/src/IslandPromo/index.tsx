@@ -346,13 +346,79 @@ const Island: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
   );
 };
 
-// ——— Телефон ———
+// ——— Камера: у каждой главы свой ракурс, переходы — «вжух» вбок ———
+type Cam = { f: number; x: number; s: number; ry: number; rz: number };
+const CAM: Cam[] = [
+  { f: 110, x: 0, s: 1, ry: 0, rz: 0 },
+  { f: 175, x: 0, s: 1.05, ry: -10, rz: 0 },
+  { f: 205, x: 0, s: 1.22, ry: 0, rz: 0 }, // наезд на зарядку
+  { f: 275, x: 30, s: 1.45, ry: 8, rz: -2 }, // компактная капсула крупно
+  { f: 345, x: -40, s: 1.6, ry: 14, rz: 2 }, // музыка
+  { f: 420, x: 0, s: 1.22, ry: -6, rz: 0 }, // плеер
+  { f: 535, x: 40, s: 1.24, ry: -12, rz: -3 }, // звонок
+  { f: 655, x: -30, s: 1.22, ry: 14, rz: 2 }, // уведомление
+  { f: 780, x: 0, s: 1.75, ry: 0, rz: 0 }, // режим звука — крупно
+  { f: 890, x: 30, s: 1.5, ry: -10, rz: -2 }, // таймер
+  { f: 960, x: 0, s: 1.24, ry: 6, rz: 0 },
+  { f: 1070, x: -20, s: 1.7, ry: -8, rz: 3 }, // фонарик
+  { f: 1205, x: 0, s: 1, ry: 0, rz: 0 },
+];
+
+const camAt = (frame: number, fps: number) => {
+  let i = 0;
+  CAM.forEach((c, k) => {
+    if (frame >= c.f) i = k;
+  });
+  const cur = CAM[i];
+  const prev = CAM[Math.max(0, i - 1)];
+  const p = spring({ frame: frame - cur.f, fps, config: { damping: 15, stiffness: 90, mass: 1 } });
+  const m = (a: number, b: number) => a + (b - a) * p;
+  return { x: m(prev.x, cur.x), s: m(prev.s, cur.s), ry: m(prev.ry, cur.ry), rz: m(prev.rz, cur.rz) };
+};
+
+const BEAT = (30 * 60) / 112;
+
+/** Удары: пульс в такт музыке и «подскок» при каждой смене острова */
+const kicks = (frame: number) => {
+  let beat = 0;
+  if (frame >= 110 && frame < 1235) {
+    const ph = (frame - 110) % BEAT;
+    beat = Math.exp(-ph / 3.5);
+  }
+  let punch = 0;
+  ISLAND.forEach((st) => {
+    const d = frame - st.from;
+    if (st.from > 0 && d >= 0 && d < 20) punch = Math.max(punch, Math.exp(-d / 4));
+  });
+  return { beat, punch };
+};
+
+/** Резкий сдвиг вбок со смазом на стыке глав */
+const whip = (frame: number) => {
+  let x = 0;
+  let blur = 0;
+  CHAPTERS.forEach((c, i) => {
+    if (i === 0) return;
+    const d = frame - c.from;
+    if (d > -8 && d < 10) {
+      const dir = i % 2 ? 1 : -1;
+      const k = d < 0 ? (d + 8) / 8 : 1 - d / 10;
+      x += dir * 260 * Math.sin((Math.PI / 2) * k) * (d < 0 ? 1 : -1);
+      blur = Math.max(blur, 18 * k);
+    }
+  });
+  return { x, blur };
+};
+
 const Phone: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
   const reveal = spring({ frame: frame - 110, fps, config: { damping: 200, stiffness: 60 } });
   const outro = interpolate(frame, [1235, 1290], [0, 1], { ...clamp, easing: ease });
-  const y = interpolate(reveal, [0, 1], [700, 0]) + outro * 900;
-  const scale = interpolate(reveal, [0, 1], [1.25, 1]) * interpolate(frame, [170, 1230], [1, 1.06]);
-  const tilt = interpolate(reveal, [0, 1], [18, 0]);
+  const cam = camAt(frame, fps);
+  const { beat, punch } = kicks(frame);
+  const w = whip(frame);
+  const y = interpolate(reveal, [0, 1], [700, 0]) + outro * 900 + Math.sin(frame / 40) * 10;
+  const scale = interpolate(reveal, [0, 1], [1.25, 1]) * cam.s * (1 + 0.012 * beat + 0.05 * punch);
+  const tilt = interpolate(reveal, [0, 1], [18, 0]) + Math.sin(frame / 55) * 2;
   return (
     <div
       style={{
@@ -361,12 +427,15 @@ const Phone: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
         top: 760,
         width: PHONE_W,
         height: 1900,
-        transform: `translateY(${y}px) perspective(2400px) rotateX(${tilt}deg) scale(${scale})`,
+        transform: `translateX(${cam.x + w.x}px) translateY(${y}px) perspective(2400px) rotateX(${tilt}deg) rotateY(${cam.ry}deg) rotateZ(${cam.rz}deg) scale(${scale})`,
         transformOrigin: "50% 0%",
         opacity: reveal * (1 - outro),
+        filter: w.blur > 0.5 ? `blur(${w.blur}px)` : undefined,
       }}
     >
       <div style={{ position: "absolute", inset: 0, borderRadius: 150, background: "linear-gradient(160deg,#5B5A63,#2A2930 40%,#4A4952)", boxShadow: "0 40px 120px rgba(120,110,255,0.25)" }} />
+      {/* Блик на корпусе, бегущий при поворотах */}
+      <div style={{ position: "absolute", inset: 0, borderRadius: 150, background: `linear-gradient(${110 + cam.ry * 4}deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 60%)` }} />
       <div style={{ position: "absolute", inset: 22, borderRadius: 130, overflow: "hidden", background: "radial-gradient(120% 70% at 50% 0%, #4B4680 0%, #23203A 45%, #0E0D16 100%)" }}>
         <div style={{ position: "absolute", top: 16 * PT, left: 30 * PT, right: 30 * PT, display: "flex", justifyContent: "space-between", alignItems: "center", ...T, fontSize: 16 * PT }}>
           <span>9:41</span>
@@ -375,6 +444,40 @@ const Phone: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
         <Island frame={frame} fps={fps} />
       </div>
     </div>
+  );
+};
+
+// ——— Фон: пятна света в цвет главы ———
+const CHAPTER_COLORS = ["#7C6CFF", "#34C759", "#F472B6", "#34C759", "#0A84FF", "#FF453A", "#FF9F0A", "#FFF3B0"];
+
+const Lights: React.FC<{ frame: number }> = ({ frame }) => {
+  let idx = 0;
+  CHAPTERS.forEach((c, i) => {
+    if (frame >= c.from) idx = i + 1;
+  });
+  const color = CHAPTER_COLORS[Math.min(idx, CHAPTER_COLORS.length - 1)];
+  const { beat } = kicks(frame);
+  const vis = interpolate(frame, [110, 170, 1230, 1300], [0, 1, 1, 0.35], clamp);
+  const blob = (x: number, y: number, size: number, op: number) => (
+    <div
+      style={{
+        position: "absolute",
+        left: x - size / 2,
+        top: y - size / 2,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `radial-gradient(circle, ${color} 0%, rgba(0,0,0,0) 65%)`,
+        opacity: op * vis,
+        transition: "none",
+      }}
+    />
+  );
+  return (
+    <AbsoluteFill style={{ filter: "blur(40px)" }}>
+      {blob(540 + Math.sin(frame / 37) * 320, 1250 + Math.cos(frame / 51) * 260, 1100, 0.32 + 0.1 * beat)}
+      {blob(540 + Math.cos(frame / 29) * 380, 700 + Math.sin(frame / 43) * 200, 800, 0.18)}
+    </AbsoluteFill>
   );
 };
 
@@ -393,13 +496,29 @@ export const CHAPTERS: Chapter[] = [
 const Headline: React.FC<{ frame: number; c: Chapter }> = ({ frame, c }) => {
   const t = frame - c.from;
   const len = c.to - c.from;
-  const inA = interpolate(t, [0, 18], [0, 1], { ...clamp, easing: ease });
-  const outA = interpolate(t, [len - 14, len], [1, 0], clamp);
-  const subIn = interpolate(t, [10, 30], [0, 1], { ...clamp, easing: ease });
+  const outA = interpolate(t, [len - 12, len], [1, 0], clamp);
+  const outY = interpolate(t, [len - 12, len], [0, -40], clamp);
+  const subIn = interpolate(t, [12, 30], [0, 1], { ...clamp, easing: ease });
   return (
-    <div style={{ position: "absolute", top: 230, left: 0, right: 0, textAlign: "center", opacity: Math.min(inA, outA) }}>
-      <div style={{ ...T, fontWeight: 700, fontSize: 124, letterSpacing: -3, filter: `blur(${(1 - inA) * 14}px)`, transform: `translateY(${(1 - inA) * 30}px)` }}>
-        {c.title}
+    <div style={{ position: "absolute", top: 230, left: 0, right: 0, textAlign: "center", opacity: outA, transform: `translateY(${outY}px)` }}>
+      <div style={{ ...T, fontWeight: 700, fontSize: 124, letterSpacing: -3, display: "flex", justifyContent: "center" }}>
+        {Array.from(c.title).map((ch, i) => {
+          const k = spring({ frame: t - i * 1.6, fps: 30, config: { damping: 13, stiffness: 160 } });
+          return (
+            <span
+              key={i}
+              style={{
+                display: "inline-block",
+                opacity: Math.min(1, k * 1.4),
+                transform: `translateY(${(1 - k) * 70}px) scale(${0.6 + 0.4 * k})`,
+                filter: `blur(${Math.max(0, 1 - k) * 12}px)`,
+                whiteSpace: "pre",
+              }}
+            >
+              {ch}
+            </span>
+          );
+        })}
       </div>
       <div style={{ ...T, whiteSpace: "pre-line", fontWeight: 600, fontSize: 46, lineHeight: 1.25, color: C.sub, marginTop: 24, opacity: subIn, transform: `translateY(${(1 - subIn) * 20}px)` }}>
         {c.sub}
@@ -450,7 +569,17 @@ const More: React.FC<{ frame: number }> = ({ frame }) => (
     </Reveal>
     <div style={{ marginTop: 50, display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
       {MORE.map((s, i) => (
-        <Reveal key={s} frame={frame} at={MORE_AT(i)} style={{ ...T, fontSize: 58, color: i % 2 ? "white" : C.lavender }}>
+        <Reveal
+          key={s}
+          frame={frame}
+          at={MORE_AT(i)}
+          style={{
+            ...T,
+            fontSize: 58,
+            color: i % 2 ? "white" : C.lavender,
+            translate: `${interpolate(frame - MORE_AT(i), [0, 14], [i % 2 ? 260 : -260, 0], { ...clamp, easing: ease })}px 0`,
+          }}
+        >
           {s}
         </Reveal>
       ))}
@@ -484,12 +613,7 @@ export const IslandPromo: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       <Audio src={staticFile("audio/promo.mp3")} />
-      <AbsoluteFill
-        style={{
-          background: "radial-gradient(60% 40% at 50% 70%, rgba(120,110,255,0.22) 0%, rgba(0,0,0,0) 70%)",
-          opacity: interpolate(frame, [110, 170, 1230, 1280], [0, 1, 1, 0], clamp),
-        }}
-      />
+      <Lights frame={frame} />
       {frame < 115 ? <Intro frame={frame} /> : null}
       {frame >= 100 && frame < 1300 ? <Phone frame={frame} fps={fps} /> : null}
       {CHAPTERS.map((c) => (frame >= c.from && frame < c.to ? <Headline key={c.title} frame={frame} c={c} /> : null))}
