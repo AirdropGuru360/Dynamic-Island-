@@ -60,6 +60,8 @@ data class IslandSettings(
     val msgActions: Boolean = true,
     /** Навигация, такси и доставка — «живые активности» из постоянных уведомлений */
     val cardLive: Boolean = true,
+    /** Будильник: за 12 часов до него — время подъёма и сколько осталось спать */
+    val cardAlarm: Boolean = true,
 
     // События
     val evChargeStart: Boolean = true,
@@ -81,6 +83,8 @@ data class IslandSettings(
     val evPayReady: Boolean = true,
     /** Пришло уведомление об оплате — «Оплачено» с галочкой */
     val evPaySuccess: Boolean = true,
+    /** Поставили будильник — плашка со временем подъёма */
+    val evAlarmSet: Boolean = true,
 
     // Размер и положение, dp — как у iPhone: капсула 126×37, отступ сверху 11
     val width: Int = 126,

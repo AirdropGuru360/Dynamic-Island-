@@ -3,6 +3,7 @@ package com.akira.island.ui.screens
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AirplanemodeActive
 import androidx.compose.material.icons.rounded.AirplanemodeInactive
+import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BluetoothConnected
 import androidx.compose.material.icons.rounded.BluetoothDisabled
@@ -69,6 +70,10 @@ fun EventsScreen(onBack: () -> Unit) {
         ToggleCard(Icons.Rounded.CheckCircle, "Оплачено",
             "Когда банк или кошелёк присылает уведомление об оплате — зелёная галочка и сумма",
             s.evPaySuccess, color = Tile.Green) { set { copy(evPaySuccess = it) } }
+
+        SectionHeader("Будильник")
+        ToggleCard(Icons.Rounded.Alarm, "Будильник поставлен",
+            "Когда вы ставите будильник — время подъёма и сколько осталось спать", s.evAlarmSet, color = Tile.Orange) { set { copy(evAlarmSet = it) } }
 
         SectionHeader("Режимы")
         ToggleCard(Icons.Rounded.DoNotDisturbOn, "Не беспокоить", "При включении и выключении режима «Не беспокоить»", s.evDnd, color = Tile.Indigo) { set { copy(evDnd = it) } }

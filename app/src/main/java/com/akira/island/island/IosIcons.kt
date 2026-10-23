@@ -34,6 +34,7 @@ object Ios {
     val headset @Composable get() = ImageVector.vectorResource(R.drawable.ios_headset)
     val navigate @Composable get() = ImageVector.vectorResource(R.drawable.ios_navigate)
     val music @Composable get() = ImageVector.vectorResource(R.drawable.ios_musical_notes)
+    val moon @Composable get() = ImageVector.vectorResource(R.drawable.ios_moon)
     val bell @Composable get() = ImageVector.vectorResource(R.drawable.ios_notifications)
     val pause @Composable get() = ImageVector.vectorResource(R.drawable.ios_pause)
     val play @Composable get() = ImageVector.vectorResource(R.drawable.ios_play)

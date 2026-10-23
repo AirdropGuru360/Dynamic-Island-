@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Downloading
@@ -63,8 +64,12 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
                 "Когда разные приложения (Google Play, Telegram и т.д.) показывают прогресс",
                 s.cardProgress, color = Tile.Teal) { v -> SettingsRepo.update { copy(cardProgress = v) } }
             ToggleCard(Icons.Rounded.HourglassEmpty, "Таймер/Секундомер",
-                "Когда таймер или секундомер Google Clock работает в фоне",
+                "Когда таймер или секундомер «Часов» работает в фоне — даже если уведомления «Часов» выключены: " +
+                    "остров запоминает их, пока вы в приложении",
                 s.cardTimer, color = Tile.Orange) { v -> SettingsRepo.update { copy(cardTimer = v) } }
+            ToggleCard(Icons.Rounded.Bedtime, "Будильник",
+                "За 12 часов до будильника — время подъёма и сколько осталось спать, с циферблатом сна, как на iPhone",
+                s.cardAlarm, color = Tile.Indigo) { v -> SettingsRepo.update { copy(cardAlarm = v) } }
             ToggleCard(Icons.Rounded.OfflineBolt, "Индикатор зарядки", "Когда устройство заряжается",
                 s.cardCharging, color = Tile.Green) { v -> SettingsRepo.update { copy(cardCharging = v) } }
             ToggleCard(Icons.Rounded.ChatBubble, "Уведомления приложений",

@@ -1,5 +1,6 @@
 package com.akira.island.island
 
+import com.akira.island.core.AlarmInfo
 import com.akira.island.core.BatteryInfo
 import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
@@ -36,4 +37,7 @@ sealed class Act(val id: String, val transient: Boolean = false) {
         override val pkg: String get() = l.pkg
     }
     data class ChargingA(val b: BatteryInfo) : Act("charging")
+    data class AlarmA(val a: AlarmInfo) : Act("alarm") {
+        override val pkg: String? get() = a.pkg
+    }
 }

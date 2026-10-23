@@ -126,6 +126,7 @@ fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: Batte
             is Act.ChargingA -> ChargingExpanded(act.b)
             is Act.LiveA -> LiveExpanded(act.l)
             is Act.CallA -> CallExpanded(act.c)
+            is Act.AlarmA -> AlarmExpanded(act.a, s)
             else -> IdleExpanded(s, battery)
         }
     }
@@ -528,8 +529,8 @@ private fun ChronoExpanded(c: ChronoInfo) {
     Row(Modifier.clickable { Controls.openApp(context, c.pkg) }, verticalAlignment = Alignment.CenterVertically) {
         AppIcon(c.icon, 46.dp, Ios.timer, Tints.Orange)
         Spacer(Modifier.width(14.dp))
-        Text(c.title, color = Tints.Orange, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(top = 12.dp))
+        Text(if (c.pausedMs != null) "Пауза" else c.title, color = Tints.Orange, fontSize = 15.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(top = 12.dp))
         Spacer(Modifier.width(8.dp))
         Text(formatDuration(c.elapsed(now)), color = Tints.Orange, fontSize = 40.sp,
             style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
@@ -639,11 +640,24 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
     val time = DateFormat.getTimeFormat(context).format(Date(now))
     val date = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
         .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    val alarm by IslandBus.nextAlarm.collectAsState()
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(time, color = Color.White, fontSize = 36.sp, style = Digits)
                 Text(date, color = Dim, fontSize = 14.sp)
+                // Ближайший будильник в пределах суток — под датой, как на экране блокировки iPhone
+                alarm?.takeIf { it.triggerAt - now in 1..86_400_000L }?.let { a ->
+                    Row(
+                        Modifier.padding(top = 3.dp).clickable { openAlarm(context, a) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Ios.alarm, null, tint = AlarmTint, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("${wakeTime(context, a.triggerAt)} · через ${durationWords(a.triggerAt - now)}",
+                            color = AlarmTint, fontSize = 13.sp, maxLines = 1)
+                    }
+                }
             }
             if (battery.level >= 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

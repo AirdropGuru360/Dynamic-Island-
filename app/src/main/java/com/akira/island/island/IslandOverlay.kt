@@ -115,6 +115,15 @@ fun IslandOverlay(
     val expanded by IslandBus.expanded.collectAsState()
     val focus by IslandBus.focus.collectAsState()
     val calibrating by IslandBus.calibrating.collectAsState()
+    val nextAlarm by IslandBus.nextAlarm.collectAsState()
+    // Будильник появляется в острове за 12 часов — проверяем раз в полминуты
+    var alarmNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(nextAlarm) {
+        while (nextAlarm != null) {
+            alarmNow = System.currentTimeMillis()
+            delay(30_000)
+        }
+    }
 
     // Пробная «живая активность» исчезает по времени, даже если таймер удаления не сработал (сон телефона)
     val hasExpiring = live.values.any { it.expiresAt > 0 }
@@ -163,6 +172,9 @@ fun IslandOverlay(
         if (s.cardMedia && m != null && !(s.hideWhenPlayerOpen && foreground == m.pkg)) persistent += Act.MediaA(m)
         if (s.cardProgress) progress.values.maxByOrNull { it.postTime }?.let { persistent += Act.ProgressA(it) }
         if (s.cardCharging && battery.charging) persistent += Act.ChargingA(battery)
+        // Будильник — тише всех: показывается, только когда больше ничего нет, и не уходит в пузырь
+        val alarm = nextAlarm
+        if (s.cardAlarm && alarm != null && alarm.triggerAt - alarmNow in 1..ALARM_LEAD_MS) persistent += Act.AlarmA(alarm)
 
         // Выбранная активность выходит вперёд, но звонящий таймер всегда главный
         val ringing = (persistent.firstOrNull() as? Act.TimerA)?.t?.ringing == true || call?.incoming == true
@@ -190,7 +202,7 @@ fun IslandOverlay(
         else -> acts.firstOrNull() ?: Act.Idle
     }
     val incoming = (primary as? Act.CallA)?.c?.incoming == true
-    val secondary = if (primary.transient || incoming || calibrating) null else acts.drop(1).firstOrNull { !it.transient }
+    val secondary = if (primary.transient || incoming || calibrating) null else acts.drop(1).firstOrNull { !it.transient && it !is Act.AlarmA }
     val showExpanded = expanded && !primary.transient && !incoming && !calibrating
     val h = s.height.dp
 
@@ -293,7 +305,8 @@ private fun IslandBody(
         expanded -> 44.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 30.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
-        primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE || primary.n.style == NoticeStyle.LIVE) -> noticeHeight(s) / 2
+        primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE ||
+            primary.n.style == NoticeStyle.LIVE || primary.n.style == NoticeStyle.ALARM) -> noticeHeight(s) / 2
         primary is Act.CallA && primary.c.incoming -> 42.dp
         primary is Act.Idle -> h / 2
         else -> activeHeight(s) / 2
@@ -503,6 +516,7 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
                 if (!Controls.send(context, m.intent)) Controls.openApp(context, m.pkg)
             }
             act.n.openPkg?.let { Controls.openApp(context, it) }
+            act.n.alarm?.let { openAlarm(context, it) }
             IslandBus.notice.value = null
         }
         is Act.Idle -> Controls.expand(act.id)

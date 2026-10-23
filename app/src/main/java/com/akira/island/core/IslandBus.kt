@@ -32,6 +32,8 @@ object IslandBus {
     val chrono = MutableStateFlow<Map<String, ChronoInfo>>(emptyMap())
     val calls = MutableStateFlow<Map<String, CallInfo>>(emptyMap())
     val live = MutableStateFlow<Map<String, LiveInfo>>(emptyMap())
+    /** Ближайший будильник любого приложения «Часы» */
+    val nextAlarm = MutableStateFlow<AlarmInfo?>(null)
     /** Звонящие будильники и таймеры других приложений («Часы»): ключи их уведомлений */
     val ringingAlarms = MutableStateFlow<Set<String>>(emptySet())
     val torch = MutableStateFlow(TorchState())

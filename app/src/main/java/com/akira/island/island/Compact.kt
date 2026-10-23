@@ -165,8 +165,11 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
             val tint = if (recording) Tints.Red else Tints.Orange
             CompactRow(h, gap, side * 1.4f,
                 left = {
-                    if (recording) Equalizer(tint, true, !s.reduceEffects, Modifier.size(h * 0.62f, h * 0.42f), bars = 5)
-                    else AppIcon(act.c.icon, h * 0.56f, Ios.timer, tint)
+                    when {
+                        recording -> Equalizer(tint, true, !s.reduceEffects, Modifier.size(h * 0.62f, h * 0.42f), bars = 5)
+                        act.c.pausedMs != null -> Icon(Ios.pause, null, tint = tint, modifier = Modifier.size(icon))
+                        else -> AppIcon(act.c.icon, h * 0.56f, Ios.timer, tint)
+                    }
                 },
                 right = { TimeText(formatDuration(act.c.elapsed(now)), tint) },
             )
@@ -216,6 +219,8 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
         )
 
         is Act.LiveA -> LiveCompact(act.l, s)
+
+        is Act.AlarmA -> AlarmCompact(act.a, s)
 
         is Act.NoticeA -> NoticeCompact(act.n, s, wideWidth)
     }
@@ -309,6 +314,7 @@ private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
         n.style == NoticeStyle.PAY_READY -> PayReady(n, s, wideWidth)
         n.style == NoticeStyle.PAY_DONE -> PayDone(n, s, wideWidth)
         n.style == NoticeStyle.LIVE && n.live != null -> LiveBanner(n, n.live, s, wideWidth)
+        n.style == NoticeStyle.ALARM && n.alarm != null -> AlarmBanner(n, n.alarm, s, wideWidth)
         n.style == NoticeStyle.PILL || n.title.isBlank() && n.state == null -> PillNotice(n, s)
         else -> WideNotice(n, s, wideWidth)
     }

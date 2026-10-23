@@ -77,8 +77,10 @@ data class ChronoInfo(
     val postTime: Long,
     /** Кнопка «Стоп» из уведомления (запись экрана, диктофон) */
     val stop: PendingIntent? = null,
+    /** На паузе: застывшее время (таймер или секундомер «Часов», прочитанный с их экрана) */
+    val pausedMs: Long? = null,
 ) {
-    fun elapsed(nowWall: Long): Long = if (countDown) base - nowWall else nowWall - base
+    fun elapsed(nowWall: Long): Long = pausedMs ?: if (countDown) (base - nowWall).coerceAtLeast(0) else nowWall - base
 
     /** Запись экрана или звука — показывается красным. */
     val isRecording: Boolean
@@ -168,7 +170,15 @@ enum class NoticeStyle {
     PAY_DONE,
     /** Навигатор, такси или доставка только что запустились: широкая плашка, потом капсула */
     LIVE,
+    /** Поставили будильник: время подъёма и сколько осталось спать */
+    ALARM,
 }
+
+/**
+ * Ближайший будильник (AlarmManager.getNextAlarmClock): когда прозвенит, какое приложение его поставило
+ * и что открыть нажатием — обычно экран будильников «Часов».
+ */
+data class AlarmInfo(val triggerAt: Long, val pkg: String?, val show: PendingIntent?)
 
 /**
  * Кнопка из уведомления: «Ответить», «Пометить прочитанным» и т. п.
@@ -227,6 +237,8 @@ data class Notice(
     val live: LiveInfo? = null,
     /** Какое приложение открыть нажатием на плашку (например, само это — «Доступна новая версия») */
     val openPkg: String? = null,
+    /** Будильник для плашки NoticeStyle.ALARM */
+    val alarm: AlarmInfo? = null,
     val id: Long = ids.incrementAndGet(),
 ) {
     private companion object {

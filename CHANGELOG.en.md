@@ -15,6 +15,16 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - If a reply fails to send, you see "Не удалось отправить ответ" ("Couldn't send the reply") and the field keeps your text.
 - Your own reply no longer comes back to the island as a new banner when the messenger adds it to the notification.
 
+### 🌙 Alarm — new
+- When you set an alarm, the island shows a banner: a small **sleep dial**, "Wake up 7:30" and how much sleep is left — "sleep 8 h 15 min".
+- 12 hours before the alarm it appears in the island: a moon on the left, the wake-up time on the right. Expanded — **a sleep dial like iPhone's Sleep schedule**: 24 hours around a circle, an arc from now to the alarm shifting from night indigo to morning orange, a moon and an alarm at its ends, the sleep left in the middle; next to it the large alarm time, "Wake up · tomorrow" and "Sleep — 8 h 15 min". A tap opens the Clock alarms.
+- The alarm comes from the system — it works with any Clock app, even with its notifications off. In the daytime "Wake up" and "sleep" become "Alarm" and "in". The expanded idle island shows the next alarm under the date.
+- Turn off separately: Dynamic cards → Alarm («Динамические карточки → Будильник») and Events → Alarm set («События → Будильник поставлен»).
+
+### ⏱️ Clock timer and stopwatch without notifications
+- If Clock's notifications are off, Android gives them to no one. Now the island reads the Clock screen itself while it's open: set a timer or start the stopwatch — it appears in the island and keeps running after you leave the app. Paused shows a pause icon, reset removes it from the island.
+- If Clock's notifications are on, the island still takes the timer from them.
+
 ### 🔕 System banners
 - A new **General → System banners** screen («Общие → Системные плашки»): the dialer, Clock, System UI (battery) and Android System (USB charging) — a tap opens their notification settings, right on the needed channel if the island has already seen it. Turn off "Pop on screen" there: the notification stays in the shade, and only the island shows the event on screen. Messenger notifications aren't affected.
 - With the system banner off, **the island turns the screen on**: for an incoming call, a Clock alarm or timer and its own timer. While it rings the screen stays on; if you turn it off with the power button, the island won't wake the phone again until the next alert.

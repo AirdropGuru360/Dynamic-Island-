@@ -61,7 +61,8 @@ Full list of changes — [CHANGELOG.en.md](CHANGELOG.en.md).
 <tr><td>📞 <b>Calls</b></td><td>Incoming — avatar, name and buttons right away; during a call — a phone with the time and a wave</td><td>Name, duration, End</td></tr>
 <tr><td>⏳ <b>Timer</b></td><td>An hourglass and a countdown, the last 10 seconds in red</td><td>A remaining-time ring around pause, cancel; at the end — an alarm and vibration</td></tr>
 <tr><td>⏱️ <b>Stopwatch</b></td><td>Time</td><td>Pause, reset, stop</td></tr>
-<tr><td>⏰ <b>Google Clock</b></td><td>A timer or stopwatch from the notification, screen recording in red</td><td>Large time, open the app</td></tr>
+<tr><td>⏰ <b>Clock</b></td><td>A Clock timer or stopwatch — from the notification or, if its notifications are off, from the app's screen; screen recording in red</td><td>Large time, paused state, open the app</td></tr>
+<tr><td>🌙 <b>Alarm</b></td><td>12 hours before it rings: a moon and the wake-up time; when you set an alarm — a "Wake up 7:30 · sleep 8 h 15 min" banner</td><td>An iPhone-style sleep dial: an arc from now to the alarm, the alarm time and how much sleep is left</td></tr>
 <tr><td>⬇️ <b>Downloads</b></td><td>The app icon and a progress ring (Google Play, Telegram…)</td><td>Name, bar and percentage</td></tr>
 <tr><td>🔦 <b>Flashlight</b></td><td>A yellow icon</td><td>A card with a beam like in iOS 18: swipe for brightness (Android 13+), tap to turn off</td></tr>
 <tr><td>🔔 <b>Notifications</b></td><td>A big banner: an avatar with the app badge, the name, the text and Reply / Mark as read buttons</td><td>Reply right inside the island; tap opens the app, swipe up dismisses</td></tr>

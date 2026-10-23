@@ -72,6 +72,8 @@ class IslandService : AccessibilityService() {
     private var alarm: TimerAlarm? = null
     private var calls: CallMonitor? = null
     private var navReader: NavScreenReader? = null
+    private var clockReader: ClockScreenReader? = null
+    private var alarmMonitor: AlarmMonitor? = null
 
     /** Клавиатура уже появлялась, пока открыт ввод ответа: когда её спрячут, ввод закрывается */
     private var keyboardSeen = false
@@ -151,6 +153,8 @@ class IslandService : AccessibilityService() {
         alarm = TimerAlarm(this, scope).also { it.start() }
         calls = CallMonitor(this, scope).also { it.start() }
         navReader = NavScreenReader(this, scope)
+        clockReader = ClockScreenReader(this, scope)
+        alarmMonitor = AlarmMonitor(this).also { it.start() }
         IslandBus.serviceRunning.value = true
 
         // Пока вводят ответ на уведомление, окну нужен фокус, иначе клавиатура не покажется
@@ -417,6 +421,8 @@ class IslandService : AccessibilityService() {
         if (IslandBus.foregroundPackage.value != pkg && pkg != packageName) PayMonitor.onAppOpened(this, pkg)
         // Открыт навигатор — читаем с его экрана расстояние и манёвр, ушли из него — перестаём
         navReader?.onForeground(pkg)
+        // Открыты «Часы» — читаем с экрана таймер и секундомер (если их уведомления выключены)
+        clockReader?.onForeground(pkg)
         IslandBus.foregroundPackage.value = pkg
     }
 
@@ -452,6 +458,8 @@ class IslandService : AccessibilityService() {
         alarm?.stop()
         calls?.stop()
         navReader?.stop()
+        clockReader?.stop()
+        alarmMonitor?.stop()
         scope.cancel()
         touch?.let { runCatching { wm?.removeView(it) } }
         display?.let { runCatching { wm?.removeView(it) } }
