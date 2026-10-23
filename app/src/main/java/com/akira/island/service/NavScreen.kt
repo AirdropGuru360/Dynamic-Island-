@@ -32,6 +32,8 @@ data class ScreenNav(
     val street: String?,
     val eta: String?,
     val turn: Turn?,
+    /** Подсказка навигатора («Поверните направо на …»), если она есть на экране */
+    val instruction: String? = null,
 )
 
 /**
@@ -46,12 +48,34 @@ object NavScreen {
     /** Дополняет активность из уведомления тем, что видно на экране навигатора. */
     fun merge(l: LiveInfo, sn: ScreenNav?): LiveInfo {
         if (sn == null || l.kind != LiveKind.NAV) return l
+        val turn = sn.turn ?: l.turn
         return l.copy(
             distance = sn.distance ?: l.distance,
             eta = sn.eta ?: l.eta,
-            text = sn.street ?: l.text,
-            turn = sn.turn ?: l.turn,
+            text = instructionText(sn.instruction, turn, sn.street) ?: l.text,
+            turn = turn,
         )
+    }
+
+    /**
+     * Что писать под расстоянием, как в примере: подсказка навигатора; если её нет на экране —
+     * своя по стрелке («Поверните налево») и улица.
+     */
+    fun instructionText(instruction: String?, turn: Turn?, street: String?): String? {
+        if (instruction != null) {
+            return if (street != null && !instruction.contains(street, ignoreCase = true)) "$instruction · $street" else instruction
+        }
+        val phrase = when (turn) {
+            Turn.LEFT -> "Поверните налево"
+            Turn.RIGHT -> "Поверните направо"
+            Turn.STRAIGHT -> "Двигайтесь прямо"
+            Turn.UTURN -> "Развернитесь"
+            null -> null
+        }
+        return when {
+            phrase != null && street != null -> "$phrase · $street"
+            else -> phrase ?: street
+        }
     }
 
     /** Навигатор без своего уведомления: активность только по экрану. */
@@ -60,7 +84,7 @@ object NavScreen {
         pkg = sn.pkg,
         kind = LiveKind.NAV,
         title = sn.label,
-        text = sn.street.orEmpty(),
+        text = instructionText(sn.instruction, sn.turn, sn.street).orEmpty(),
         sub = "",
         icon = sn.icon,
         art = null,
@@ -93,15 +117,25 @@ data class ScreenItem(val text: String, val left: Int, val top: Int, val right: 
 
 /** Разбор надписей экрана навигатора. Отдельно от Android, чтобы можно было проверить на примерах. */
 object NavScreenParser {
-    data class Result(val distance: String?, val street: String?, val eta: String?, val turn: Turn?, val icon: Rect?)
+    data class Result(
+        val distance: String?,
+        val street: String?,
+        val eta: String?,
+        val turn: Turn?,
+        val icon: Rect?,
+        val instruction: String? = null,
+    )
 
     private val number = Regex("""^\d{1,4}(?:[.,]\d{1,2})?$""")
     private val unit = Regex("""^(км|м|мин|ч|km|m|mi|ft|min|h)\.?$""", RegexOption.IGNORE_CASE)
     private val distanceRe = Regex("""^\d{1,4}(?:[.,]\d{1,2})?\s?(км|м|km|m|mi|ft)\.?$""", RegexOption.IGNORE_CASE)
     private val clock = Regex("""^\d{1,2}:\d{2}$""")
     private val minutes = Regex("""^\d{1,3}\s?(мин|min)\.?$""", RegexOption.IGNORE_CASE)
+    private val hours = Regex("""^\d{1,3}\s?(ч|h)\.?(\s?\d{1,2}\s?(мин|min)\.?)?$""", RegexOption.IGNORE_CASE)
     private val letters = Regex("""\p{L}{3,}""")
-    private val noise = setOf("следуйте по шагам", "прибытие", "в пути", "маршрут", "обзор", "меню", "поиск", "назад")
+    private val noise = setOf(
+        "следуйте по шагам", "двигайтесь по шагам", "продолжить по gps", "прибытие", "в пути", "маршрут", "обзор", "меню", "поиск", "назад",
+    )
 
     fun parse(raw: List<ScreenItem>): Result {
         val items = raw.map { it.copy(text = it.text.replace(' ', ' ').trim()) }.filter { it.text.isNotEmpty() || it.image }
@@ -121,8 +155,10 @@ object NavScreenParser {
         }
         val all = texts + joined
 
-        // Расстояние до манёвра — самое верхнее: внизу обычно общее расстояние маршрута
-        val dist = all.filter { distanceRe.matches(it.text) }.minByOrNull { it.top }
+        // Расстояние до манёвра — самое верхнее; самое нижнее — сколько осталось ехать всего
+        val distances = all.filter { distanceRe.matches(it.text) }
+        val dist = distances.minByOrNull { it.top }
+        val total = distances.maxByOrNull { it.top }?.takeIf { it !== dist && it.top > (dist?.bottom ?: 0) }
         val street = dist?.let { d ->
             all.filter { s ->
                 s !== d && letters.containsMatchIn(s.text) && !s.text.any { it.isDigit() } &&
@@ -131,9 +167,13 @@ object NavScreenParser {
             }.minByOrNull { it.top }?.text
         }
         val time = all.firstOrNull { clock.matches(it.text) }?.text
-        val mins = all.firstOrNull { minutes.matches(it.text) }?.text?.replace(Regex("""\s+"""), " ")
-        val eta = listOfNotNull(time, mins).takeIf { it.isNotEmpty() }?.joinToString(" · ")
-        val turn = LiveParser.detectTurn(texts.map { it.text })
+        val left = (all.firstOrNull { hours.matches(it.text) } ?: all.firstOrNull { minutes.matches(it.text) })
+            ?.text?.replace(Regex("""\s+"""), " ")
+        val eta = listOfNotNull(time?.let { "Прибытие в $it" }, left, total?.text?.replace(Regex("""\s+"""), " "))
+            .takeIf { it.isNotEmpty() }?.joinToString(" · ")
+        // Направление — только из подсказки: в подписях кнопок («← шаг влево») тоже бывают «влево» и «вправо»
+        val instruction = LiveParser.instructionOf(texts.map { it.text })
+        val turn = instruction?.let { LiveParser.detectTurn(listOf(it)) }
 
         // Значок манёвра — картинка слева от расстояния; если её нет в разметке, берём место слева
         val icon = dist?.let { d ->
@@ -145,7 +185,7 @@ object NavScreenParser {
                 Rect(d.left - (d.height * 1.8f).toInt(), d.top - d.height / 4, d.left - d.height / 10, d.bottom + d.height / 4)
             }
         }
-        return Result(dist?.text?.replace(Regex("""\s+"""), " "), street, eta, turn, icon)
+        return Result(dist?.text?.replace(Regex("""\s+"""), " "), street, eta, turn, icon, instruction)
     }
 
     private fun overlap(a1: Int, a2: Int, b1: Int, b2: Int) = min(a2, b2) - max(a1, b1)
@@ -292,6 +332,7 @@ class NavScreenReader(private val service: AccessibilityService, private val sco
             street = r.street,
             eta = r.eta,
             turn = r.turn ?: turns[pkg],
+            instruction = r.instruction,
         )
         if (sn != prev) NavScreen.data.value = NavScreen.data.value + (pkg to sn)
         // Расстояние появилось впервые — показываем широкую плашку, потом остров сожмётся в капсулу

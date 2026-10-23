@@ -195,7 +195,7 @@ object Controls {
             title = "300 м", text = "Поверните направо на Тверскую улицу", sub = "",
             icon = com.akira.island.service.NotificationParser.icon(context, context.packageName), art = null,
             postTime = System.currentTimeMillis(), open = null,
-            distance = "300 м", eta = "18:42 · 12 мин", turn = Turn.RIGHT,
+            distance = "300 м", eta = "Прибытие в 18:42 · 12 мин · 4,2 км", turn = Turn.RIGHT,
             expiresAt = System.currentTimeMillis() + TEST_LIVE_MS,
         )
         IslandBus.live.value = IslandBus.live.value + (TEST_LIVE to live)

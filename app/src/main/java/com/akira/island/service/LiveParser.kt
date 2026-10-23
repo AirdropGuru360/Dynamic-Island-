@@ -55,13 +55,14 @@ object LiveParser {
         if (head.isEmpty() && text.isEmpty() && remote.texts.isEmpty()) return null
 
         val all = listOf(head, text, big, sub) + remote.texts
-        val turn = detectTurn(all)
+        val hint = instructionOf(all)
+        val turn = hint?.let { detectTurn(listOf(it)) }
         val art = if (turn == null) {
             runCatching { n.getLargeIcon()?.loadDrawable(context)?.toBitmap(128, 128) }.getOrNull() ?: remote.image
         } else {
             null
         }
-        val instruction = (listOf(text, big) + remote.texts)
+        val instruction = hint ?: (listOf(text, big) + remote.texts)
             .firstOrNull { it.isNotBlank() && it != head && it.length > 8 && distance.matchEntire(it.trim()) == null }
             .orEmpty()
         return LiveInfo(
@@ -129,7 +130,19 @@ object LiveParser {
         val joined = texts.joinToString(" ")
         val time = clock.find(joined)?.value
         val min = minutes.find(joined)?.value
-        return listOfNotNull(time, min?.replace(Regex("""\s+"""), " ")).takeIf { it.isNotEmpty() }?.joinToString(" · ")
+        return listOfNotNull(time?.let { "Прибытие в $it" }, min?.replace(Regex("""\s+"""), " ")).takeIf { it.isNotEmpty() }?.joinToString(" · ")
+    }
+
+    private val maneuverWords = listOf(
+        "поверн", "держит", "съезд", "съехать", "развер", "разворот", "прямо", "налево", "направо", "левее", "правее",
+        "turn", "keep", "exit", "u-turn", "continue",
+    )
+    private val notInstruction = listOf("по шагам", "по gps", "шаг ")
+
+    /** Подсказка навигатора: «Через 300 м поверните направо на Тверскую», «Держитесь левее», «Съезд 2». */
+    internal fun instructionOf(texts: List<String>): String? = texts.map { it.trim() }.firstOrNull { t ->
+        val l = t.lowercase()
+        t.length in 6..90 && maneuverWords.any { it in l } && notInstruction.none { it in l }
     }
 
     /** Куда поворачивать, по тексту подсказки или описанию значка манёвра. */

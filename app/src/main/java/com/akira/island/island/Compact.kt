@@ -741,8 +741,10 @@ private fun LiveBanner(n: Notice, l: LiveInfo, s: IslandSettings, wideWidth: Dp)
                 Text(l.text, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, lineHeight = 17.sp, maxLines = 2,
                     overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
             }
-            if (l.eta != null) {
-                Text(l.eta, color = tint, fontSize = 13.sp, style = Digits, maxLines = 1)
+            // На узкой плашке — коротко: «12:31 · 19 ч»; полностью — в раскрытом виде
+            val shortEta = l.eta?.removePrefix("Прибытие в ")?.split(" · ")?.take(2)?.joinToString(" · ")
+            if (shortEta != null) {
+                Text(shortEta, color = tint, fontSize = 13.sp, style = Digits, maxLines = 1)
             }
         }
     }
