@@ -62,8 +62,8 @@ import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.Ui
 
 /**
- * Подгонка острова под камеру. Пока экран открыт, остров на телефоне красный с белым ободком:
- * его двигают, пока красное не спрячется под вырезом и вокруг камеры не останется ровная белая линия.
+ * Положение острова: только сдвиг по горизонтали и отступ сверху. Пока экран открыт, остров
+ * на телефоне красный с белым ободком — так видно, где он стоит относительно камеры.
  * «Сохранить» оставляет новые значения, «назад» возвращает прежние.
  */
 @Composable
@@ -103,19 +103,6 @@ fun SizeScreen(onBack: () -> Unit) {
                 }
             },
         ) {
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Ui.Card).padding(vertical = 22.dp, horizontal = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Example()
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    "Пока открыт этот экран, остров красный. Двигайте его, пока красное не окажется ровно над камерой.",
-                    color = Ui.Sub, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
-                )
-            }
-
-            SectionHeader("Положение")
             Group {
                 GroupStepSlider(
                     Pos.First, Icons.Rounded.SwapHoriz, "По горизонтали", s.offsetX, -200..200,
@@ -125,12 +112,6 @@ fun SizeScreen(onBack: () -> Unit) {
                     set { copy(offsetY = v) }
                 }
             }
-
-            Text(
-                "По умолчанию остров стоит как на iPhone: 11 dp от верхнего края, по центру.",
-                color = Ui.Sub.copy(alpha = 0.7f), fontSize = 13.sp, lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = 8.dp),
-            )
         }
 
         Row(
@@ -148,25 +129,6 @@ fun SizeScreen(onBack: () -> Unit) {
             Icon(Icons.Rounded.Check, null, tint = Ui.OnPrimary, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(8.dp))
             Text("Сохранить", color = Ui.OnPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-/** Картинка-подсказка: красная капсула не под камерой → после подгонки видна только белая линия. */
-@Composable
-private fun Example() {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(84.dp, 60.dp).clip(RoundedCornerShape(30.dp)).background(Ui.IconBg), contentAlignment = Alignment.Center) {
-            Box(Modifier.offset(x = 6.dp, y = 4.dp).size(52.dp, 30.dp).clip(CircleShape).background(CalibrationRed).border(2.dp, Color.White, CircleShape))
-            Box(Modifier.offset(x = (-10).dp, y = (-9).dp).size(46.dp, 26.dp).clip(CircleShape).background(Color.Black))
-        }
-        Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, tint = Ui.Primary, modifier = Modifier.size(26.dp))
-        Box(Modifier.size(84.dp, 60.dp).clip(RoundedCornerShape(30.dp)).background(Ui.IconBg), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(52.dp, 30.dp).clip(CircleShape).background(Color.Black).border(2.dp, Color.White, CircleShape))
         }
     }
 }
