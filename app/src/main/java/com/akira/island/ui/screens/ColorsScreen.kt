@@ -77,7 +77,7 @@ private val accentColors = listOf(
 fun ColorsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     var accentDialog by remember { mutableStateOf(false) }
-    Page("Цвета", onBack) {
+    Page("Цвет капсулы", onBack) {
         IslandPreview()
 
         SectionHeader("Цвет")
