@@ -10,6 +10,9 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- …и включает экран, когда звонит -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
 
     <uses-permission
         android:name="android.permission.BLUETOOTH"
@@ -55,6 +58,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Пустой прозрачный экран: включает дисплей, когда звонит таймер, если не вышло иначе -->
+        <activity
+            android:name=".service.WakeActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Отдаёт системной установке скачанное обновление -->
         <provider

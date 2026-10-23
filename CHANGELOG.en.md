@@ -21,7 +21,7 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 ### 🐞 Fixes
 - **Paid** no longer shows up for "payment failed", "amount due", "don't forget to pay", "will be charged", "Payment due" or notifications without an amount. Amounts like "500р" are now recognized.
 - **The keyboard** no longer counts as the open app: while you type in a messenger, its own messages aren't duplicated in the island, the player card doesn't come back, and navigator screen reading doesn't stop.
-- **Timer** rings on time with the screen off — a system alarm wakes the phone.
+- **Timer** rings on time with the screen off — a system alarm wakes the phone. When the timer rings, **the screen turns on** and stays on until you stop it; the power button stops the alarm, like on iPhone.
 - **Updates** are checked in the background every 6 hours, as promised, and a banner on the island tells you about a new version (tap opens the app). A failed check without internet is retried sooner; a partly downloaded or damaged APK doesn't open in the installer.
 - **USB**: a cable from a computer shows one "Charging" banner, without a second "USB" one.
 - **Bluetooth**: a device whose type can't be read is no longer called "Headphones".

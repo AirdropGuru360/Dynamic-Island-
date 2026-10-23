@@ -157,6 +157,10 @@ class IslandService : AccessibilityService() {
                 setInputFocus(it != null)
             }
         }
+        // Таймер звонит: окно острова включает экран и не даёт ему погаснуть, пока звонок не выключат
+        scope.launch {
+            IslandBus.timer.map { it?.ringing == true }.distinctUntilChanged().collect { setAlarmScreen(it) }
+        }
         // Телефон заблокировали — отвечать с экрана блокировки нельзя
         scope.launch { IslandBus.locked.collect { if (it) IslandBus.reply.value = null } }
 
@@ -334,6 +338,20 @@ class IslandService : AccessibilityService() {
         displayParams.flags = flags
         displayParams.softInputMode = if (on) WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         else WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
+        runCatching { wm?.updateViewLayout(view, displayParams) }
+    }
+
+    /**
+     * Флаг «включить экран» у окна без Activity система выполняет при каждой его перекладке, если экран
+     * погашен, — так остров будит телефон сам. «Не гасить экран» держит его включённым, пока таймер звонит.
+     */
+    @Suppress("DEPRECATION")
+    private fun setAlarmScreen(on: Boolean) {
+        val view = display ?: return
+        val mask = WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        val flags = if (on) displayParams.flags or mask else displayParams.flags and mask.inv()
+        if (flags == displayParams.flags) return
+        displayParams.flags = flags
         runCatching { wm?.updateViewLayout(view, displayParams) }
     }
 

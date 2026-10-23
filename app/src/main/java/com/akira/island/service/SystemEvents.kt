@@ -182,6 +182,8 @@ class SystemEvents(private val context: Context) {
                 // Блокировка может включиться чуть позже экрана — заранее прячем тексты, если она вообще есть
                 if (keyguard?.isDeviceSecure == true) IslandBus.locked.value = true
                 IslandBus.reply.value = null
+                // Как на iPhone: кнопка питания выключает звонящий таймер
+                if (IslandBus.timer.value?.ringing == true) Controls.cancelTimer()
                 Controls.collapse()
             }
 
