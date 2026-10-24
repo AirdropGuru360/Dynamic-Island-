@@ -17,7 +17,6 @@ object Ui {
     val Divider = Color(0xFF47464F)
     val Nav = Color(0xFF25242B)
     val Pink = Color(0xFFFBDDF4)
-    val OnPink = Color(0xFF5B3A56)
     val Outline = Color(0xFF908D99)
 }
 

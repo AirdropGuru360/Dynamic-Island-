@@ -3,6 +3,7 @@ package com.akira.island.ui.screens
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AirplanemodeActive
 import androidx.compose.material.icons.rounded.AirplanemodeInactive
+import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BluetoothConnected
@@ -65,8 +66,12 @@ fun EventsScreen(onBack: () -> Unit) {
 
         SectionHeader("Оплата")
         ToggleCard(Icons.Rounded.Nfc, "Приложите к терминалу",
-            "Когда открываете Mir Pay, Google Кошелёк, Т-Банк, Сбер, ВТБ или другое приложение оплаты — волны, как у Apple Pay. В кошельке подсказка ждёт, пока не заплатите",
+            "Когда на экране оплата телефоном — Mir Pay, T-Pay, SberPay, Яндекс Пэй и другие («Поднесите телефон к терминалу»): " +
+                "волны, как у Apple Pay. Держится, пока не заплатите или не выйдете из приложения",
             s.evPayReady, color = Tile.Blue) { set { copy(evPayReady = it) } }
+        ToggleCard(Icons.Rounded.AccountBalance, "Подсказка при открытии банка",
+            "Показывать «К терминалу» сразу, как открыли банк или кошелёк, а не только на экране оплаты телефоном",
+            s.payHintOnOpen, color = Tile.Gray) { set { copy(payHintOnOpen = it) } }
         ToggleCard(Icons.Rounded.CheckCircle, "Оплачено",
             "Когда кошелёк показывает сумму у себя на экране или банк присылает уведомление или СМС — зелёная галочка и сумма",
             s.evPaySuccess, color = Tile.Green) { set { copy(evPaySuccess = it) } }

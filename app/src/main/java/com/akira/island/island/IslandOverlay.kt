@@ -2,6 +2,7 @@ package com.akira.island.island
 
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -12,7 +13,9 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -51,12 +54,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -77,6 +85,7 @@ import com.akira.island.data.SettingsRepo
 import com.akira.island.data.TapAction
 import com.akira.island.service.CallMonitor
 import com.akira.island.service.NavScreen
+import com.akira.island.service.PayMonitor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -101,7 +110,10 @@ fun IslandOverlay(
     onBodyBounds: (Rect) -> Unit = {},
     onBubbleBounds: (Rect) -> Unit = {},
 ) {
-    val s by SettingsRepo.state.collectAsState()
+    val saved by SettingsRepo.state.collectAsState()
+    val powerSave by IslandBus.powerSave.collectAsState()
+    // В энергосбережении Android с «Экономией заряда» остров обходится без живых эффектов
+    val s = remember(saved, powerSave) { saved.forPowerSave(powerSave) }
     val media by IslandBus.media.collectAsState()
     val lyrics by IslandBus.lyrics.collectAsState()
     val progress by IslandBus.progress.collectAsState()
@@ -119,12 +131,21 @@ fun IslandOverlay(
     val calibrating by IslandBus.calibrating.collectAsState()
     val nextAlarm by IslandBus.nextAlarm.collectAsState()
     val egg by IslandBus.egg.collectAsState()
-    // Будильник появляется в острове за 12 часов — проверяем раз в полминуты
+    val payReady by IslandBus.payReady.collectAsState()
+    // Будильник появляется в острове за 12 часов и уходит, когда прозвенел: просыпаемся ровно в эти два момента,
+    // а не каждые полминуты
     var alarmNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(nextAlarm) {
-        while (nextAlarm != null) {
-            alarmNow = System.currentTimeMillis()
-            delay(30_000)
+        val at = nextAlarm?.triggerAt ?: return@LaunchedEffect
+        while (true) {
+            val now = System.currentTimeMillis()
+            alarmNow = now
+            val next = when {
+                now < at - ALARM_LEAD_MS -> at - ALARM_LEAD_MS
+                now < at -> at
+                else -> break
+            }
+            delay(next - now + 50)
         }
     }
 
@@ -165,6 +186,8 @@ fun IslandOverlay(
         val persistent = mutableListOf<Act>()
         val t = timer
         if (t != null && t.ringing) persistent += Act.TimerA(t)
+        // Оплата телефоном — пока ждём терминал, она главнее остального
+        payReady?.let { persistent += Act.PayA(it) }
         if (call != null && !call.incoming) persistent += Act.CallA(call)
         if (torch.on && s.cardTorch) persistent += Act.TorchA(torch)
         if (t != null && !t.ringing) persistent += Act.TimerA(t)
@@ -205,7 +228,9 @@ fun IslandOverlay(
         else -> acts.firstOrNull() ?: Act.Idle
     }
     val incoming = (primary as? Act.CallA)?.c?.incoming == true
-    val secondary = if (primary.transient || incoming || calibrating) null else acts.drop(1).firstOrNull { !it.transient && it !is Act.AlarmA }
+    // Вторая активность — кружком рядом, если его не выключили в «Поведении»
+    val secondary = if (!s.bubble || primary.transient || incoming || calibrating) null
+    else acts.drop(1).firstOrNull { !it.transient && it !is Act.AlarmA }
     val showExpanded = expanded && !primary.transient && !incoming && !calibrating
     val h = s.height.dp
 
@@ -218,6 +243,19 @@ fun IslandOverlay(
     // Раскрытая активность пропала (музыку закрыли, таймер отменили) — сворачиваемся, а не показываем часы
     val focusGone = expanded && focus != null && focus != Act.Idle.id && acts.none { it.id == focus }
     LaunchedEffect(focusGone) { if (focusGone) Controls.collapse() }
+
+    // «Сворачивать раскрытый остров»: если его столько секунд не трогают, он сворачивается сам
+    LaunchedEffect(showExpanded, s.autoCollapseSec) {
+        val limit = s.autoCollapseSec * 1000L
+        if (!showExpanded || limit <= 0) return@LaunchedEffect
+        val opened = SystemClock.elapsedRealtime()
+        while (true) {
+            val idle = SystemClock.elapsedRealtime() - maxOf(opened, IslandBus.lastTouch)
+            if (idle >= limit) break
+            delay(limit - idle)
+        }
+        Controls.collapse()
+    }
 
     val hidden = s.hideIdle && primary is Act.Idle && !showExpanded && !calibrating
 
@@ -252,7 +290,7 @@ fun IslandOverlay(
     // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         // Оплата: волны NFC и вспышка успеха вокруг острова, как в ролике
-        if (!calibrating) PayEffects(notice, { body.value }, s)
+        if (!calibrating) PayEffects(primary, { body.value }, s)
         // Пасхалка: свечение за островом, вспышки и звёзды поверх
         if (eggOn) EggGlow { body.value }
         IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBody, onBubbleBounds)
@@ -330,8 +368,9 @@ private fun IslandBody(
         primary is Act.NoticeA && (primary.n.style == NoticeStyle.MESSAGE || primary.n.style == NoticeStyle.EGG) -> 32.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.UPDATE -> 36.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
-        primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE ||
+        primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_DONE ||
             primary.n.style == NoticeStyle.LIVE || primary.n.style == NoticeStyle.ALARM || primary.n.style == NoticeStyle.SENT) -> noticeHeight(s) / 2
+        primary is Act.PayA -> noticeHeight(s) / 2
         primary is Act.CallA && primary.c.incoming -> callHeight(s) / 2
         primary is Act.Idle -> h / 2
         else -> activeHeight(s) / 2
@@ -340,6 +379,14 @@ private fun IslandBody(
     val shape = RoundedCornerShape(corner)
     val accent = (primary as? Act.MediaA)?.m?.accent
     val outlineColor = if (s.outlineFromArt && accent != null) accent else Color(s.outlineColor)
+
+    // Свечение цвета обложки, пока играет музыка («Эффекты»): с треком цвет плавно меняется, с паузой гаснет
+    val playingArt = (primary as? Act.MediaA)?.m?.takeIf { it.playing }?.accent
+    val lastArt = remember { arrayOf(Color.White) }
+    if (playingArt != null) lastArt[0] = playingArt
+    val glowOn = s.fxGlow && !s.reduceEffects && !calibrating && playingArt != null
+    val glowAlpha by animateFloatAsState(if (glowOn) 1f else 0f, tween(500), label = "glowAlpha")
+    val glowTint by animateColorAsState(lastArt[0], tween(500), label = "glowTint")
 
     // «Как фрукт»: при раскрытии остров сплющивается и отпружинивает
     val jellyX = remember { Animatable(1f) }
@@ -379,7 +426,7 @@ private fun IslandBody(
     val shake = remember { Animatable(0f) }
     val pillId = (primary as? Act.NoticeA)?.n?.takeIf { it.style == NoticeStyle.PILL }?.id
     LaunchedEffect(pillId) {
-        if (pillId == null || s.reduceEffects) return@LaunchedEffect
+        if (pillId == null || s.reduceEffects || !s.fxShake) return@LaunchedEffect
         for (x in floatArrayOf(-8f, 7f, -5f, 3.5f, -2f, 0f)) shake.animateTo(x, tween(60))
     }
 
@@ -399,6 +446,7 @@ private fun IslandBody(
                 translationX = shake.value.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
+            .then(if (glowAlpha > 0f) Modifier.drawBehind { islandGlow(glowTint, glowAlpha, corner.toPx()) } else Modifier)
             .then(
                 when {
                     s.liquidGlass && !calibrating && !s.reduceEffects ->
@@ -432,6 +480,15 @@ private fun IslandBody(
                     Modifier
                 },
             )
+            // Любое касание — раскрытый остров не свернётся сам из-под пальца
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        IslandBus.lastTouch = SystemClock.elapsedRealtime()
+                    }
+                }
+            }
             .pointerInput(s.doubleTapAction != TapAction.NOTHING, s.longPressAction != TapAction.NOTHING) {
                 val doubleOn = settings.doubleTapAction != TapAction.NOTHING
                 val longOn = settings.longPressAction != TapAction.NOTHING
@@ -484,6 +541,8 @@ private fun IslandBody(
                             !isExpanded && vertical && dy < -threshold && act is Act.NoticeA -> {
                                 IslandBus.notice.value = null
                             }
+                            // Подсказку оплаты тоже можно смахнуть
+                            !isExpanded && vertical && dy < -threshold && act is Act.PayA -> PayMonitor.clearReady()
                             !isExpanded && !vertical && abs(dx) > side && act is Act.MediaA && settings.swipeTracks -> {
                                 haptic()
                                 // Как в ПК-версии: толкнуть влево — следующий трек
@@ -539,7 +598,7 @@ private fun IslandBody(
                 label = "blur",
             ) { state ->
                 when {
-                    s.reduceEffects -> 0f
+                    s.reduceEffects || !s.fxBlur -> 0f
                     state == EnterExitState.PreEnter -> 7f
                     state == EnterExitState.PostExit -> 5f
                     else -> 0f
@@ -580,6 +639,8 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
             IslandBus.notice.value = null
         }
         is Act.Idle -> Controls.expand(act.id)
+        // Оплата: нажатие открывает приложение оплаты (окно Google открывать нечего)
+        is Act.PayA -> if (act.pkg != PayMonitor.GMS) Controls.openApp(context, act.pkg)
         is Act.TimerA -> if (act.t.ringing) Controls.cancelTimer() else perform(context, s.tapAction, act)
         is Act.CallA -> if (act.c.incoming) {
             Controls.openCall(context, act.c)
@@ -649,5 +710,20 @@ private fun Bubble(act: Act, s: IslandSettings) {
             is Act.ChargingA -> Icon(Ios.flash, null, tint = Tints.Green, modifier = Modifier.size(inner * 0.7f))
             else -> Unit
         }
+    }
+}
+
+/** Свечение вокруг острова: десять колец, всё прозрачнее наружу, — мягкий ореол без размытия, в запасе окна. */
+fun DrawScope.islandGlow(color: Color, alpha: Float, corner: Float) {
+    val spread = 10.dp.toPx()
+    for (i in 1..10) {
+        val d = spread * i / 10f
+        drawRoundRect(
+            color,
+            topLeft = Offset(-d, -d),
+            size = Size(size.width + 2 * d, size.height + 2 * d),
+            cornerRadius = CornerRadius(corner + d),
+            alpha = 0.06f * alpha,
+        )
     }
 }

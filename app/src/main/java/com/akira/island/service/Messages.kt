@@ -65,8 +65,8 @@ object Messages {
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         if (n.flags and Notification.FLAG_FOREGROUND_SERVICE != 0) return
         if (n.category in skipCategories) return
-        // Пока открыто само приложение, оно и так показывает сообщение
-        if (IslandBus.foregroundPackage.value == sbn.packageName) return
+        // Пока открыто само приложение, оно и так показывает сообщение — если не попросили показывать и тогда
+        if (!s.msgInApp && IslandBus.foregroundPackage.value == sbn.packageName) return
 
         // Тихие, свёрнутые и заглушённые «Не беспокоить» не показываем — как и система
         val ranking = NotificationListenerService.Ranking()

@@ -79,6 +79,8 @@ import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import com.akira.island.core.IslandBus
 import kotlin.math.pow
 import kotlin.math.sqrt
 import kotlinx.coroutines.launch
@@ -118,12 +120,13 @@ val ExpoOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
 fun animDurationMs(s: IslandSettings): Int = 160 + s.durationPercent.coerceIn(0, 100) * 6
 
-/** Текущее время (elapsedRealtime) с обновлением раз в [periodMs]. */
+/** Текущее время (elapsedRealtime) с обновлением раз в [periodMs]; пока экран погашен — не обновляется. */
 @Composable
 fun rememberNow(periodMs: Long, active: Boolean = true): Long {
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     LaunchedEffect(periodMs, active) {
         while (active) {
+            if (!IslandBus.screenOn.value) IslandBus.screenOn.first { it }
             now = SystemClock.elapsedRealtime()
             delay(periodMs)
         }
@@ -137,6 +140,7 @@ fun rememberWallNow(periodMs: Long): Long {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(periodMs) {
         while (true) {
+            if (!IslandBus.screenOn.value) IslandBus.screenOn.first { it }
             now = System.currentTimeMillis()
             delay(periodMs)
         }
@@ -152,12 +156,14 @@ fun rememberHaptic(): () -> Unit {
     }
 }
 
-/** Звуковая волна из тонких полосок, как в острове iPhone. */
+/**
+ * Звуковая волна из тонких полосок, как в острове iPhone. Высоты читаются только при рисовании:
+ * кадр анимации перерисовывает полоски, а не пересобирает остров.
+ */
 @Composable
 fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifier = Modifier, bars: Int = 5) {
     val transition = rememberInfiniteTransition(label = "eq")
-    val heights = (0 until bars).map { i ->
-        val rest = 0.3f + 0.45f * ((i * 37) % 10) / 10f
+    val moving = (0 until bars).map { i ->
         if (playing && animate) {
             transition.animateFloat(
                 initialValue = 0.2f,
@@ -167,15 +173,16 @@ fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifi
                     RepeatMode.Reverse,
                 ),
                 label = "bar$i",
-            ).value
+            )
         } else {
-            if (playing) rest else 0.15f
+            null
         }
     }
     Canvas(modifier) {
         // Полоска и промежуток одной ширины
         val w = size.width / (bars * 2 - 1)
-        heights.forEachIndexed { i, h ->
+        for (i in 0 until bars) {
+            val h = moving[i]?.value ?: if (playing) 0.3f + 0.45f * ((i * 37) % 10) / 10f else 0.15f
             val bh = (size.height * h).coerceAtLeast(w)
             drawRoundRect(
                 color = color,
@@ -421,12 +428,9 @@ fun Modifier.glassSurface(
 @Composable
 fun ContactlessWaves(color: Color, animate: Boolean, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "waves")
-    val phase = if (animate) {
-        transition.animateFloat(0f, 1f, infiniteRepeatable(tween(800, easing = LinearEasing)), label = "phase").value
-    } else {
-        0.6f
-    }
+    val moving = if (animate) transition.animateFloat(0f, 1f, infiniteRepeatable(tween(800, easing = LinearEasing)), label = "phase") else null
     Canvas(modifier) {
+        val phase = moving?.value ?: 0.6f
         // Сетка 24×24, как у значка в ролике: центр дуг слева посередине
         val k = size.minDimension / 24f
         val c = Offset(4f * k, size.height / 2)

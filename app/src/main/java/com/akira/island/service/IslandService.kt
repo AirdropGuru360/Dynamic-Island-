@@ -191,8 +191,15 @@ class IslandService : AccessibilityService() {
                 (t?.ringing == true || calls.values.any { it.incoming } || alarms.isNotEmpty()) to on
             }.distinctUntilChanged().collect { (alert, on) -> onAlert(alert, on) }
         }
-        // Экран погас — дальше будет экран блокировки, ждём его ухода
-        scope.launch { IslandBus.screenOn.collect { if (!it) keyguardShown = true } }
+        // Экран погас — дальше будет экран блокировки, ждём его ухода; оплаты телефоном уже не будет
+        scope.launch {
+            IslandBus.screenOn.collect {
+                if (!it) {
+                    keyguardShown = true
+                    PayMonitor.clearReady()
+                }
+            }
+        }
         // Телефон заблокировали — отвечать с экрана блокировки нельзя
         scope.launch { IslandBus.locked.collect { if (it) IslandBus.reply.value = null } }
 
@@ -241,9 +248,10 @@ class IslandService : AccessibilityService() {
         Egg.watch(this, scope)
         // Волнам оплаты и вспышке «Оплачено» тоже нужен простор вокруг острова
         scope.launch {
-            combine(IslandBus.egg, IslandBus.media, IslandBus.notice, SettingsRepo.state) { egg, m, n, s ->
+            val settings = combine(SettingsRepo.state, IslandBus.powerSave) { s, saver -> s.forPowerSave(saver) }
+            combine(IslandBus.egg, IslandBus.media, IslandBus.notice, IslandBus.payReady, settings) { egg, m, n, pay, s ->
                 (egg && m?.playing == true) ||
-                    (!s.reduceEffects && (n?.style == NoticeStyle.PAY_READY || n?.style == NoticeStyle.PAY_DONE))
+                    (!s.reduceEffects && s.fxPay && (pay != null || n?.style == NoticeStyle.PAY_DONE))
             }
                 .distinctUntilChanged()
                 .collect { on ->
@@ -521,7 +529,7 @@ class IslandService : AccessibilityService() {
         // Открыты «Часы» — читаем с экрана таймер и секундомер (если их уведомления выключены)
         clockReader?.onForeground(pkg)
         // Открыт кошелёк или банк — смотрим, когда он покажет сумму оплаты
-        payReader?.onForeground(pkg)
+        payReader?.onForeground(pkg, cls)
         setScreenEvents(clockReader?.active == true || payReader?.active == true)
         IslandBus.foregroundPackage.value = pkg
     }

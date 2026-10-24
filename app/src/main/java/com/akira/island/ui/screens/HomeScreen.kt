@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -58,6 +59,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
+import com.akira.island.core.PayReady
 import com.akira.island.service.NotificationParser
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
@@ -67,6 +69,7 @@ import com.akira.island.island.CompactContent
 import com.akira.island.island.Ios
 import com.akira.island.island.activeHeight
 import com.akira.island.island.glassSurface
+import com.akira.island.island.islandGlow
 import androidx.compose.animation.animateContentSize
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
@@ -193,16 +196,14 @@ fun HomeScreen(open: (Screen) -> Unit) {
             GroupItem(Pos.Middle, Icons.Rounded.Call, "Входящий звонок", "Пробный вызов: можно ответить и сбросить", color = Tile.Green, onClick = {
                 Controls.showTestCall()
             })
-            GroupItem(Pos.Middle, Icons.Rounded.Nfc, "Оплата картой", "Приложите к терминалу, затем «Оплачено» с галочкой", color = Tile.Blue, onClick = {
-                IslandBus.post(
-                    Notice(
-                        "Оплата", icon = Ios.load(context, R.drawable.ios_wifi), tint = Tints.Blue, caption = "К терминалу",
-                        style = NoticeStyle.PAY_READY, appIcon = NotificationParser.icon(context, context.packageName), extraMs = 300,
-                    ),
-                )
+            GroupItem(Pos.Middle, Icons.Rounded.Nfc, "Оплата картой", "«Оплата · К терминалу», затем «Оплачено» с галочкой", color = Tile.Blue, onClick = {
+                // Как настоящая оплата: подсказка держится, пока ждём терминал, потом — «Оплачено»
+                val pkg = context.packageName
+                IslandBus.payReady.value = PayReady(pkg, NotificationParser.icon(context, pkg))
                 IslandBus.scope.launch {
-                    delay(2400)
-                    IslandBus.postNow(
+                    delay(3000)
+                    if (IslandBus.payReady.value?.pkg == pkg) IslandBus.payReady.value = null
+                    IslandBus.post(
                         Notice(
                             "Оплачено", "1 250 ₽", Ios.load(context, R.drawable.ios_checkmark_circle), Tints.Green, caption = "Остров",
                             style = NoticeStyle.PAY_DONE, extraMs = 900,
@@ -254,10 +255,13 @@ fun IslandPreview(expanded: Boolean = false) {
         contentAlignment = Alignment.TopCenter,
     ) {
         val act = if (expanded) Act.Idle else Act.MediaA(demo)
-        val shape = RoundedCornerShape((if (expanded) s.height.dp else activeHeight(s)) / 2)
+        val corner = (if (expanded) s.height.dp else activeHeight(s)) / 2
+        val shape = RoundedCornerShape(corner)
         Box(
             Modifier
                 .padding(top = 18.dp)
+                // «Свечение обложки» видно и на примере
+                .then(if (!expanded && s.fxGlow && !s.reduceEffects) Modifier.drawBehind { islandGlow(demo.accent, 1f, corner.toPx()) } else Modifier)
                 .clip(shape)
                 .then(
                     if (s.liquidGlass) Modifier.glassSurface(shape, Color(s.color), s.glassOpacity / 100f)

@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.data.IslandSettings
@@ -35,7 +34,7 @@ import kotlin.math.sin
 /**
  * Оплата вокруг острова — как в ролике. Пока ждём терминал, от острова расходятся сиреневые волны NFC;
  * когда оплата прошла, остров подпрыгивает, от него разлетаются зелёное кольцо и искры.
- * С «Уменьшить эффекты» ничего этого нет.
+ * Выключается в «Эффектах» («Волны оплаты») и вместе со всеми — «Уменьшить эффекты».
  */
 object PayFx {
     /** Насколько остров сейчас больше обычного: на «Оплачено» он на миг подрастает на 6% */
@@ -43,12 +42,12 @@ object PayFx {
 }
 
 @Composable
-fun PayEffects(notice: Notice?, body: () -> Rect, s: IslandSettings) {
-    if (s.reduceEffects || notice == null) return
-    when (notice.style) {
-        NoticeStyle.PAY_READY -> PayWaves(body)
-        NoticeStyle.PAY_DONE -> key(notice.id) { PayBurst(body, notice.tint) }
-        else -> Unit
+fun PayEffects(primary: Act, body: () -> Rect, s: IslandSettings) {
+    if (s.reduceEffects || !s.fxPay) return
+    val notice = (primary as? Act.NoticeA)?.n
+    when {
+        primary is Act.PayA -> PayWaves(body)
+        notice?.style == NoticeStyle.PAY_DONE -> key(notice.id) { PayBurst(body, notice.tint) }
     }
 }
 

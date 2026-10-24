@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.screens.AboutScreen
 import com.akira.island.ui.screens.AnimScreen
+import com.akira.island.ui.screens.EffectsScreen
 import com.akira.island.ui.screens.BannersScreen
 import com.akira.island.ui.screens.CapsuleScreen
 import com.akira.island.ui.screens.LookScreen
@@ -63,7 +64,7 @@ import com.akira.island.ui.screens.InstructionScreen
 import com.akira.island.ui.screens.LyricsScreen
 import com.akira.island.ui.screens.SizeScreen
 
-enum class Screen { CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT, DIAG, LOOK, ANIM, BANNERS }
+enum class Screen { CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT, DIAG, LOOK, ANIM, EFFECTS, BANNERS }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,6 +128,7 @@ private fun AppRoot() {
                 Screen.DIAG.name -> DiagScreen(back)
                 Screen.LOOK.name -> LookScreen(back)
                 Screen.ANIM.name -> AnimScreen(back)
+                Screen.EFFECTS.name -> EffectsScreen(back)
                 Screen.BANNERS.name -> BannersScreen(back)
             }
         }

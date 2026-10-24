@@ -30,6 +30,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -212,6 +213,8 @@ class MediaMonitor(private val context: Context) {
         }
         IslandBus.lyricsStatus.value = m.key to LyricsStatus.LOADING
         lyricsJob = scope.launch {
+            // Телефон в кармане — текст никто не увидит: ищем, когда включат экран, и только для текущего трека
+            if (!IslandBus.screenOn.value) IslandBus.screenOn.first { it }
             val found = LyricsRepo.find(m.title, m.artist, m.album, m.durationMs)
             if (lyricsKey != m.key) return@launch
             if (found != null && found.lines.isNotEmpty()) {

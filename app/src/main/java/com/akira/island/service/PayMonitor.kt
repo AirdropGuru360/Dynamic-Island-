@@ -2,30 +2,37 @@ package com.akira.island.service
 
 import android.app.Notification
 import android.content.Context
+import android.content.Intent
+import android.nfc.cardemulation.HostApduService
 import android.os.SystemClock
 import android.provider.Telephony
 import android.service.notification.StatusBarNotification
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
+import com.akira.island.core.PayReady
 import com.akira.island.core.Tints
 import com.akira.island.R
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Бесконтактная оплата, как Apple Pay на iPhone. Остров не видит поле терминала, поэтому опирается
- * на то, что видно снаружи: открыли банк или кошелёк — показываем «Оплата · К терминалу»
- * с волнами; кошелёк показал у себя сумму (PayScreenReader) или пришло уведомление об оплате от банка
- * или СМС с его номера — «Оплачено» с зелёной галочкой и суммой.
+ * Бесконтактная оплата телефоном, как Apple Pay на iPhone. Подсказка «Оплата · К терминалу» появляется,
+ * только когда приложение оплаты показывает экран оплаты телефоном («Поднесите телефон к терминалу»)
+ * или всплывает окно «Оплата» сервисов Google, — а не когда просто открыли банк. Держится она, пока
+ * оплата не пройдёт или вы не выйдете из приложения. «Оплачено» с суммой — по экрану приложения
+ * (PayScreenReader), уведомлению банка или СМС с его номера.
  */
 object PayMonitor {
-    /** Банки и кошельки: открытие любого из них показывает подсказку оплаты. */
-    private val apps = setOf(
+    /** Известные банки и кошельки — на случай, если система не отдаст список платёжных служб. */
+    private val known = setOf(
         "com.google.android.apps.walletnfcrel", // Google Кошелёк / Google Pay
         "com.samsung.android.spay", // Samsung Wallet
         "ru.nspk.mirpay", // Mir Pay
-        "com.idamob.tinkoff.android", // Т-Банк (Tinkoff Pay)
+        "com.idamob.tinkoff.android", // Т-Банк (T-Pay)
         "ru.alfabank.mobile.android", // Альфа-Банк (Alfa Pay)
         "ru.sberbankmobile", // СберБанк (SberPay)
         "ru.vtb24.mobilebanking.android", // ВТБ
@@ -37,7 +44,7 @@ object PayMonitor {
         "com.revolut.revolut",
     )
 
-    /** Кошельки открывают только чтобы заплатить: в них подсказка держится до оплаты, а не пару секунд. */
+    /** Кошельки: показали сумму у себя на экране — значит, это и есть оплата. */
     private val wallets = setOf(
         "com.google.android.apps.walletnfcrel",
         "com.samsung.android.spay",
@@ -46,6 +53,9 @@ object PayMonitor {
 
     /** Само окно «Оплата» из сервисов Google: появляется, когда телефон поднесли к терминалу. */
     const val GMS = "com.google.android.gms"
+
+    /** Окна системы поверх приложения оплаты — окна Google, вопрос NFC «Оплатить через…?»: из приложения не ушли. */
+    fun overlay(pkg: String) = pkg == GMS || pkg == "com.android.nfc"
 
     /** Уведомления этих приложений тоже разбираются как оплата: банки, которых нет в списке выше. */
     private val bankish = Regex(
@@ -62,55 +72,74 @@ object PayMonitor {
         RegexOption.IGNORE_CASE,
     )
 
-    private var lastReady = 0L
-    private var readyId = -1L
     private var readyPkg: String? = null
+    private var readyTimeout: Job? = null
     private var paidKey: String? = null
     private var paidAt = 0L
 
-    fun isPayApp(pkg: String) = pkg in apps
+    /** Приложения, которые умеют платить телефоном (объявляют службу эмуляции карты, HCE), — из системы. */
+    private var nfcApps: Set<String> = emptySet()
+    private var nfcCheckedAt = 0L
+
+    /** Умеет ли приложение платить телефоном: Mir Pay, T-Pay, SberPay, Яндекс Пэй и любые другие. */
+    fun isPayApp(context: Context, pkg: String): Boolean = pkg in known || pkg in nfcApps(context)
 
     fun isWallet(pkg: String) = pkg in wallets || pkg == GMS
 
-    /** Открыли приложение оплаты (смена окна из другого приложения). */
-    fun onAppOpened(context: Context, pkg: String) {
-        if (pkg !in apps) return
-        showReady(context, pkg)
+    /** Список платёжных приложений меняется редко — спрашиваем систему раз в десять минут. */
+    private fun nfcApps(context: Context): Set<String> {
+        val now = SystemClock.elapsedRealtime()
+        if (nfcCheckedAt == 0L || now - nfcCheckedAt > 10 * 60_000) {
+            nfcCheckedAt = now
+            nfcApps = runCatching {
+                context.packageManager.queryIntentServices(Intent(HostApduService.SERVICE_INTERFACE), 0)
+                    .mapNotNull { it.serviceInfo?.packageName }
+                    .toSet() - context.packageName - "com.android.nfc"
+            }.getOrDefault(emptySet())
+        }
+        return nfcApps
     }
 
-    /** Окно «Оплата» из сервисов Google. */
-    fun onTapAndPay(context: Context) = showReady(context, "com.google.android.apps.walletnfcrel")
+    /** Чей значок показывать: у окна Google — Google Кошелёк. */
+    private fun appFor(pkg: String) = if (pkg == GMS) "com.google.android.apps.walletnfcrel" else pkg
 
-    /** Открыто другое приложение: ушли из кошелька, так и не заплатив, — подсказка «К терминалу» больше не нужна. */
+    /**
+     * На экране — оплата телефоном: подсказка в острове, пока не заплатите или не уйдёте из приложения.
+     * На всякий случай (если о выходе не узнаем) через три минуты она уходит сама.
+     */
+    fun onPayScreen(context: Context, pkg: String) {
+        val s = SettingsRepo.current
+        if (!s.enabled || !s.evPayReady || IslandBus.payReady.value?.pkg == pkg) return
+        readyPkg = pkg
+        IslandBus.payReady.value = PayReady(pkg, NotificationParser.icon(context, appFor(pkg)))
+        readyTimeout?.cancel()
+        readyTimeout = IslandBus.scope.launch {
+            delay(180_000)
+            clearReady()
+        }
+    }
+
+    /** Окно «Оплата» из сервисов Google — телефон поднесли к терминалу. */
+    fun onTapAndPay(context: Context) = onPayScreen(context, GMS)
+
+    /** Открыли приложение оплаты. С «Подсказкой при открытии» — сразу, как раньше; без неё ждём экран оплаты. */
+    fun onAppOpened(context: Context, pkg: String) {
+        if (SettingsRepo.current.payHintOnOpen && isPayApp(context, pkg)) onPayScreen(context, pkg)
+    }
+
+    /** Открыто другое приложение — ушли, так и не заплатив: подсказка больше не нужна. */
     fun onForeground(pkg: String) {
         val ready = readyPkg ?: return
-        // Окна сервисов Google (то же окно оплаты) приложение не меняют
-        if (pkg == ready || pkg == GMS) return
-        readyPkg = null
-        if (IslandBus.notice.value?.id == readyId) IslandBus.notice.value = null
+        if (pkg == ready || overlay(pkg)) return
+        clearReady()
     }
 
-    private fun showReady(context: Context, pkg: String) {
-        val s = SettingsRepo.current
-        if (!s.enabled || !s.evPayReady) return
-        val now = SystemClock.elapsedRealtime()
-        // Не чаще раза в полминуты, чтобы не мигало при каждом переходе по экранам банка
-        if (now - lastReady < 30_000) return
-        lastReady = now
-        val notice = Notice(
-            title = "Оплата",
-            state = null,
-            icon = Ios.load(context, R.drawable.ios_wifi),
-            tint = Tints.Lavender,
-            caption = "К терминалу",
-            style = NoticeStyle.PAY_READY,
-            appIcon = NotificationParser.icon(context, pkg),
-            // В кошельке подсказка ждёт оплаты (до минуты), в банке — как обычное событие, чуть дольше
-            extraMs = if (isWallet(pkg)) 60_000 else 3_500,
-        )
-        readyId = notice.id
-        readyPkg = pkg
-        IslandBus.post(notice)
+    /** Убрать подсказку: оплатили, ушли из приложения или погасили экран. */
+    fun clearReady() {
+        readyPkg = null
+        readyTimeout?.cancel()
+        readyTimeout = null
+        IslandBus.payReady.value = null
     }
 
     /** Сумма с разрядами и копейками и валютой: «89,99 ₽», «1 250 руб.», «12.50 USD», «$12.50». */
@@ -145,8 +174,8 @@ object PayMonitor {
     private fun showPaid(context: Context, sum: String, caption: String, pkg: String) {
         paidKey = key(sum)
         paidAt = SystemClock.elapsedRealtime()
-        readyPkg = null
-        IslandBus.postNow(
+        clearReady()
+        IslandBus.post(
             Notice(
                 title = "Оплачено",
                 state = sum,
@@ -160,17 +189,17 @@ object PayMonitor {
         )
     }
 
-    /** Кошелёк показал у себя галочку и сумму. */
+    /** Приложение оплаты показало у себя галочку и сумму. */
     fun onScreenPaid(context: Context, pkg: String, sum: String) {
         val s = SettingsRepo.current
         if (!s.enabled || !s.evPaySuccess || alreadyShown(sum)) return
-        val app = if (pkg == GMS) "com.google.android.apps.walletnfcrel" else pkg
+        val app = appFor(pkg)
         showPaid(context, sum, NotificationParser.appLabel(context, app), app)
     }
 
     /**
      * Уведомление от банка, кошелька или СМС банка об оплате. Возвращает true, если оно показано
-     * как «Оплачено» (или уже было показано с экрана кошелька) и обычной карточкой сообщения показывать его не нужно.
+     * как «Оплачено» (или уже было показано с экрана) и обычной карточкой сообщения показывать его не нужно.
      */
     fun onNotification(context: Context, sbn: StatusBarNotification): Boolean {
         val s = SettingsRepo.current
@@ -183,7 +212,7 @@ object PayMonitor {
         val sms = pkg == defaultSms(context)
         if (sms) {
             if (!bankSender.containsMatchIn(title.trim())) return false
-        } else if (pkg !in apps && !bankish.containsMatchIn(pkg)) {
+        } else if (!isPayApp(context, pkg) && !bankish.containsMatchIn(pkg)) {
             return false
         }
         val text = (ex.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: ex.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()

@@ -134,8 +134,13 @@ fun SleepDial(now: Long, triggerAt: Long, modifier: Modifier = Modifier, compact
     LaunchedEffect(target) {
         if (animate) sweep.animateTo(target, spring(dampingRatio = 0.85f, stiffness = 90f)) else sweep.snapTo(target)
     }
-    val glow = rememberInfiniteTransition(label = "dial")
-        .animateFloat(0.25f, 0.75f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "glow")
+    // В капсуле циферблат висит часами — там свечение ровное, чтобы не перерисовывать остров каждый кадр
+    val transition = rememberInfiniteTransition(label = "dial")
+    val glow = if (animate && !compact) {
+        transition.animateFloat(0.25f, 0.75f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "glow")
+    } else {
+        null
+    }
     val moon = rememberVectorPainter(Ios.moon)
     val bell = rememberVectorPainter(Ios.alarm)
     val start = dayAngle(now)
@@ -176,7 +181,7 @@ fun SleepDial(now: Long, triggerAt: Long, modifier: Modifier = Modifier, compact
             val startPos = pointAt(c, r, start)
             val endPos = pointAt(c, r, start + s)
             // Мягкое свечение вокруг будильника
-            drawCircle(AlarmTint.copy(alpha = glow.value * 0.4f), radius = stroke * 1.2f, center = endPos)
+            drawCircle(AlarmTint.copy(alpha = (glow?.value ?: 0.5f) * 0.4f), radius = stroke * 1.2f, center = endPos)
             val knob = stroke * 0.62f
             handle(startPos, NightTint, if (compact) null else moon, knob)
             handle(endPos, AlarmTint, if (compact) null else bell, knob)

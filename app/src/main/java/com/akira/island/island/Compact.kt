@@ -33,6 +33,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -60,6 +61,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -136,11 +138,12 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
             val now = rememberNow(250)
             if (act.t.ringing) {
                 val wobble = rememberInfiniteTransition(label = "bell")
-                val angle = wobble.animateFloat(-18f, 18f, infiniteRepeatable(tween(120), RepeatMode.Reverse), label = "a")
+                val angle = if (s.reduceEffects || !s.fxShake) null
+                else wobble.animateFloat(-18f, 18f, infiniteRepeatable(tween(120), RepeatMode.Reverse), label = "a")
                 CompactRow(h, gap, side * 1.4f,
                     left = {
                         Icon(Ios.bell, null, tint = Tints.Orange, modifier = Modifier.size(icon).graphicsLayer {
-                            rotationZ = if (s.reduceEffects) 0f else angle.value
+                            rotationZ = angle?.value ?: 0f
                             transformOrigin = TransformOrigin(0.5f, 0.1f)
                         })
                     },
@@ -172,7 +175,7 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
             CompactRow(h, gap, side * 1.4f,
                 left = {
                     when {
-                        recording -> Equalizer(tint, true, !s.reduceEffects, Modifier.size(h * 0.62f, h * 0.42f), bars = 5)
+                        recording -> Equalizer(tint, true, s.liveEqualizer, Modifier.size(h * 0.62f, h * 0.42f), bars = 5)
                         act.c.pausedMs != null -> Icon(Ios.pause, null, tint = tint, modifier = Modifier.size(icon))
                         else -> AppIcon(act.c.icon, h * 0.56f, Ios.timer, tint)
                     }
@@ -193,7 +196,7 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
                         TimeText(formatDuration(now - act.c.base), Tints.Green, 15)
                     }
                 },
-                right = { Equalizer(Tints.Green, true, !s.reduceEffects, Modifier.size(h * 0.7f, h * 0.42f), bars = 6) },
+                right = { Equalizer(Tints.Green, true, s.liveEqualizer, Modifier.size(h * 0.7f, h * 0.42f), bars = 6) },
             )
         }
 
@@ -229,6 +232,8 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
         is Act.AlarmA -> AlarmCompact(act.a, s)
 
         is Act.NoticeA -> NoticeCompact(act.n, s, wideWidth)
+
+        is Act.PayA -> PayReady("Оплата", "К терминалу", act.p.icon, s, wideWidth)
     }
 }
 
@@ -237,14 +242,16 @@ private fun TimeText(text: String, color: Color, size: Int = 16, weight: FontWei
     Text(text, color = color, fontSize = size.sp, style = Digits.copy(fontWeight = weight), maxLines = 1, softWrap = false)
 }
 
-/** Мягко светящаяся точка — признак того, что фонарик горит. */
+/** Мягко светящаяся точка — признак того, что фонарик горит. Свечение только перерисовывается. */
 @Composable
 private fun GlowDot(color: Color, size: Dp, animate: Boolean) {
     val t = rememberInfiniteTransition(label = "glow")
-    val k = if (animate) t.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "k").value else 1f
-    Box(Modifier.size(size * 1.8f), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(size * 1.8f * k).clip(CircleShape).background(color.copy(alpha = 0.25f * k)))
-        Box(Modifier.size(size).clip(CircleShape).background(color))
+    val moving = if (animate) t.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "k") else null
+    Canvas(Modifier.size(size * 1.8f)) {
+        val k = moving?.value ?: 1f
+        val r = this.size.minDimension / 2
+        drawCircle(color.copy(alpha = 0.25f * k), radius = r * k)
+        drawCircle(color, radius = r / 1.8f)
     }
 }
 
@@ -308,7 +315,7 @@ private fun MediaCompact(m: MediaInfo, s: IslandSettings) {
         left = { Art(m.art, art, art * 0.24f) },
         right = {
             // Пасхалка: вместо эквалайзера бьётся душа
-            if (egg) SoulHeart(Modifier.size(h * 0.5f)) else Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(h * 0.6f, h * 0.42f))
+            if (egg) SoulHeart(Modifier.size(h * 0.5f)) else Equalizer(m.accent, m.playing, s.liveEqualizer, Modifier.size(h * 0.6f, h * 0.42f))
         },
     )
 }
@@ -322,7 +329,6 @@ private fun MediaCompact(m: MediaInfo, s: IslandSettings) {
 private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
     when {
         n.style == NoticeStyle.MESSAGE && n.message != null -> MessageCard(n, n.message, s, wideWidth)
-        n.style == NoticeStyle.PAY_READY -> PayReady(n, s, wideWidth)
         n.style == NoticeStyle.PAY_DONE -> PayDone(n, s, wideWidth)
         n.style == NoticeStyle.LIVE && n.live != null -> LiveBanner(n, n.live, s, wideWidth)
         n.style == NoticeStyle.ALARM && n.alarm != null -> AlarmBanner(n, n.alarm, s, wideWidth)
@@ -385,7 +391,7 @@ private fun PillNotice(n: Notice, s: IslandSettings) {
     val h = activeHeight(s)
     val swing = remember(n.id) { Animatable(0f) }
     LaunchedEffect(n.id) {
-        if (s.reduceEffects) return@LaunchedEffect
+        if (s.reduceEffects || !s.fxShake) return@LaunchedEffect
         // Затухающее покачивание: 22° → -16° → 12° → … → 0
         var amp = 22f
         repeat(6) {
@@ -500,7 +506,7 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, @Suppress("
                     }
                 } else if (m.text.isNotEmpty()) {
                     Text(
-                        m.text, color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3,
+                        m.text, color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp, lineHeight = 19.sp, maxLines = s.msgLines.coerceIn(1, 8),
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -700,7 +706,7 @@ private fun ReplyField(action: MsgAction, accent: Color, onSend: (String) -> Uni
  * по очереди, и «Оплата»; справа «К терминалу» и значок банка. Посередине — место под камеру.
  */
 @Composable
-private fun PayReady(n: Notice, s: IslandSettings, wideWidth: Dp) {
+private fun PayReady(title: String, caption: String?, appIcon: ImageBitmap?, s: IslandSettings, wideWidth: Dp) {
     val height = noticeHeight(s)
     Row(
         Modifier.width(wideWidth).height(height).padding(horizontal = height * 0.29f),
@@ -709,17 +715,17 @@ private fun PayReady(n: Notice, s: IslandSettings, wideWidth: Dp) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             ContactlessWaves(Tints.Lavender, !s.reduceEffects, Modifier.size(height * 0.42f))
             Spacer(Modifier.width(10.dp))
-            Text(n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
         Spacer(Modifier.width(compactGap(s)))
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            if (n.caption != null) {
-                Text(n.caption, color = Tints.Gray, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            if (caption != null) {
+                Text(caption, color = Tints.Gray, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false))
             }
-            if (n.appIcon != null) {
+            if (appIcon != null) {
                 Spacer(Modifier.width(9.dp))
-                Image(n.appIcon, null, Modifier.size(24.dp).clip(RoundedCornerShape(7.dp)))
+                Image(appIcon, null, Modifier.size(24.dp).clip(RoundedCornerShape(7.dp)))
             }
         }
     }
@@ -842,8 +848,12 @@ private fun LiveBanner(n: Notice, l: LiveInfo, s: IslandSettings, wideWidth: Dp)
 private fun IncomingCall(c: CallInfo, s: IslandSettings, wideWidth: Dp) {
     val context = LocalContext.current
     val breath = rememberInfiniteTransition(label = "answer")
-    val wave by breath.animateFloat(0f, 1f, infiniteRepeatable(tween(500, easing = LinearEasing)), label = "w")
-    val pulse = if (s.reduceEffects) 1f else 1f + 0.06f * kotlin.math.sin(wave * 2 * Math.PI).toFloat().coerceAtLeast(0f)
+    val wave = if (s.reduceEffects) null else breath.animateFloat(0f, 1f, infiniteRepeatable(tween(500, easing = LinearEasing)), label = "w")
+    val pulse = Modifier.graphicsLayer {
+        val k = wave?.let { 1f + 0.06f * kotlin.math.sin(it.value * 2 * Math.PI).toFloat().coerceAtLeast(0f) } ?: 1f
+        scaleX = k
+        scaleY = k
+    }
     Row(
         Modifier.width(wideWidth).height(callHeight(s)).padding(horizontal = 17.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -872,7 +882,7 @@ private fun IncomingCall(c: CallInfo, s: IslandSettings, wideWidth: Dp) {
             Controls.endCall(context, c)
         }
         Spacer(Modifier.width(11.dp))
-        RoundButton(Ios.call, Modifier.scale(pulse), size = 46.dp, bg = Tints.Green, iconScale = 0.52f) {
+        RoundButton(Ios.call, pulse, size = 46.dp, bg = Tints.Green, iconScale = 0.52f) {
             Controls.answerCall(context, c)
         }
     }

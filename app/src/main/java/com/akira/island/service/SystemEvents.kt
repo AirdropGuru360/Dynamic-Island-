@@ -123,11 +123,14 @@ class SystemEvents(private val context: Context) {
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
             addAction(USB_STATE)
             addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+            addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
         }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
 
         dnd = isDnd()
-        IslandBus.screenOn.value = context.getSystemService(PowerManager::class.java)?.isInteractive ?: true
+        val power = context.getSystemService(PowerManager::class.java)
+        IslandBus.screenOn.value = power?.isInteractive ?: true
+        IslandBus.powerSave.value = power?.isPowerSaveMode == true
         IslandBus.locked.value = isLocked()
         brightnessMode = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
         context.contentResolver.registerContentObserver(
@@ -188,6 +191,9 @@ class SystemEvents(private val context: Context) {
                 IslandBus.screenOn.value = true
                 IslandBus.locked.value = isLocked()
             }
+
+            PowerManager.ACTION_POWER_SAVE_MODE_CHANGED ->
+                IslandBus.powerSave.value = context.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
 
             NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
                 val on = isDnd()

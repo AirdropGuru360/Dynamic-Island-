@@ -42,6 +42,10 @@
         <intent>
             <action android:name="android.intent.action.SET_TIMER" />
         </intent>
+        <!-- Приложения, которые умеют платить телефоном по NFC: только на их экране остров ждёт оплату -->
+        <intent>
+            <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+        </intent>
     </queries>
 
     <application

@@ -87,8 +87,10 @@ data class IslandSettings(
     val evUsbOff: Boolean = true,
     val evUnlock: Boolean = false,
     val evDnd: Boolean = true,
-    /** Открыли банковское приложение или кошелёк — «Приложите к терминалу» */
+    /** Экран оплаты телефоном (T-Pay, SberPay, Mir Pay, Google Кошелёк…) — «Оплата · К терминалу» */
     val evPayReady: Boolean = true,
+    /** «К терминалу» сразу при открытии банка или кошелька, а не только на экране оплаты телефоном */
+    val payHintOnOpen: Boolean = false,
     /** Пришло уведомление об оплате — «Оплачено» с галочкой */
     val evPaySuccess: Boolean = true,
     /** Поставили будильник — плашка со временем подъёма */
@@ -141,6 +143,20 @@ data class IslandSettings(
     val reduceEffects: Boolean = false,
     val haptics: Boolean = true,
 
+    // Эффекты — каждый можно выключить отдельно; «Уменьшить эффекты» выключает их все
+    /** Содержимое острова перетекает с размытием (Android 12+) */
+    val fxBlur: Boolean = true,
+    /** Полоски эквалайзера пляшут под музыку; выключено — стоят ровно, так экономнее */
+    val fxEqualizer: Boolean = true,
+    /** Мягкое свечение цвета обложки вокруг острова, пока играет музыка */
+    val fxGlow: Boolean = false,
+    /** Волны NFC вокруг острова, пока ждём терминал, и вспышка с искрами, когда оплата прошла */
+    val fxPay: Boolean = true,
+    /** Капсула вздрагивает при смене режима звука, колокольчик звонящего таймера качается */
+    val fxShake: Boolean = true,
+    /** В режиме энергосбережения Android остров обходится без живых эффектов */
+    val ecoInSaver: Boolean = true,
+
     // Жесты
     val tapAction: TapAction = TapAction.EXPAND,
     val doubleTapAction: TapAction = TapAction.NOTHING,
@@ -157,7 +173,21 @@ data class IslandSettings(
     val hideWhenPlayerOpen: Boolean = true,
     val noticeDurationMs: Int = 2500,
     val timerMinutes: Int = 5,
-)
+    /** Через сколько секунд без касаний раскрытый остров сворачивается сам; 0 — не сворачивается */
+    val autoCollapseSec: Int = 0,
+    /** Вторая активность — кружком рядом с капсулой, как на iPhone */
+    val bubble: Boolean = true,
+    /** Сколько строк текста видно в карточке уведомления */
+    val msgLines: Int = 3,
+    /** Уведомления приложения, которое сейчас открыто, тоже приходят в остров */
+    val msgInApp: Boolean = false,
+) {
+    /** С «Экономией заряда» в энергосбережении Android — как с «Уменьшить эффекты» */
+    fun forPowerSave(on: Boolean): IslandSettings = if (on && ecoInSaver && !reduceEffects) copy(reduceEffects = true) else this
+
+    /** Пляшет ли эквалайзер */
+    val liveEqualizer: Boolean get() = fxEqualizer && !reduceEffects
+}
 
 object SettingsRepo {
     private const val KEY = "settings_v1"
@@ -218,5 +248,10 @@ object SettingsRepo {
             reduceEffects = d.reduceEffects,
             noticeDurationMs = d.noticeDurationMs,
         )
+    }
+
+    fun resetEffects() = update {
+        val d = IslandSettings()
+        copy(fxBlur = d.fxBlur, fxEqualizer = d.fxEqualizer, fxGlow = d.fxGlow, fxPay = d.fxPay, fxShake = d.fxShake, ecoInSaver = d.ecoInSaver)
     }
 }

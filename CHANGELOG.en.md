@@ -38,9 +38,11 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - "Set a timer" from a voice assistant, widget or another app can go to the island: "Dynamic Island" now appears in the chooser, and the timer starts right in it, without Clock.
 - System banners now has a tip: choose "Silent" and "Minimize" for Clock's notifications instead of turning them off completely, then everything works instantly.
 
-### 💳 Payments: the amount shows up right away
-- **"Paid" with the amount** appears as soon as the wallet (Mir Pay, Google Wallet, Samsung Wallet) shows its check mark and amount — no waiting for the bank's notification, which often comes later or never. Before, the "Pay" banner went away and the amount never showed. Bank apps also need "Paid" or "Done" on screen; the transaction history isn't taken for a payment.
-- In a wallet the **"Pay · Hold near reader" banner waits until you pay** (up to a minute) and goes away when you leave it.
+### 💳 Payments: only when you pay with the phone
+- **"Pay · Hold near reader" appears only on a phone payment screen** — T-Pay, SberPay, Mir Pay, Yandex Pay, Google Wallet and others: the island waits for "Hold your phone up to the terminal" or Google's payment window, not just an open bank app. The island asks the system which apps can pay over NFC, so any bank works, not only known ones.
+- The banner **stays until you pay or leave the app** — before, it disappeared after 5 seconds in T-Pay. Android's NFC "Pay with…?" question doesn't count as leaving. Swipe it up to dismiss; it also goes away when the screen turns off and, just in case, after 3 minutes.
+- To get it right when you open a bank app, as before, turn on Events → **Hint when opening a bank** («События → Подсказка при открытии банка», off by default).
+- **"Paid" with the amount** appears as soon as the wallet (Mir Pay, Google Wallet, Samsung Wallet) shows its check mark and amount — no waiting for the bank's notification, which often comes later or never. Before, the "Pay" banner went away and the amount never showed. In bank apps the amount counts if it appeared after the payment screen, next to "Paid" or while the "Hold your phone" hint is still visible; the transaction history isn't taken for a payment.
 - "Paid" understands notifications from any bank and **bank SMS** (900, T-Bank, VTB and others); the same payment from the screen and from a notification isn't shown twice. An amount like "*1234. 89.99 RUB" is read correctly.
 - Like in the video: NFC waves spread from the island while it waits for the reader, and on "Paid" it bounces and a ring and sparks burst out.
 
@@ -56,12 +58,29 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - **Reply**: the send button sits next to the field; after sending — "Sent ✓" and to whom.
 - **Updates right in the island**: "Version available", what's new and Later / Update buttons — percent and a ring while it downloads; after installing — "Updated ✓".
 
+### ✨ Effects — each one is a setting
+- A new **Capsule settings → Animations → Effects** section («Настройки Капсулы → Анимации → Эффекты»): **blur on change**, **live equalizer** (turn it off and the bars stand still, which saves power), **shake** of the ring-mode pill and the timer bell, **payment waves** (NFC waves and the Paid burst). Reduce effects («Уменьшить эффекты») still turns everything off at once, and the section has its own Reset.
+- New **artwork glow**: a soft halo in the artwork's color around the island while music plays. You can see it on the island preview in settings too. Off by default.
+- **Battery saving** («Экономия заряда», on): when Android's battery saver is on, the island skips live effects by itself.
+
+### 🧭 Behavior
+- General → Behavior («Общие → Поведение»): **Collapse the expanded island** («Сворачивать раскрытый остров») — by itself after 5, 10, 20 or 30 seconds without a touch (by default only by tapping outside or swiping up); **Second activity alongside** («Вторая активность рядом») — the small circle with the second activity next to the capsule can be turned off.
+- General → **Notifications in the island** («Общие → Уведомления в острове»): **From the open app** («Из открытого приложения») — also show notifications from the app that's on screen; **Text lines** («Строк текста») in the banner — from 1 to 6 (it was always 3).
+
+### 🔋 Battery
+- While the screen is off, the island doesn't wake up: the time in its timers and clocks, Clock screen reading and the lyrics search wait until the screen turns on.
+- The alarm in the island is checked exactly twice — when it's 12 hours away and when it rings — instead of every half a minute.
+- The sleep dial in the capsule no longer pulses its glow: before, it could redraw the island every frame for hours.
+- The equalizer, the payment icon, the flashlight dot and the answer button now just redraw instead of rebuilding the island every frame; with Reduce effects the flashlight and call animations don't spin for nothing.
+- A payment app's screen is read only while it's open and can pay over NFC, and no more often than every 0.4 s.
+- Unused icons and code were removed.
+
 ### ⚡ Animations without delay
 - Animation speed is still set by the Duration setting, and animations start right away: the island content, the ring-mode pill, event icons and the Paid check no longer wait before starting, and banners follow each other almost without a pause.
 - **Unlock** shows as soon as the lock screen goes away, not when the system message arrives.
 
 ### ⚙️ Everything follows the settings
-- **Event display** («Показ событий») moved to Capsule settings → Island expansion («Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, "Hold near reader" 3.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
+- **Event display** («Показ событий») moved to Capsule settings → Island expansion («Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
 - New switches: General → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
 
 ### 🔗 Small things

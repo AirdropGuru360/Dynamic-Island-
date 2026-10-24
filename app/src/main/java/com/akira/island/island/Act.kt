@@ -7,6 +7,7 @@ import com.akira.island.core.ChronoInfo
 import com.akira.island.core.LiveInfo
 import com.akira.island.core.MediaInfo
 import com.akira.island.core.Notice
+import com.akira.island.core.PayReady
 import com.akira.island.core.ProgressInfo
 import com.akira.island.core.StopwatchState
 import com.akira.island.core.TimerState
@@ -37,6 +38,10 @@ sealed class Act(val id: String, val transient: Boolean = false) {
         override val pkg: String get() = l.pkg
     }
     data class ChargingA(val b: BatteryInfo) : Act("charging")
+    /** Оплата телефоном: ждём терминал. Не раскрывается и не уходит в пузырь */
+    data class PayA(val p: PayReady) : Act("pay", transient = true) {
+        override val pkg: String get() = p.pkg
+    }
     data class AlarmA(val a: AlarmInfo) : Act("alarm") {
         override val pkg: String? get() = a.pkg
     }

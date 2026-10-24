@@ -21,17 +21,11 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.animation.core.Animatable
 import kotlinx.coroutines.launch
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
@@ -124,7 +118,7 @@ fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: Batte
     Box(Modifier.width(width).padding(start = 22.dp, end = 22.dp, top = cameraInset(s), bottom = 20.dp)) {
         when (act) {
             is Act.MediaA -> MediaExpanded(act.m, s, lyrics)
-            is Act.TimerA -> TimerExpanded(act.t)
+            is Act.TimerA -> TimerExpanded(act.t, s)
             is Act.StopwatchA -> StopwatchExpanded(act.w)
             is Act.TorchA -> Unit
             is Act.ChronoA -> ChronoExpanded(act.c)
@@ -161,7 +155,7 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
             }
             Spacer(Modifier.width(10.dp))
             val egg by IslandBus.egg.collectAsState()
-            if (egg) SoulHeart(Modifier.size(24.dp)) else Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(30.dp, 24.dp))
+            if (egg) SoulHeart(Modifier.size(24.dp)) else Equalizer(m.accent, m.playing, s.liveEqualizer, Modifier.size(30.dp, 24.dp))
         }
 
         val lines = lyrics?.takeIf { it.key == m.key && s.lyricsEnabled && it.lines.isNotEmpty() }
@@ -321,15 +315,16 @@ private fun SeekBar(
 
 /** Таймер как на iPhone: слева оранжевая «пауза» и серый крестик, справа «Таймер» и крупное время. */
 @Composable
-private fun TimerExpanded(t: TimerState) {
+private fun TimerExpanded(t: TimerState, s: IslandSettings) {
     val now = rememberNow(200)
     if (t.ringing) {
         val wobble = rememberInfiniteTransition(label = "bell")
-        val angle = wobble.animateFloat(-16f, 16f, infiniteRepeatable(tween(110), RepeatMode.Reverse), label = "a")
+        val angle = if (s.reduceEffects || !s.fxShake) null
+        else wobble.animateFloat(-16f, 16f, infiniteRepeatable(tween(110), RepeatMode.Reverse), label = "a")
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(50.dp).clip(CircleShape).background(Tints.Orange.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
                 Icon(Ios.bell, null, tint = Tints.Orange,
-                    modifier = Modifier.size(28.dp).graphicsLayer { rotationZ = angle.value })
+                    modifier = Modifier.size(28.dp).graphicsLayer { rotationZ = angle?.value ?: 0f })
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
@@ -393,8 +388,7 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
     val intensity by animateFloatAsState(share, spring(dampingRatio = 0.7f, stiffness = 300f), label = "glow")
     // Свечение «дышит», как в ролике
     val breath = rememberInfiniteTransition(label = "breath")
-    val wave by breath.animateFloat(0f, 1f, infiniteRepeatable(tween(1050, easing = LinearEasing)), label = "w")
-    val pulse = if (s.reduceEffects) 1f else 0.85f + 0.15f * sin(wave * 2 * Math.PI).toFloat()
+    val wave = if (s.reduceEffects) null else breath.animateFloat(0f, 1f, infiniteRepeatable(tween(1050, easing = LinearEasing)), label = "w")
     val flare = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val label = if (max > 1 && t.on) "Фонарик · ${(share * 100).toInt()}%" else "Фонарик"
@@ -431,6 +425,7 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
     ) {
         Canvas(Modifier.fillMaxSize()) {
             // Жёлтое свечение за фонариком: круг 120 dp, ярче с яркостью фонарика и на каждом шаге
+            val pulse = wave?.let { 0.85f + 0.15f * sin(it.value * 2 * Math.PI).toFloat() } ?: 1f
             val glow = (0.35f + 0.65f * intensity) * pulse * (1f + 0.4f * flare.value)
             val r = 60.dp.toPx() * (1f + 0.15f * flare.value)
             val c = Offset(size.width / 2, 40.dp.toPx() + 60.dp.toPx())

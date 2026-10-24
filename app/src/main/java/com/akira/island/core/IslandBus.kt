@@ -32,6 +32,8 @@ object IslandBus {
     val chrono = MutableStateFlow<Map<String, ChronoInfo>>(emptyMap())
     val calls = MutableStateFlow<Map<String, CallInfo>>(emptyMap())
     val live = MutableStateFlow<Map<String, LiveInfo>>(emptyMap())
+    /** Экран оплаты телефоном на виду — «Оплата · К терминалу», пока не заплатили или не ушли (PayMonitor) */
+    val payReady = MutableStateFlow<PayReady?>(null)
     /** Ближайший будильник любого приложения «Часы» */
     val nextAlarm = MutableStateFlow<AlarmInfo?>(null)
     /** Звонящие будильники и таймеры других приложений («Часы»): ключи их уведомлений */
@@ -53,6 +55,8 @@ object IslandBus {
     val landscape = MutableStateFlow(false)
     /** Экран включён. Пока он погашен, датчик наклона и чтение экрана навигатора не работают — бережём батарею */
     val screenOn = MutableStateFlow(true)
+    /** Включено энергосбережение Android — с «Экономией заряда» остров без живых эффектов */
+    val powerSave = MutableStateFlow(false)
     /** Телефон заблокирован PIN-кодом, графическим ключом или паролем: тексты сообщений и кнопки скрыты */
     val locked = MutableStateFlow(false)
     /** Открыт экран «Размер и положение»: остров красный, чтобы подогнать его под камеру */
@@ -87,12 +91,4 @@ object IslandBus {
     fun post(n: Notice) {
         queue.trySend(n)
     }
-
-    /** Срочное событие (оплата прошла): ждущая подсказка «Приложите к терминалу» уступает место. */
-    fun postNow(n: Notice) {
-        queue.trySend(n)
-        val cur = notice.value
-        if (cur != null && cur.style == NoticeStyle.PAY_READY) notice.value = null
-    }
-
 }
