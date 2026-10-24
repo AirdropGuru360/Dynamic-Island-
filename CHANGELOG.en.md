@@ -12,10 +12,11 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - **The app and the island speak English**: every screen and island banner ("Charging", "Do Not Disturb", "Silent", "Paid", "Hold near reader"…), the alarm, player, navigation, calls and the update card. The wording matches the promo video; long English labels shrink a little instead of running into the camera.
 - **Features → General → Language** («Функции → Общие → Язык»): System default (Russian if the phone is in Russian, otherwise English), Русский or English. It switches right away, no restart needed.
 - The app name and the accessibility service description follow the phone's language. If a navigation app sends Russian units, the English island shows them in English too: "4.2 km", "12 min".
+- With a 12-hour clock, AM/PM is smaller than the digits, like on iPhone, so alarm and clock times don't stretch the capsule.
 
 ### ⬇️ Updates right in the island
 - Like in the video: "Version is available" with Later and Update, percent and a ring while it downloads, and after installing — "Updated" with What's new and Done.
-- If the APK is already downloaded but the installer didn't open (a permission is needed), the button becomes **Install** and installs the downloaded file without downloading it again. A download error shows right on the card.
+- If the APK is already downloaded but the installer didn't open (a permission is needed), the button becomes **Install** and installs the downloaded file without downloading it again. A download error shows in full right on the card, and a long caption shrinks a little instead of being cut off.
 - Try it («Проверка») has an **Update** demo: the card, running percent and "Updated", nothing is downloaded.
 
 ### 🗂️ The app, reorganized

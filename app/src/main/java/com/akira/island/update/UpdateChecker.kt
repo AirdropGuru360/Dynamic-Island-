@@ -226,8 +226,8 @@ object UpdateChecker {
         }
         val file = result.getOrNull()
         if (file == null) {
-            download.value = DownloadState.Failed(tr("Не удалось скачать обновление. Проверьте интернет и попробуйте ещё раз.",
-                "Couldn't download the update. Check your internet connection and try again."))
+            download.value = DownloadState.Failed(tr("Не удалось скачать. Проверьте интернет и попробуйте ещё раз.",
+                "Couldn't download. Check your internet and try again."))
             return
         }
         download.value = DownloadState.Ready(file)

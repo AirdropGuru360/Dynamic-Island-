@@ -649,7 +649,7 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(time, color = Color.White, fontSize = 36.sp, style = Digits)
+                Text(clockText(time, 36.sp), color = Color.White, fontSize = 36.sp, style = Digits)
                 Text(date, color = Dim, fontSize = 14.sp)
                 // Ближайший будильник в пределах суток — под датой, как на экране блокировки iPhone
                 alarm?.takeIf { it.triggerAt - now in 1..86_400_000L }?.let { a ->

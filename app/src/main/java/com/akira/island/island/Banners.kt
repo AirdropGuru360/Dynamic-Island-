@@ -119,10 +119,12 @@ fun UpdateCard(n: Notice, s: IslandSettings, wideWidth: Dp) {
             Column(Modifier.weight(1f)) {
                 Text(n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
-                val caption = failed ?: n.caption
-                if (caption != null) {
-                    Text(caption, color = if (failed != null) Tints.Orange else Tints.Gray, fontSize = 13.sp, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis)
+                if (failed != null) {
+                    // Ошибку — целиком, в две строки: по ней понятно, что делать
+                    Text(failed, color = Tints.Orange, fontSize = 13.sp, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                } else if (n.caption != null) {
+                    // Длинная подпись чуть уменьшается, а не обрезается
+                    FitText(n.caption, Tints.Gray, 13.sp, 11.sp, FontWeight.Normal)
                 }
             }
             when {

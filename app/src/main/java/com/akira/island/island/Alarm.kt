@@ -41,9 +41,14 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.AlarmInfo
@@ -74,6 +79,23 @@ fun isWakeUp(triggerAt: Long): Boolean =
     Calendar.getInstance().apply { timeInMillis = triggerAt }.get(Calendar.HOUR_OF_DAY) in 3..11
 
 fun wakeTime(context: Context, triggerAt: Long): String = DateFormat.getTimeFormat(context).format(Date(triggerAt))
+
+/**
+ * Цифры крупно, а «AM»/«PM» вдвое мельче, как на iPhone: в 12-часовом формате «11:45 PM» не распирает
+ * капсулу и не лезет к камере. В 24-часовом формате текст не меняется.
+ */
+fun clockText(time: String, size: TextUnit): AnnotatedString {
+    val digits = Regex("""\d{1,2}[:.]\d{2}""").find(time) ?: return AnnotatedString(time)
+    val before = time.substring(0, digits.range.first)
+    val after = time.substring(digits.range.last + 1)
+    if (before.isEmpty() && after.isEmpty()) return AnnotatedString(time)
+    val small = SpanStyle(fontSize = (size.value * 0.5f).coerceAtLeast(11f).sp)
+    return buildAnnotatedString {
+        withStyle(small) { append(before) }
+        append(digits.value)
+        withStyle(small) { append(after) }
+    }
+}
 
 /** «8 ч 15 мин», «45 мин», «меньше минуты» — как пишет Android, когда ставишь будильник. */
 fun durationWords(ms: Long): String {
@@ -228,7 +250,8 @@ fun AlarmCompact(a: AlarmInfo, s: IslandSettings) {
                 modifier = Modifier.size(h * if (wake) 0.44f else 0.5f))
         },
         right = {
-            Text(wakeTime(context, a.triggerAt), color = AlarmTint, fontSize = 16.sp, style = Digits, maxLines = 1, softWrap = false)
+            Text(clockText(wakeTime(context, a.triggerAt), 16.sp), color = AlarmTint, fontSize = 16.sp, style = Digits, maxLines = 1,
+                softWrap = false)
         },
     )
 }
@@ -249,8 +272,8 @@ fun AlarmExpanded(a: AlarmInfo, s: IslandSettings) {
         Column(Modifier.weight(1f)) {
             Text("${if (wake) tr("Подъём", "Wake up") else tr("Будильник", "Alarm")} · ${alarmDay(a.triggerAt, now)}",
                 color = Dim, fontSize = 14.sp, maxLines = 1)
-            Text(wakeTime(context, a.triggerAt), color = Color.White, fontSize = 44.sp, style = Digits.copy(fontWeight = FontWeight.Normal),
-                maxLines = 1)
+            Text(clockText(wakeTime(context, a.triggerAt), 44.sp), color = Color.White, fontSize = 44.sp,
+                style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(if (wake) Ios.moon else Ios.alarm, null, tint = if (wake) NightTint else AlarmTint, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
@@ -283,7 +306,7 @@ fun AlarmBanner(n: Notice, a: AlarmInfo, s: IslandSettings, wideWidth: Dp) {
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(if (wake) tr("Подъём", "Wake up") else tr("Будильник", "Alarm"), color = Dim, fontSize = 12.sp, maxLines = 1)
-                Text(wakeTime(context, a.triggerAt), color = Color.White, fontSize = 20.sp, style = Digits, maxLines = 1)
+                Text(clockText(wakeTime(context, a.triggerAt), 20.sp), color = Color.White, fontSize = 20.sp, style = Digits, maxLines = 1)
             }
         }
         Spacer(Modifier.width(compactGap(s)))
