@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
@@ -250,6 +251,8 @@ fun IslandOverlay(
 
     // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        // Оплата: волны NFC и вспышка успеха вокруг острова, как в ролике
+        if (!calibrating) PayEffects(notice, { body.value }, s)
         // Пасхалка: свечение за островом, вспышки и звёзды поверх
         if (eggOn) EggGlow { body.value }
         IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBody, onBubbleBounds)
@@ -319,13 +322,17 @@ private fun IslandBody(
     val expandedWidth = (conf.screenWidthDp.dp - 22.dp).coerceAtMost(460.dp)
     val h = s.height.dp
 
+    // Скругления — как в ролике: плеер и фонарик 46, навигатор 42, обновление 36, уведомление 32
     val cornerTarget = when {
+        expanded && (primary is Act.MediaA || primary is Act.TorchA) -> 46.dp
+        expanded && primary is Act.LiveA -> 42.dp
         expanded -> 44.dp
         primary is Act.NoticeA && (primary.n.style == NoticeStyle.MESSAGE || primary.n.style == NoticeStyle.EGG) -> 32.dp
+        primary is Act.NoticeA && primary.n.style == NoticeStyle.UPDATE -> 36.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
         primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE ||
-            primary.n.style == NoticeStyle.LIVE || primary.n.style == NoticeStyle.ALARM) -> noticeHeight(s) / 2
-        primary is Act.CallA && primary.c.incoming -> 42.dp
+            primary.n.style == NoticeStyle.LIVE || primary.n.style == NoticeStyle.ALARM || primary.n.style == NoticeStyle.SENT) -> noticeHeight(s) / 2
+        primary is Act.CallA && primary.c.incoming -> callHeight(s) / 2
         primary is Act.Idle -> h / 2
         else -> activeHeight(s) / 2
     }
@@ -385,8 +392,8 @@ private fun IslandBody(
         Modifier
             .onGloballyPositioned { onBounds(it.boundsInWindow()) }
             .graphicsLayer {
-                // Пасхалка: остров подпрыгивает в такт песни
-                val bump = Egg.bump()
+                // Пасхалка: остров подпрыгивает в такт песни; оплата прошла — на миг подрастает
+                val bump = Egg.bump() * PayFx.pop.floatValue
                 scaleX = jellyX.value * (1f + 0.03f * pull.value) * bump
                 scaleY = jellyY.value * (1f + 0.08f * pull.value) * bump
                 translationX = shake.value.dp.toPx()
@@ -501,20 +508,43 @@ private fun IslandBody(
             contentKey = { "${it.act.id}|${it.expanded}" },
             contentAlignment = Alignment.TopCenter,
             transitionSpec = {
+                // Как в ролике: старое тает за 1/6 с, уменьшаясь и размываясь, новое проявляется чуть позже
+                // из 90% размера и из размытия. Скорость — от «Длительности» (по умолчанию как в ролике)
+                val m = motionScale(s)
+                val origin = TransformOrigin(0.5f, 0.3f)
+                val inSpec = tween<Float>((300 * m).toInt(), delayMillis = (100 * m).toInt(), easing = ExpoOut)
+                val outSpec = tween<Float>((167 * m).toInt(), easing = LinearEasing)
                 val enter = if (s.reduceEffects) {
                     fadeIn(tween(150))
                 } else {
-                    fadeIn(tween(220)) + scaleIn(tween(280), initialScale = 0.88f)
+                    fadeIn(inSpec) + scaleIn(inSpec, initialScale = 0.9f, transformOrigin = origin)
                 }
-                (enter togetherWith fadeOut(tween(90))).using(SizeTransform(clip = true) { _, _ -> islandSpec(s) })
+                val exit = if (s.reduceEffects) {
+                    fadeOut(tween(90))
+                } else {
+                    fadeOut(outSpec) + scaleOut(outSpec, targetScale = 0.95f, transformOrigin = origin)
+                }
+                (enter togetherWith exit).using(SizeTransform(clip = true) { _, _ -> islandSpec(s) })
             },
             label = "island",
         ) { f ->
-            // Содержимое «перетекает» с лёгким размытием, как в острове iPhone (Android 12+)
+            // Содержимое «перетекает» с размытием, как в ролике и в острове iPhone (Android 12+):
+            // новое — из 7 dp, уходящее — в 5 dp
+            val m = motionScale(s)
             val blur by transition.animateFloat(
-                transitionSpec = { tween(260) },
+                transitionSpec = {
+                    if (targetState == EnterExitState.Visible) tween((300 * m).toInt(), delayMillis = (100 * m).toInt(), easing = ExpoOut)
+                    else tween((167 * m).toInt())
+                },
                 label = "blur",
-            ) { state -> if (state == EnterExitState.Visible || s.reduceEffects) 0f else 9f }
+            ) { state ->
+                when {
+                    s.reduceEffects -> 0f
+                    state == EnterExitState.PreEnter -> 7f
+                    state == EnterExitState.PostExit -> 5f
+                    else -> 0f
+                }
+            }
             Box(
                 Modifier.graphicsLayer {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blur > 0.3f) {

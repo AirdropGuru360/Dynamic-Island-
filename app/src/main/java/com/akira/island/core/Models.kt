@@ -178,6 +178,10 @@ enum class NoticeStyle {
     ALARM,
     /** Пасхалка: окно диалога, как в игре, — строка печатается по букве */
     EGG,
+    /** Ответ ушёл: «Отправлено» с галочкой и кому */
+    SENT,
+    /** Новая версия: значок приложения, что нового и кнопки «Позже» и «Обновить»; после установки — «Обновлено» */
+    UPDATE,
 }
 
 /**
@@ -248,6 +252,8 @@ data class Notice(
     val openPkg: String? = null,
     /** Будильник для плашки NoticeStyle.ALARM */
     val alarm: AlarmInfo? = null,
+    /** Новая версия для плашки NoticeStyle.UPDATE; null — уже обновились */
+    val update: com.akira.island.update.Release? = null,
     val id: Long = ids.incrementAndGet(),
 ) {
     private companion object {

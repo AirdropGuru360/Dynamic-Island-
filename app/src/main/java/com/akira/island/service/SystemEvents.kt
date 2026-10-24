@@ -196,8 +196,7 @@ class SystemEvents(private val context: Context) {
                 // Как фокус «Не беспокоить» на iPhone: луна и состояние
                 notice(
                     s.evDnd,
-                    Notice("Фокус", if (on) "Вкл" else "Выкл", ic(R.drawable.ios_moon), if (on) Tints.Purple else Tints.Gray,
-                        caption = "Не беспокоить"),
+                    Notice("Не беспокоить", if (on) "Вкл" else "Выкл", ic(R.drawable.ios_moon), if (on) Tints.Purple else Tints.Gray),
                 )
             }
 

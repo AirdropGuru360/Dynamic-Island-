@@ -127,6 +127,8 @@ data class IslandSettings(
     /** Версия, для которой уже показали «Что нового» */
     val lastSeenVersion: String = "",
     val lastUpdateCheck: Long = 0,
+    /** Какую версию остров уже видел: после обновления он один раз показывает «Обновлено» */
+    val islandVersion: String = "",
 
     // Liquid Glass: полупрозрачное стекло с бликами вместо чёрной заливки. По умолчанию выключено
     val liquidGlass: Boolean = false,

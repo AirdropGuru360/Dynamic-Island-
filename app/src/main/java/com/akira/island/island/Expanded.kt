@@ -78,7 +78,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -135,45 +138,51 @@ fun ExpandedContent(act: Act, s: IslandSettings, lyrics: Lyrics?, battery: Batte
     }
 }
 
+/**
+ * Плеер — как в ролике: обложка 60, название 18 и исполнитель, справа волна; строка текста песни
+ * заливается белым по мере пения; время по краям тонкой полосы и три кнопки посередине.
+ */
 @Composable
 private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
     val context = LocalContext.current
-    val now = rememberNow(150, active = m.playing)
+    val now = rememberNow(100, active = m.playing)
     val pos = m.positionAt(now)
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Art(m.art, 56.dp, 13.dp, Modifier.clickable { Controls.openApp(context, m.pkg) })
+            Art(m.art, 60.dp, 14.4.dp, Modifier.clickable { Controls.openApp(context, m.pkg) })
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(m.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                Text(m.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE))
                 if (m.artist.isNotBlank()) {
-                    Text(m.artist, color = Dim, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(3.dp))
+                    Text(m.artist, color = Tints.Gray, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             Spacer(Modifier.width(10.dp))
             val egg by IslandBus.egg.collectAsState()
-            if (egg) SoulHeart(Modifier.size(24.dp)) else Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(30.dp, 20.dp), bars = 6)
+            if (egg) SoulHeart(Modifier.size(24.dp)) else Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(30.dp, 24.dp))
         }
 
         val lines = lyrics?.takeIf { it.key == m.key && s.lyricsEnabled && it.lines.isNotEmpty() }
         val status by IslandBus.lyricsStatus.collectAsState()
         if (lines != null) {
-            Spacer(Modifier.height(12.dp))
-            LyricsBlock(lines, pos, m.accent)
+            Spacer(Modifier.height(14.dp))
+            KaraokeLine(lines, pos, s)
         } else if (s.lyricsEnabled && status?.first == m.key) {
             // Видно, что текст ищется или его нет — а не что функция сломалась
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
                 if (status?.second == LyricsStatus.LOADING) "Ищу текст песни…" else "Текст песни не найден",
                 color = Color.White.copy(alpha = 0.35f), fontSize = 13.sp,
             )
         }
 
-        // Время по краям полосы, как на iPhone
+        // Время по краям полосы, как на iPhone и в ролике
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(formatDuration(pos), color = Dim, fontSize = 12.sp, style = Digits, modifier = Modifier.width(38.dp))
+            Text(formatDuration(pos), color = Tints.Gray, fontSize = 11.sp, style = Digits.copy(fontWeight = FontWeight.Normal),
+                modifier = Modifier.width(34.dp))
             SeekBar(
                 fraction = if (m.durationMs > 0) pos.toFloat() / m.durationMs else 0f,
                 color = Color.White,
@@ -183,17 +192,19 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
             )
             Text(
                 if (m.durationMs > 0) "-" + formatDuration(m.durationMs - pos) else "",
-                color = Dim, fontSize = 12.sp, style = Digits, textAlign = TextAlign.End, modifier = Modifier.width(42.dp),
+                color = Tints.Gray, fontSize = 11.sp, style = Digits.copy(fontWeight = FontWeight.Normal), textAlign = TextAlign.End,
+                modifier = Modifier.width(38.dp),
             )
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                RoundButton(Ios.back, size = 52.dp, bg = Color.Transparent, iconScale = 0.56f) { Controls.prev() }
-                RoundButton(if (m.playing) Ios.pause else Ios.play, size = 58.dp, bg = Color.Transparent, iconScale = 0.6f) {
+            // Значки 28, 32 и 28 с промежутком 46 между ними, как в ролике; кнопки больше значков — под палец
+            Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
+                RoundButton(Ios.back, size = 48.dp, bg = Color.Transparent, iconScale = 0.583f) { Controls.prev() }
+                RoundButton(if (m.playing) Ios.pause else Ios.play, size = 52.dp, bg = Color.Transparent, iconScale = 0.615f) {
                     Controls.playPause()
                 }
-                RoundButton(Ios.forward, size = 52.dp, bg = Color.Transparent, iconScale = 0.56f) { Controls.next() }
+                RoundButton(Ios.forward, size = 48.dp, bg = Color.Transparent, iconScale = 0.583f) { Controls.next() }
             }
             // Вывод звука — как кнопка AirPlay
             RoundButton(Ios.airplay, Modifier.align(Alignment.CenterEnd), size = 40.dp, bg = Color.Transparent,
@@ -227,27 +238,36 @@ private fun CallExpanded(c: CallInfo) {
     }
 }
 
-/** Три строки: спетая, текущая (крупно) и следующая — прокручиваются вверх. */
+/**
+ * Текст песни, как в ролике: одна текущая строка, спетая часть белая, остальное — бледное. Заливка идёт
+ * от начала строки до начала следующей; новая строка въезжает снизу.
+ */
 @Composable
-private fun LyricsBlock(lyrics: Lyrics, pos: Long, accent: Color) {
+private fun KaraokeLine(lyrics: Lyrics, pos: Long, s: IslandSettings) {
     val index = lyrics.indexAt(pos)
     AnimatedContent(
         targetState = index,
         transitionSpec = {
-            (slideInVertically(tween(320)) { it / 3 } + fadeIn(tween(320))) togetherWith
-                (slideOutVertically(tween(320)) { -it / 3 } + fadeOut(tween(200)))
+            (slideInVertically(tween(320)) { it / 2 } + fadeIn(tween(320))) togetherWith
+                (slideOutVertically(tween(320)) { -it / 2 } + fadeOut(tween(200)))
         },
         label = "lyrics",
     ) { i ->
-        Column(Modifier.fillMaxWidth().height(86.dp), verticalArrangement = Arrangement.Center) {
-            val prev = lyrics.lines.getOrNull(i - 1)?.text.orEmpty()
-            val cur = lyrics.lines.getOrNull(i)?.text?.ifBlank { "• • •" } ?: "• • •"
-            val next = lyrics.lines.getOrNull(i + 1)?.text.orEmpty()
-            Text(prev, color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(cur, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(vertical = 3.dp))
-            Text(next, color = accent.copy(alpha = 0.55f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        val line = lyrics.lines.getOrNull(i)
+        val text = line?.text?.ifBlank { null } ?: lyrics.lines.getOrNull(i + 1)?.text?.takeIf { i < 0 } ?: "• • •"
+        val start = line?.timeMs ?: 0L
+        val end = lyrics.lines.getOrNull(i + 1)?.timeMs ?: (start + 4_000)
+        val sung = if (line == null) 0f else ((pos - start).toFloat() / (end - start).coerceAtLeast(1)).coerceIn(0f, 1f)
+        // Заливка чуть опережает голос и доходит до конца строки к 85% её времени
+        val chars = if (s.reduceEffects) text.length else (text.length * (sung / 0.85f).coerceAtMost(1f)).toInt()
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = Color.White)) { append(text.take(chars)) }
+                withStyle(SpanStyle(color = Color.White.copy(alpha = 0.32f))) { append(text.drop(chars)) }
+            },
+            fontSize = 14.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -261,7 +281,7 @@ private fun SeekBar(
 ) {
     var drag by remember { mutableStateOf<Float?>(null) }
     val seek by rememberUpdatedState(onSeek)
-    val thick by animateDpAsState(if (drag != null) 10.dp else 6.dp, label = "thick")
+    val thick by animateDpAsState(if (drag != null) 9.dp else 5.dp, label = "thick")
     val shown = (drag ?: fraction).coerceIn(0f, 1f)
     Box(
         modifier
@@ -292,7 +312,7 @@ private fun SeekBar(
                 .fillMaxWidth()
                 .height(thick)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.18f)),
+                .background(Color.White.copy(alpha = 0.2f)),
         ) {
             Box(Modifier.fillMaxWidth(shown).fillMaxHeight().background(if (enabled) color else color.copy(alpha = 0.6f)))
         }
@@ -359,8 +379,9 @@ private fun StopwatchExpanded(w: StopwatchState) {
 }
 
 /**
- * Фонарик как в iOS 18: остров становится высокой карточкой, внизу светится фонарик, вверх идёт луч.
- * Провести пальцем вверх или вниз — ярче или тусклее (если телефон это умеет), нажатие — выключить.
+ * Фонарик — как в ролике: квадратная карточка, посередине жёлтый фонарик в мягком свечении, под ним
+ * «Фонарик · 80%». Провести пальцем вверх или вниз — ярче или тусклее (если телефон это умеет): свечение
+ * растёт и вспыхивает на каждом шаге. Нажатие — выключить.
  */
 @Composable
 private fun TorchCard(t: TorchState, s: IslandSettings) {
@@ -368,29 +389,22 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
     val max = t.maxLevel.coerceAtLeast(1)
     var level by remember { mutableFloatStateOf(t.level.toFloat()) }
     LaunchedEffect(t.level) { level = t.level.toFloat() }
-    val target = if (t.on) (if (max > 1) level / max else 1f) else 0f
-    val intensity by animateFloatAsState(target, spring(dampingRatio = 0.7f, stiffness = 300f), label = "beam")
-    // Луч чуть «дышит», как живой свет
+    val share = if (t.on) (if (max > 1) level / max else 1f) else 0f
+    val intensity by animateFloatAsState(share, spring(dampingRatio = 0.7f, stiffness = 300f), label = "glow")
+    // Свечение «дышит», как в ролике
     val breath = rememberInfiniteTransition(label = "breath")
-    val pulse by breath.animateFloat(0.94f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "p")
-    val glow = if (s.reduceEffects) 1f else pulse
-    // Пока палец на ползунке — фонарик сияет сильнее, а на каждом шаге яркости вспыхивает, как на iPhone
-    var dragging by remember { mutableStateOf(false) }
-    val boost by animateFloatAsState(if (dragging && !s.reduceEffects) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 220f), label = "boost")
+    val wave by breath.animateFloat(0f, 1f, infiniteRepeatable(tween(1050, easing = LinearEasing)), label = "w")
+    val pulse = if (s.reduceEffects) 1f else 0.85f + 0.15f * sin(wave * 2 * Math.PI).toFloat()
     val flare = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    val label = if (max > 1 && t.on) "Фонарик · ${(share * 100).toInt()}%" else "Фонарик"
 
     Box(
         Modifier
-            .size(200.dp, 224.dp)
+            .size(200.dp, 200.dp)
             .pointerInput(max) {
                 detectVerticalDragGestures(
-                    onDragStart = {
-                        dragging = true
-                        IslandBus.lastTouch = SystemClock.elapsedRealtime()
-                    },
-                    onDragEnd = { dragging = false },
-                    onDragCancel = { dragging = false },
+                    onDragStart = { IslandBus.lastTouch = SystemClock.elapsedRealtime() },
                 ) { change, dy ->
                     change.consume()
                     IslandBus.lastTouch = SystemClock.elapsedRealtime()
@@ -416,92 +430,28 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
             },
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            val cx = size.width / 2
-            val headY = size.height * 0.64f
-            val reach = size.height * 0.58f
-            val spread = 34f + 14f * intensity + 6f * boost
-            val shine = glow * (1f + 0.35f * boost + 0.3f * flare.value)
-            // Луч — конус с мягким светом от головки фонарика вверх
-            if (intensity > 0.01f) {
-                val beam = Path().apply {
-                    moveTo(cx, headY)
-                    arcTo(
-                        Rect(Offset(cx, headY), reach),
-                        startAngleDegrees = -90f - spread, sweepAngleDegrees = spread * 2, forceMoveTo = false,
-                    )
-                    close()
-                }
-                drawPath(
-                    beam,
-                    Brush.radialGradient(
-                        0f to Color.White.copy(alpha = (0.95f * intensity * shine).coerceAtMost(1f)),
-                        0.35f to Color(0xFFD9D4FF).copy(alpha = (0.55f * intensity * shine).coerceAtMost(1f)),
-                        1f to Color(0xFF8E87FF).copy(alpha = 0f),
-                        center = Offset(cx, headY),
-                        radius = reach,
-                    ),
-                )
-                val halo = 34.dp.toPx() * glow * (1f + 0.6f * boost + 0.45f * flare.value)
-                drawCircle(
-                    Brush.radialGradient(
-                        listOf(Color.White.copy(alpha = (0.9f * intensity * shine).coerceAtMost(1f)), Color.Transparent),
-                        center = Offset(cx, headY), radius = halo,
-                    ),
-                    radius = halo, center = Offset(cx, headY),
-                )
-                // Мягкое лавандовое сияние вокруг всего фонарика, когда его касаются
-                if (boost > 0.01f || flare.value > 0.01f) {
-                    val bloom = reach * (0.75f + 0.25f * boost)
-                    drawCircle(
-                        Brush.radialGradient(
-                            listOf(Color(0xFFB9B4FF).copy(alpha = 0.32f * intensity * (boost + flare.value * 0.6f)), Color.Transparent),
-                            center = Offset(cx, headY + 10.dp.toPx()), radius = bloom,
-                        ),
-                        radius = bloom, center = Offset(cx, headY + 10.dp.toPx()),
-                    )
-                }
-            }
-            // Шкала яркости — пунктирная дуга, пройденная часть сплошная
-            val arcR = reach * 0.86f
-            val arcRect = Rect(Offset(cx, headY), arcR)
-            val dots = 22
-            for (i in 0..dots) {
-                val a = Math.toRadians((-90f - 44f + 88f * i / dots).toDouble())
-                drawCircle(
-                    Color.White.copy(alpha = 0.35f), radius = 1.2.dp.toPx(),
-                    center = Offset(cx + arcR * cos(a).toFloat(), headY + arcR * sin(a).toFloat()),
-                )
-            }
-            if (t.on) {
-                drawArc(
-                    Color.White.copy(alpha = 0.9f), startAngle = -90f - 44f, sweepAngle = 88f * (if (max > 1) level / max else 1f),
-                    useCenter = false, topLeft = arcRect.topLeft, size = arcRect.size,
-                    style = Stroke(2.dp.toPx(), cap = StrokeCap.Round),
-                )
-            }
-            // Сам фонарик: головка-трапеция и ручка
-            val body = if (t.on) Color.White else Color.White.copy(alpha = 0.4f)
-            val headW = 30.dp.toPx()
-            val neckW = 16.dp.toPx()
-            val headH = 14.dp.toPx()
-            val head = Path().apply {
-                moveTo(cx - headW / 2, headY)
-                lineTo(cx + headW / 2, headY)
-                lineTo(cx + neckW / 2, headY + headH)
-                lineTo(cx - neckW / 2, headY + headH)
-                close()
-            }
-            drawPath(head, body)
-            drawRoundRect(
-                body, topLeft = Offset(cx - neckW / 2, headY + headH + 2.dp.toPx()),
-                size = Size(neckW, 36.dp.toPx()), cornerRadius = CornerRadius(5.dp.toPx()),
+            // Жёлтое свечение за фонариком: круг 120 dp, ярче с яркостью фонарика и на каждом шаге
+            val glow = (0.35f + 0.65f * intensity) * pulse * (1f + 0.4f * flare.value)
+            val r = 60.dp.toPx() * (1f + 0.15f * flare.value)
+            val c = Offset(size.width / 2, 40.dp.toPx() + 60.dp.toPx())
+            drawCircle(
+                Brush.radialGradient(
+                    0f to Tints.Yellow.copy(alpha = (0.55f * glow).coerceAtMost(1f)),
+                    0.55f to Tints.Yellow.copy(alpha = (0.3f * glow).coerceAtMost(1f)),
+                    1f to Tints.Yellow.copy(alpha = 0f),
+                    center = c, radius = r,
+                ),
+                radius = r, center = c,
             )
-            drawCircle(Color.Black.copy(alpha = 0.5f), radius = 3.dp.toPx(), center = Offset(cx, headY + headH + 16.dp.toPx()))
         }
-        Icon(
-            Ios.sunny, null, tint = Color.White.copy(alpha = 0.7f + 0.3f * boost),
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 26.dp).size(14.dp),
-        )
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Ios.flashlight, null, tint = if (t.on) Tints.Yellow else Color.White.copy(alpha = 0.4f),
+                modifier = Modifier.padding(top = 20.dp).size(58.dp),
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
     }
 }
 
@@ -624,33 +574,48 @@ private fun ProgressExpanded(p: ProgressInfo) {
     }
 }
 
-/** Навигатор, такси, доставка: стрелка или картинка, расстояние крупно, подсказка, время и кнопка «Открыть». */
+/**
+ * Навигатор, такси, доставка — как в ролике: слева круг со стрелкой, справа расстояние крупно, подсказка,
+ * время прибытия цветом и маленькая кнопка «Открыть».
+ */
 @Composable
 private fun LiveExpanded(l: LiveInfo) {
     val context = LocalContext.current
     val tint = liveTint(l.kind)
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(56.dp).clip(CircleShape).background(tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                LiveGlyph(l, 32.dp, tint)
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(l.distance ?: l.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2,
-                    overflow = TextOverflow.Ellipsis)
-                if (l.text.isNotEmpty()) {
-                    Text(l.text, color = Dim, fontSize = 14.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                val line = l.eta ?: l.sub.takeIf { it.isNotEmpty() }
-                if (line != null) {
-                    Text(line, color = tint, fontSize = 13.sp, style = Digits, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
+    Row(verticalAlignment = Alignment.Top) {
+        Box(Modifier.padding(top = 4.dp).size(62.dp).clip(CircleShape).background(tint.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+            LiveGlyph(l, 34.dp, tint)
         }
-        Spacer(Modifier.height(14.dp))
-        PillButton(Ios.navigate, "Открыть", bg = tint, fg = Color.Black) {
-            if (!Controls.send(context, l.open)) Controls.openApp(context, l.pkg)
-            Controls.collapse()
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f).padding(top = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (l.distance != null) {
+                Text(l.distance, color = Color.White, fontSize = 27.sp, style = Digits.copy(fontWeight = FontWeight.Bold), maxLines = 1)
+            } else {
+                Text(l.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            if (l.text.isNotEmpty()) {
+                Text(l.text, color = Tints.Gray, fontSize = 14.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            val line = l.eta ?: l.sub.takeIf { it.isNotEmpty() }
+            if (line != null) {
+                Text(line, color = tint, fontSize = 14.sp, style = Digits, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Row(
+                Modifier
+                    .padding(top = 6.dp)
+                    .clip(CircleShape)
+                    .background(tint)
+                    .clickable {
+                        if (!Controls.send(context, l.open)) Controls.openApp(context, l.pkg)
+                        Controls.collapse()
+                    }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Ios.navigate, null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Открыть", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }

@@ -31,6 +31,11 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
+import com.akira.island.island.Ios
+import com.akira.island.core.Tints
+import com.akira.island.core.NoticeStyle
+import com.akira.island.core.Notice
+import com.akira.island.R
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Egg
@@ -75,8 +80,9 @@ class IslandService : AccessibilityService() {
     private var calls: CallMonitor? = null
     private var navReader: NavScreenReader? = null
     private var clockReader: ClockScreenReader? = null
+    private var payReader: PayScreenReader? = null
     private var alarmMonitor: AlarmMonitor? = null
-    private var clockEvents = false
+    private var screenEvents = false
     private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
     /** Экран блокировки был на экране — ждём, когда он уйдёт, чтобы сразу показать разблокировку */
     private var keyguardShown = false
@@ -112,10 +118,10 @@ class IslandService : AccessibilityService() {
         tall = false
         updateDisplayHeight()
     }
-    /** Играет пасхалка: свечению и звёздам вокруг острова нужно высокое окно */
-    private var eggTall = false
-    private val eggSettle = Runnable {
-        eggTall = false
+    /** Вокруг острова рисуются эффекты (пасхалка, волны оплаты): им нужно высокое окно */
+    private var fxTall = false
+    private val fxSettle = Runnable {
+        fxTall = false
         updateDisplayHeight()
     }
 
@@ -167,6 +173,7 @@ class IslandService : AccessibilityService() {
         calls = CallMonitor(this, scope).also { it.start() }
         navReader = NavScreenReader(this, scope)
         clockReader = ClockScreenReader(this, scope).also { ClockControl.reader = it }
+        payReader = PayScreenReader(this, scope)
         alarmMonitor = AlarmMonitor(this).also { it.start() }
         IslandBus.serviceRunning.value = true
 
@@ -209,18 +216,43 @@ class IslandService : AccessibilityService() {
                 .collect { (s, land) -> applySettings(s, land) }
         }
 
+        // Обновились — один раз карточка «Обновлено», как в ролике (первая установка молчит)
+        val version = UpdateChecker.currentVersion(this)
+        val seen = SettingsRepo.current.islandVersion
+        if (seen != version) {
+            if (seen.isNotEmpty() && SettingsRepo.current.autoUpdateCheck) {
+                IslandBus.post(
+                    Notice(
+                        title = "Обновлено до $version",
+                        icon = Ios.load(this, R.drawable.ios_check),
+                        tint = Tints.Green,
+                        caption = "Всё готово, настройки сохранены",
+                        style = NoticeStyle.UPDATE,
+                        appIcon = NotificationParser.icon(this, packageName),
+                        openPkg = packageName,
+                        extraMs = 2_000,
+                    ),
+                )
+            }
+            SettingsRepo.update { copy(islandVersion = version) }
+        }
+
         // Пасхалка: та самая песня играет — окно острова высокое, пока горят эффекты, и ещё чуть-чуть, пока гаснут
         Egg.watch(this, scope)
+        // Волнам оплаты и вспышке «Оплачено» тоже нужен простор вокруг острова
         scope.launch {
-            combine(IslandBus.egg, IslandBus.media) { on, m -> on && m?.playing == true }
+            combine(IslandBus.egg, IslandBus.media, IslandBus.notice, SettingsRepo.state) { egg, m, n, s ->
+                (egg && m?.playing == true) ||
+                    (!s.reduceEffects && (n?.style == NoticeStyle.PAY_READY || n?.style == NoticeStyle.PAY_DONE))
+            }
                 .distinctUntilChanged()
                 .collect { on ->
-                    handler.removeCallbacks(eggSettle)
+                    handler.removeCallbacks(fxSettle)
                     if (on) {
-                        eggTall = true
+                        fxTall = true
                         updateDisplayHeight()
                     } else {
-                        handler.postDelayed(eggSettle, 1_500)
+                        handler.postDelayed(fxSettle, 1_500)
                     }
                 }
         }
@@ -321,7 +353,7 @@ class IslandService : AccessibilityService() {
     /** Меняется только высота окна, верх остаётся на месте — картинка при этом не прыгает. */
     private fun updateDisplayHeight() {
         val view = display ?: return
-        val h = if (tall || eggTall || IslandBus.expanded.value) tallHeight() else islandBottom().coerceAtLeast(dp(ISLAND_PAD_DP * 2))
+        val h = if (tall || fxTall || IslandBus.expanded.value) tallHeight() else islandBottom().coerceAtLeast(dp(ISLAND_PAD_DP * 2))
         if (displayParams.height == h) return
         displayParams.height = h
         runCatching { wm?.updateViewLayout(view, displayParams) }
@@ -425,18 +457,22 @@ class IslandService : AccessibilityService() {
         when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> onWindowsChanged()
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowState(event)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> clockReader?.onContentChanged(event)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                clockReader?.onContentChanged(event)
+                payReader?.onContentChanged(event)
+            }
             AccessibilityEvent.TYPE_VIEW_CLICKED -> clockReader?.onClicked(event)
         }
     }
 
     /**
-     * Пока открыты «Часы», службе нужны изменения их экрана и нажатия — так таймер в острове появляется
-     * сразу. В остальное время эти события выключены: их много, а остров они не касаются.
+     * Пока открыты «Часы» или кошелёк, службе нужны изменения их экрана и нажатия — так таймер в острове
+     * появляется сразу, а «Оплачено» — как только кошелёк показал сумму. В остальное время эти события
+     * выключены: их много, а остров они не касаются.
      */
-    private fun setClockEvents(on: Boolean) {
-        if (on == clockEvents) return
-        clockEvents = on
+    private fun setScreenEvents(on: Boolean) {
+        if (on == screenEvents) return
+        screenEvents = on
         val info = serviceInfo ?: return
         val extra = AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or AccessibilityEvent.TYPE_VIEW_CLICKED
         info.eventTypes = if (on) info.eventTypes or extra else info.eventTypes and extra.inv()
@@ -472,16 +508,21 @@ class IslandService : AccessibilityService() {
         // Окно оплаты из сервисов Google (поднесли телефон к терминалу) — не «открытое приложение»
         if (pkg == PayMonitor.GMS && "tapandpay" in cls.lowercase()) {
             PayMonitor.onTapAndPay(this)
+            payReader?.onTapAndPay()
+            setScreenEvents(true)
             return
         }
         if (pkg == packageName && !cls.endsWith("Activity")) return
-        // Открыли банк или кошелёк из другого приложения — подсказка оплаты
+        // Открыли банк или кошелёк из другого приложения — подсказка оплаты; ушли из него — подсказка уходит
+        PayMonitor.onForeground(pkg)
         if (IslandBus.foregroundPackage.value != pkg && pkg != packageName) PayMonitor.onAppOpened(this, pkg)
         // Открыт навигатор — читаем с его экрана расстояние и манёвр, ушли из него — перестаём
         navReader?.onForeground(pkg)
         // Открыты «Часы» — читаем с экрана таймер и секундомер (если их уведомления выключены)
         clockReader?.onForeground(pkg)
-        setClockEvents(clockReader?.active == true)
+        // Открыт кошелёк или банк — смотрим, когда он покажет сумму оплаты
+        payReader?.onForeground(pkg)
+        setScreenEvents(clockReader?.active == true || payReader?.active == true)
         IslandBus.foregroundPackage.value = pkg
     }
 
@@ -510,7 +551,7 @@ class IslandService : AccessibilityService() {
 
     override fun onDestroy() {
         handler.removeCallbacks(settle)
-        handler.removeCallbacks(eggSettle)
+        handler.removeCallbacks(fxSettle)
         IslandBus.egg.value = false
         setTiltEnabled(false)
         IslandBus.serviceRunning.value = false
@@ -520,6 +561,7 @@ class IslandService : AccessibilityService() {
         calls?.stop()
         navReader?.stop()
         clockReader?.stop()
+        payReader?.stop()
         ClockControl.reader = null
         alarmMonitor?.stop()
         scope.cancel()

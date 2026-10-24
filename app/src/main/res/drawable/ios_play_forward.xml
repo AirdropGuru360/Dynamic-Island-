@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ionicons (MIT), https://ionic.io/ionicons -->
+<!-- Значок острова в духе промо-ролика 1.6: простая фигура на сетке 24×24 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="512"
-    android:viewportHeight="512">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
     <path
-        android:pathData="M 481.29 229.47 l -188.87 -113 a 30.54 30.54 0 0 0 -31.09 -.39 33.74 33.74 0 0 0 -16.76 29.47 v 79.05 L 63.85 116.44 a 30.54 30.54 0 0 0 -31.09 -.39 A 33.74 33.74 0 0 0 16 145.52 v 221 A 33.74 33.74 0 0 0 32.76 396 a 30.54 30.54 0 0 0 31.09 -.39 L 244.57 287.4 v 79.08 A 33.74 33.74 0 0 0 261.33 396 a 30.54 30.54 0 0 0 31.09 -.39 l 188.87 -113 a 31.27 31.27 0 0 0 0 -53 z"
-        android:fillColor="#FFFFFFFF" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M2.5,5.5L11.5,12L2.5,18.5Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,5.5L21,12L12,18.5Z" />
 </vector>

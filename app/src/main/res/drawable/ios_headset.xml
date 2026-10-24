@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ionicons (MIT), https://ionic.io/ionicons -->
+<!-- Значок острова в духе промо-ролика 1.6: простая фигура на сетке 24×24 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="512"
-    android:viewportHeight="512">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
     <path
-        android:pathData="M 411.16 97.46 C 368.43 55.86 311.88 32 256 32 S 143.57 55.86 100.84 97.46 C 56.45 140.67 32 197 32 256 c 0 26.67 8.75 61.09 32.88 125.55 S 137 473 157.27 477.41 c 5.81 1.27 12.62 2.59 18.73 2.59 a 60.06 60.06 0 0 0 30 -8 l 14 -8 c 15.07 -8.82 19.47 -28.13 10.8 -43.35 l -86.92 -152.57 a 31.73 31.73 0 0 0 -43.57 -11.76 l -13.69 8 a 56.49 56.49 0 0 0 -14 11.59 4 4 0 0 1 -7 -2 A 114.68 114.68 0 0 1 64 256 c 0 -50.31 21 -98.48 59.16 -135.61 C 160 84.55 208.39 64 256 64 s 96 20.55 132.84 56.39 C 427 157.52 448 205.69 448 256 a 114.68 114.68 0 0 1 -1.68 17.91 4 4 0 0 1 -7 2 56.49 56.49 0 0 0 -14 -11.59 l -13.69 -8 a 31.73 31.73 0 0 0 -43.57 11.76 L 281.2 420.65 c -8.67 15.22 -4.27 34.53 10.8 43.35 l 14 8 a 60.06 60.06 0 0 0 30 8 c 6.11 0 12.92 -1.32 18.73 -2.59 C 375 473 423 446 447.12 381.55 S 480 282.67 480 256 c 0 -59 -24.45 -115.33 -68.84 -158.54 z"
-        android:fillColor="#FFFFFFFF" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,3a9,9 0,0 0,-9 9v3h2.4v-3a6.6,6.6 0,0 1,13.2 0v3H21v-3a9,9 0,0 0,-9 -9z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4.5,13h1a2,2 0,0 1,2 2v4a2,2 0,0 1,-2 2h-1a2,2 0,0 1,-2 -2v-4a2,2 0,0 1,2 -2z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M18.5,13h1a2,2 0,0 1,2 2v4a2,2 0,0 1,-2 2h-1a2,2 0,0 1,-2 -2v-4a2,2 0,0 1,2 -2z" />
 </vector>

@@ -38,8 +38,26 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - "Set a timer" from a voice assistant, widget or another app can go to the island: "Dynamic Island" now appears in the chooser, and the timer starts right in it, without Clock.
 - System banners now has a tip: choose "Silent" and "Minimize" for Clock's notifications instead of turning them off completely, then everything works instantly.
 
+### 💳 Payments: the amount shows up right away
+- **"Paid" with the amount** appears as soon as the wallet (Mir Pay, Google Wallet, Samsung Wallet) shows its check mark and amount — no waiting for the bank's notification, which often comes later or never. Before, the "Pay" banner went away and the amount never showed. Bank apps also need "Paid" or "Done" on screen; the transaction history isn't taken for a payment.
+- In a wallet the **"Pay · Hold near reader" banner waits until you pay** (up to a minute) and goes away when you leave it.
+- "Paid" understands notifications from any bank and **bank SMS** (900, T-Bank, VTB and others); the same payment from the screen and from a notification isn't shown twice. An amount like "*1234. 89.99 RUB" is read correctly.
+- Like in the video: NFC waves spread from the island while it waits for the reader, and on "Paid" it bounces and a ring and sparks burst out.
+
+### 🎬 The island as in the promo video
+- **Icons** are the same simple shapes as in the video: bolt, phone, moon, hourglass, bell, flashlight, headphones, Wi-Fi, plane, navigation arrow, player buttons.
+- **Animations** as in the video: the island morphs with a spring and a slight overshoot, old content fades out with a blur, new content appears from 90% size. The default Duration (35%) matches the video exactly; the slider still speeds things up and slows them down.
+- **Full-width events**: icon and name on the left, the value in color on the right — "Charging 68%" with a battery, "Headphones 80%" with a ring, "Wi-Fi Connected", "Do Not Disturb On". Long names shrink a little instead of an ellipsis.
+- **Capsule**: timer — hourglass and large time, call — phone, time and a green wave, navigation — arrow and bold "300 m", Silent — at full size.
+- **Incoming call** — avatar, "Incoming call" and the name, two round buttons; the green one breathes.
+- **Navigation**: a banner with the arrow, distance, street and arrival time; expanded — a circle with the arrow, the distance large and an Open button.
+- **Player**: bigger artwork, the lyrics as one line that fills with white as it's sung, a thin bar and three buttons.
+- **Flashlight**: a square card with a yellow flashlight in a glow and "Flashlight · 80%"; swipe to change brightness.
+- **Reply**: the send button sits next to the field; after sending — "Sent ✓" and to whom.
+- **Updates right in the island**: "Version available", what's new and Later / Update buttons — percent and a ring while it downloads; after installing — "Updated ✓".
+
 ### ⚡ Animations without delay
-- Animation speed is unchanged and still set by the Duration setting, but animations start right away: the island content, the ring-mode pill, event icons and the Paid check no longer wait before starting, and banners follow each other almost without a pause.
+- Animation speed is still set by the Duration setting, and animations start right away: the island content, the ring-mode pill, event icons and the Paid check no longer wait before starting, and banners follow each other almost without a pause.
 - **Unlock** shows as soon as the lock screen goes away, not when the system message arrives.
 
 ### ⚙️ Everything follows the settings
@@ -48,6 +66,8 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 ### 🔗 Small things
 - Added an easter egg.
+- The Single tap button is gone from Dynamic cards («Динамические карточки») — single tap is set in Gestures («Жесты»).
+- Every setting was checked: each toggle changes exactly what it shows and affects the island.
 - General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.
 - The Liquid Glass label is now **«Экспериментальный»** ("Experimental").
 

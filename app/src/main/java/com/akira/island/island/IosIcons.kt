@@ -8,8 +8,9 @@ import androidx.compose.ui.res.vectorResource
 import com.akira.island.R
 
 /**
- * Иконки в стиле iOS — набор Ionicons (MIT, https://ionic.io/ionicons), переведённый в векторы Android.
- * В острове используются они, в приложении настроек — Material.
+ * Иконки острова. Главные — те же простые фигуры, что в промо-ролике 1.6: молния, трубка, месяц, песочные
+ * часы, колокольчик, фонарик, наушники, Wi-Fi, самолёт, навигатор, скачивание, стрелка ответа и кнопки
+ * плеера. Остальные — набор Ionicons (MIT, https://ionic.io/ionicons). В приложении настроек — Material.
  */
 object Ios {
     private val cache = HashMap<Int, ImageVector>()
@@ -23,7 +24,8 @@ object Ios {
     val alarm @Composable get() = ImageVector.vectorResource(R.drawable.ios_alarm)
     val add @Composable get() = ImageVector.vectorResource(R.drawable.ios_add)
     val remove @Composable get() = ImageVector.vectorResource(R.drawable.ios_remove)
-    val download @Composable get() = ImageVector.vectorResource(R.drawable.ios_arrow_down_circle)
+    val download @Composable get() = ImageVector.vectorResource(R.drawable.ios_download)
+    val arrowUp @Composable get() = ImageVector.vectorResource(R.drawable.ios_arrow_up)
     val batteryCharging @Composable get() = ImageVector.vectorResource(R.drawable.ios_battery_charging)
     val batteryFull @Composable get() = ImageVector.vectorResource(R.drawable.ios_battery_full)
     val call @Composable get() = ImageVector.vectorResource(R.drawable.ios_call)
@@ -45,5 +47,5 @@ object Ios {
     val stop @Composable get() = ImageVector.vectorResource(R.drawable.ios_stop)
     val stopwatch @Composable get() = ImageVector.vectorResource(R.drawable.ios_stopwatch)
     val sunny @Composable get() = ImageVector.vectorResource(R.drawable.ios_sunny)
-    val timer @Composable get() = ImageVector.vectorResource(R.drawable.ios_timer)
+    val timer @Composable get() = ImageVector.vectorResource(R.drawable.ios_hourglass)
 }

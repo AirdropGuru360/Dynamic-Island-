@@ -8,9 +8,12 @@ import androidx.core.content.FileProvider
 import com.akira.island.R
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Notice
+import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
+import com.akira.island.island.releaseHighlights
+import com.akira.island.service.NotificationParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
@@ -96,11 +99,13 @@ object UpdateChecker {
             announced = available.version
             IslandBus.post(
                 Notice(
-                    title = "Обновление",
-                    state = available.version,
-                    icon = Ios.load(context, R.drawable.ios_arrow_down_circle),
-                    tint = Tints.Blue,
-                    caption = "Доступна версия",
+                    title = "Доступна версия ${available.version}",
+                    icon = Ios.load(context, R.drawable.ios_download),
+                    tint = Tints.Lavender,
+                    caption = releaseHighlights(available.notes) ?: "Скачается и установится в одно нажатие",
+                    style = NoticeStyle.UPDATE,
+                    appIcon = NotificationParser.icon(context, context.packageName),
+                    update = available,
                     openPkg = context.packageName,
                     extraMs = 3_500,
                 ),

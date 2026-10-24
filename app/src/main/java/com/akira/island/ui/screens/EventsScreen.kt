@@ -65,10 +65,10 @@ fun EventsScreen(onBack: () -> Unit) {
 
         SectionHeader("Оплата")
         ToggleCard(Icons.Rounded.Nfc, "Приложите к терминалу",
-            "Когда открываете Google Кошелёк, Т-Банк, Альфа-Банк, Сбер, ВТБ или другое приложение оплаты — карта и волны, как у Apple Pay",
+            "Когда открываете Mir Pay, Google Кошелёк, Т-Банк, Сбер, ВТБ или другое приложение оплаты — волны, как у Apple Pay. В кошельке подсказка ждёт, пока не заплатите",
             s.evPayReady, color = Tile.Blue) { set { copy(evPayReady = it) } }
         ToggleCard(Icons.Rounded.CheckCircle, "Оплачено",
-            "Когда банк или кошелёк присылает уведомление об оплате — зелёная галочка и сумма",
+            "Когда кошелёк показывает сумму у себя на экране или банк присылает уведомление или СМС — зелёная галочка и сумма",
             s.evPaySuccess, color = Tile.Green) { set { copy(evPaySuccess = it) } }
 
         SectionHeader("Будильник")

@@ -4,6 +4,7 @@ import android.os.SystemClock
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.RepeatMode
@@ -62,6 +63,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +79,8 @@ import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.delay
+import kotlin.math.pow
+import kotlin.math.sqrt
 import kotlinx.coroutines.launch
 
 /** Анимация формы острова по настройкам «Стиль раскрытия», «Длительность» и «Упругость». */
@@ -85,11 +94,27 @@ fun <T> islandSpec(s: IslandSettings): FiniteAnimationSpec<T> {
     }
 }
 
-/** 0% — быстрее всего, 100% — медленнее всего */
+/** Жёсткость пружины в ролике (damping 12, stiffness 190, mass 0.85): остров перетекает за полсекунды с перелётом. */
+private const val VIDEO_STIFFNESS = 223f
+
+/**
+ * «Длительность»: 0% — быстрее всего, 100% — медленнее всего. По умолчанию (35%) — ровно как в ролике;
+ * в обе стороны жёсткость меняется в разы, поэтому ползунок заметен по всей длине.
+ */
 fun animStiffness(s: IslandSettings): Float {
     val t = s.durationPercent.coerceIn(0, 100) / 100f
-    return 1400f + (110f - 1400f) * t
+    return if (t <= 0.35f) {
+        1200f * (VIDEO_STIFFNESS / 1200f).pow(t / 0.35f)
+    } else {
+        VIDEO_STIFFNESS * (60f / VIDEO_STIFFNESS).pow((t - 0.35f) / 0.65f)
+    }
 }
+
+/** Во сколько раз всё медленнее, чем в ролике: по ней же идут проявление содержимого и размытие. */
+fun motionScale(s: IslandSettings): Float = if (s.expandStyle == ExpandStyle.INSTANT) 0.5f else sqrt(VIDEO_STIFFNESS / animStiffness(s))
+
+/** Плавность из ролика: быстро в начале и долго мягко дотягивает (cubic-bezier 0.16, 1, 0.3, 1). */
+val ExpoOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
 fun animDurationMs(s: IslandSettings): Int = 160 + s.durationPercent.coerceIn(0, 100) * 6
 
@@ -166,11 +191,11 @@ fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifi
 @Composable
 fun BatteryGlyph(level: Int, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val nub = size.width * 0.07f
-        val bodyW = size.width - nub - 1.dp.toPx()
-        val r = size.height * 0.3f
+        val nub = size.height * 0.16f
+        val bodyW = size.width - nub - 1.5.dp.toPx()
+        val r = size.height * 0.32f
         drawRoundRect(color.copy(alpha = 0.3f), size = Size(bodyW, size.height), cornerRadius = CornerRadius(r))
-        val inset = size.height * 0.12f
+        val inset = size.height * 0.14f
         val fillW = (bodyW - inset * 2) * (level.coerceIn(0, 100) / 100f)
         if (fillW > 0f) {
             drawRoundRect(
@@ -181,9 +206,9 @@ fun BatteryGlyph(level: Int, color: Color, modifier: Modifier = Modifier) {
             )
         }
         drawRoundRect(
-            color.copy(alpha = 0.45f),
-            topLeft = Offset(bodyW + 1.dp.toPx(), size.height * 0.32f),
-            size = Size(nub, size.height * 0.36f),
+            color.copy(alpha = 0.5f),
+            topLeft = Offset(bodyW + 1.5.dp.toPx(), size.height * 0.29f),
+            size = Size(nub, size.height * 0.42f),
             cornerRadius = CornerRadius(nub / 2),
         )
     }
@@ -390,70 +415,94 @@ fun Modifier.glassSurface(
 
 /**
  * Знак бесконтактной оплаты (Contactless Indicator, EMVCo) — тот самый, что печатают на терминалах
- * и картах и показывают рядом с Apple Pay: четыре дуги, растущие вправо. Дуги загораются по очереди
- * изнутри наружу, за ними пульсирует мягкое свечение.
+ * и картах: четыре дуги, растущие вправо. Как в ролике: дуги загораются по очереди изнутри наружу,
+ * полный круг — 0,8 с.
  */
 @Composable
 fun ContactlessWaves(color: Color, animate: Boolean, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "waves")
     val phase = if (animate) {
-        transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "phase").value
+        transition.animateFloat(0f, 1f, infiniteRepeatable(tween(800, easing = LinearEasing)), label = "phase").value
     } else {
         0.6f
     }
     Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        val c = Offset(w * 0.08f, h / 2)
-        // Свечение расходится от знака и гаснет
-        val glow = if (animate) 1f - phase else 0f
-        drawCircle(color.copy(alpha = 0.16f * glow), radius = h * (0.45f + 0.35f * phase), center = Offset(w * 0.5f, h / 2))
+        // Сетка 24×24, как у значка в ролике: центр дуг слева посередине
+        val k = size.minDimension / 24f
+        val c = Offset(4f * k, size.height / 2)
         for (i in 0..3) {
-            val r = h * (0.16f + 0.19f * i)
-            val peak = (i + 1) / 5f
-            val pulse = (1f - kotlin.math.abs(phase - peak) * 5f).coerceIn(0f, 1f)
+            val r = (4f + 4.2f * i) * k
+            val bright = 0.35f + 0.65f * (1f - kotlin.math.abs(phase - (i + 1) / 5f) * 4f).coerceIn(0f, 1f)
             drawArc(
-                color.copy(alpha = if (animate) 0.55f + 0.45f * pulse else 1f),
-                startAngle = -40f,
-                sweepAngle = 80f,
+                color.copy(alpha = if (animate) bright else 1f),
+                startAngle = -43f,
+                sweepAngle = 86f,
                 useCenter = false,
                 topLeft = Offset(c.x - r, c.y - r),
                 size = Size(2 * r, 2 * r),
-                style = Stroke(width = h * 0.075f, cap = StrokeCap.Round),
+                style = Stroke(width = 2.2f * k, cap = StrokeCap.Round),
             )
         }
     }
 }
 
-/** Зелёный круг «выпрыгивает», галочка прорисовывается, и от круга расходится кольцо. */
+/** Зелёный круг выпрыгивает с пружиной, следом прорисовывается галочка — как «Оплачено» в ролике. */
 @Composable
 fun CheckBadge(color: Color, animate: Boolean, modifier: Modifier = Modifier) {
-    val pop = remember { Animatable(if (animate) 0.3f else 1f) }
+    val pop = remember { Animatable(if (animate) 0f else 1f) }
     val draw = remember { Animatable(if (animate) 0f else 1f) }
-    val ring = remember { Animatable(if (animate) 0f else 1f) }
     LaunchedEffect(Unit) {
         if (!animate) return@LaunchedEffect
-        launch { pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f)) }
-        launch { ring.animateTo(1f, tween(750, easing = FastOutSlowInEasing)) }
-        draw.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
+        launch { pop.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 220f)) }
+        delay(100)
+        draw.animateTo(1f, tween(300, easing = LinearEasing))
     }
     Canvas(modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }) {
         val w = size.width
-        if (ring.value < 1f) {
-            drawCircle(color.copy(alpha = 0.55f * (1f - ring.value)), radius = w / 2 * (1f + 0.7f * ring.value),
-                style = Stroke(width = 2.dp.toPx()))
-        }
         drawCircle(color)
         val tick = Path().apply {
-            moveTo(w * 0.28f, w * 0.52f)
-            lineTo(w * 0.44f, w * 0.67f)
-            lineTo(w * 0.73f, w * 0.35f)
+            moveTo(w * 0.31f, w * 0.513f)
+            lineTo(w * 0.445f, w * 0.65f)
+            lineTo(w * 0.704f, w * 0.364f)
         }
         val part = Path()
         val measure = PathMeasure()
         measure.setPath(tick, false)
         measure.getSegment(0f, measure.length * draw.value, part, true)
-        drawPath(part, Color.White, style = Stroke(width = w * 0.1f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(part, Color.White, style = Stroke(width = w * 0.093f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/**
+ * Строка, которая уменьшает шрифт (от [max] до [min]), если не помещается, — вместо многоточия.
+ * Многоточие остаётся на крайний случай: очень длинный текст или крупный шрифт Android.
+ */
+@Composable
+fun FitText(
+    text: String,
+    color: Color,
+    max: TextUnit,
+    min: TextUnit,
+    weight: FontWeight,
+    modifier: Modifier = Modifier,
+    style: TextStyle = TextStyle.Default,
+) {
+    val measurer = rememberTextMeasurer()
+    val base = LocalTextStyle.current.merge(style)
+    BoxWithConstraints(modifier) {
+        val room = constraints.maxWidth
+        val size = remember(text, room, max, min, base) {
+            var sz = max.value
+            while (sz > min.value &&
+                measurer.measure(text, base.copy(fontSize = sz.sp, fontWeight = weight), maxLines = 1).size.width > room
+            ) {
+                sz -= 0.5f
+            }
+            sz.sp
+        }
+        // Тот же стиль, по которому мерили: шрифт темы (Inter) и его межбуквенный интервал
+        Text(text, color = color, fontSize = size, fontWeight = weight, maxLines = 1, softWrap = false,
+            overflow = TextOverflow.Ellipsis, style = base)
     }
 }
 
@@ -502,9 +551,10 @@ fun TurnArrow(turn: Turn, color: Color, modifier: Modifier = Modifier) {
                 head.moveTo(30 * k, 40 * k); head.lineTo(50 * k, 18 * k); head.lineTo(70 * k, 40 * k)
             }
             Turn.RIGHT, Turn.LEFT -> {
-                body.moveTo(x(32f) * k, 88 * k); body.lineTo(x(32f) * k, 52 * k)
-                body.quadraticBezierTo(x(32f) * k, 30 * k, x(54f) * k, 30 * k); body.lineTo(x(76f) * k, 30 * k)
-                head.moveTo(x(60f) * k, 12 * k); head.lineTo(x(80f) * k, 30 * k); head.lineTo(x(60f) * k, 48 * k)
+                // Как значок поворота в ролике: вверх, скругление и вправо, наконечник — уголком
+                body.moveTo(x(25f) * k, 92 * k); body.lineTo(x(25f) * k, 50 * k)
+                body.quadraticBezierTo(x(25f) * k, 33.3f * k, x(41.7f) * k, 33.3f * k); body.lineTo(x(79f) * k, 33.3f * k)
+                head.moveTo(x(62.5f) * k, 16.7f * k); head.lineTo(x(79f) * k, 33.3f * k); head.lineTo(x(62.5f) * k, 50 * k)
             }
             Turn.UTURN -> {
                 body.moveTo(30 * k, 88 * k); body.lineTo(30 * k, 40 * k)
@@ -513,7 +563,7 @@ fun TurnArrow(turn: Turn, color: Color, modifier: Modifier = Modifier) {
                 head.moveTo(60 * k, 48 * k); head.lineTo(76 * k, 66 * k); head.lineTo(92 * k, 48 * k)
             }
         }
-        val stroke = Stroke(width = 11 * k, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        val stroke = Stroke(width = 11.7f * k, cap = StrokeCap.Round, join = StrokeJoin.Round)
         drawPath(body, color, style = stroke)
         drawPath(head, color, style = stroke)
     }
