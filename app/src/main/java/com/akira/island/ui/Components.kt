@@ -286,7 +286,7 @@ fun GroupToggle(
     GroupItem(pos, icon, title, subtitle, color = color, badge = badge, onClick = { onChange(!checked) }) { IslandSwitch(checked, onChange) }
 }
 
-/** Маленькая метка рядом с названием, например «Эксперимент». */
+/** Маленькая метка рядом с названием, например «Экспериментальный». */
 @Composable
 fun Badge(text: String, modifier: Modifier = Modifier, color: Color = Tile.Orange) {
     Text(

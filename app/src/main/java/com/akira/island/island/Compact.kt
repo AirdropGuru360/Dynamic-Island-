@@ -326,8 +326,8 @@ private fun WideNotice(n: Notice, s: IslandSettings, wideWidth: Dp) {
     val pop = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0.3f) }
     val fill = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0f) }
     LaunchedEffect(n.id) {
-        launch { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 320f)) }
-        fill.animateTo(1f, tween(900, delayMillis = 150, easing = FastOutSlowInEasing))
+        launch { pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 650f)) }
+        fill.animateTo(1f, tween(600, delayMillis = 60, easing = FastOutSlowInEasing))
     }
     val height = noticeHeight(s)
     val width = wideWidth
@@ -382,7 +382,7 @@ private fun PillNotice(n: Notice, s: IslandSettings) {
         // Затухающее покачивание: 22° → -16° → 12° → … → 0
         var amp = 22f
         repeat(6) {
-            swing.animateTo(amp, tween(70))
+            swing.animateTo(amp, tween(55))
             amp = -amp * 0.75f
         }
         swing.animateTo(0f, spring(dampingRatio = 0.5f))
@@ -743,7 +743,7 @@ private fun LiveBanner(n: Notice, l: LiveInfo, s: IslandSettings, wideWidth: Dp)
     val height = noticeHeight(s)
     val tint = liveTint(l.kind)
     val pop = remember(n.id) { Animatable(if (s.reduceEffects) 1f else 0.3f) }
-    LaunchedEffect(n.id) { pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 320f)) }
+    LaunchedEffect(n.id) { pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 650f)) }
     Row(
         Modifier.width(wideWidth).height(height).padding(horizontal = height * 0.42f),
         verticalAlignment = Alignment.CenterVertically,

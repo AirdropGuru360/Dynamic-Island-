@@ -2,6 +2,7 @@ package com.akira.island.service
 
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
@@ -74,6 +75,10 @@ class IslandService : AccessibilityService() {
     private var navReader: NavScreenReader? = null
     private var clockReader: ClockScreenReader? = null
     private var alarmMonitor: AlarmMonitor? = null
+    private var clockEvents = false
+    private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
+    /** Экран блокировки был на экране — ждём, когда он уйдёт, чтобы сразу показать разблокировку */
+    private var keyguardShown = false
 
     /** Клавиатура уже появлялась, пока открыт ввод ответа: когда её спрячут, ввод закрывается */
     private var keyboardSeen = false
@@ -149,6 +154,7 @@ class IslandService : AccessibilityService() {
 
         createWindows()
         events = SystemEvents(this).also { it.start() }
+        keyguardShown = keyguard?.isKeyguardLocked == true
         torch = TorchController(this).also { it.start() }
         alarm = TimerAlarm(this, scope).also { it.start() }
         calls = CallMonitor(this, scope).also { it.start() }
@@ -171,6 +177,8 @@ class IslandService : AccessibilityService() {
                 (t?.ringing == true || calls.values.any { it.incoming } || alarms.isNotEmpty()) to on
             }.distinctUntilChanged().collect { (alert, on) -> onAlert(alert, on) }
         }
+        // Экран погас — дальше будет экран блокировки, ждём его ухода
+        scope.launch { IslandBus.screenOn.collect { if (!it) keyguardShown = true } }
         // Телефон заблокировали — отвечать с экрана блокировки нельзя
         scope.launch { IslandBus.locked.collect { if (it) IslandBus.reply.value = null } }
 
@@ -392,17 +400,42 @@ class IslandService : AccessibilityService() {
         when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> onWindowsChanged()
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowState(event)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> clockReader?.onContentChanged(event)
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> clockReader?.onClicked(event)
         }
+    }
+
+    /**
+     * Пока открыты «Часы», службе нужны изменения их экрана и нажатия — так таймер в острове появляется
+     * сразу. В остальное время эти события выключены: их много, а остров они не касаются.
+     */
+    private fun setClockEvents(on: Boolean) {
+        if (on == clockEvents) return
+        clockEvents = on
+        val info = serviceInfo ?: return
+        val extra = AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or AccessibilityEvent.TYPE_VIEW_CLICKED
+        info.eventTypes = if (on) info.eventTypes or extra else info.eventTypes and extra.inv()
+        runCatching { serviceInfo = info }
     }
 
     /** Пока открыт ввод ответа: клавиатуру спрятали («Назад») — ввод закрывается, как в шторке. */
     private fun onWindowsChanged() {
+        checkUnlock()
         if (IslandBus.reply.value == null) return
         if (keyboardShown()) {
             keyboardSeen = true
         } else if (keyboardSeen && SystemClock.elapsedRealtime() - replySince > 1000) {
             // Первую секунду не смотрим: клавиатура другого приложения может спрятаться перед нашей
             IslandBus.reply.value = null
+        }
+    }
+
+    /** Экран блокировки ушёл — разблокировка показывается сразу, не дожидаясь USER_PRESENT. */
+    private fun checkUnlock() {
+        if (!keyguardShown || !IslandBus.screenOn.value) return
+        if (keyguard?.isKeyguardLocked == false) {
+            keyguardShown = false
+            events?.onUnlocked()
         }
     }
 
@@ -423,6 +456,7 @@ class IslandService : AccessibilityService() {
         navReader?.onForeground(pkg)
         // Открыты «Часы» — читаем с экрана таймер и секундомер (если их уведомления выключены)
         clockReader?.onForeground(pkg)
+        setClockEvents(clockReader?.active == true)
         IslandBus.foregroundPackage.value = pkg
     }
 

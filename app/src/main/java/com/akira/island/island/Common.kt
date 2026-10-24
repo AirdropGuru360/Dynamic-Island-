@@ -85,13 +85,13 @@ fun <T> islandSpec(s: IslandSettings): FiniteAnimationSpec<T> {
     }
 }
 
-/** 0% — быстрее всего, 100% — медленнее всего */
+/** 0% — быстрее всего, 100% — медленнее всего. Пружина стала жёстче: остров откликается шустрее при той же настройке. */
 fun animStiffness(s: IslandSettings): Float {
     val t = s.durationPercent.coerceIn(0, 100) / 100f
-    return 1400f + (110f - 1400f) * t
+    return 2600f + (260f - 2600f) * t
 }
 
-fun animDurationMs(s: IslandSettings): Int = 160 + s.durationPercent.coerceIn(0, 100) * 6
+fun animDurationMs(s: IslandSettings): Int = 120 + s.durationPercent.coerceIn(0, 100) * 4
 
 /** Текущее время (elapsedRealtime) с обновлением раз в [periodMs]. */
 @Composable
@@ -433,10 +433,10 @@ fun CheckBadge(color: Color, animate: Boolean, modifier: Modifier = Modifier) {
     val ring = remember { Animatable(if (animate) 0f else 1f) }
     LaunchedEffect(Unit) {
         if (!animate) return@LaunchedEffect
-        launch { pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f)) }
-        launch { ring.animateTo(1f, tween(750, delayMillis = 120, easing = FastOutSlowInEasing)) }
-        delay(140)
-        draw.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
+        launch { pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 600f)) }
+        launch { ring.animateTo(1f, tween(550, delayMillis = 60, easing = FastOutSlowInEasing)) }
+        delay(70)
+        draw.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
     }
     Canvas(modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }) {
         val w = size.width

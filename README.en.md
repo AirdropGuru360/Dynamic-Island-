@@ -125,7 +125,7 @@ Also:
 
 - **Dynamic cards** and **events** — each can be turned off.
 - **Lyrics** — in the expanded player.
-- **Updates** — an auto-check every 6 hours and a Check now button.
+- **Updates** — an auto-check every 6 hours and a Check now button; the GitHub page button («Страница GitHub») leads here.
 - **System banners** («Общие → Системные плашки») — shortcuts to the Android settings where you turn off the pop-ups of the dialer, Clock and battery, so only the island shows these events.
 
 ## 🧩 How it works

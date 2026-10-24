@@ -76,7 +76,8 @@ object IslandBus {
                     if (notice.value?.id == n.id) withTimeoutOrNull(1500) { notice.first { it?.id != n.id } }
                 }
                 if (notice.value?.id == n.id) notice.value = null
-                delay(220)
+                // Короткая пауза между плашками, чтобы они не слипались, — но без заметного ожидания
+                delay(110)
             }
         }
     }

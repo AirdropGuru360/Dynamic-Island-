@@ -18,6 +18,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import android.content.Intent
+import android.net.Uri
+import com.akira.island.R
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
@@ -38,6 +44,17 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+
+private val GithubPurple = Color(0xFF8250DF)
+
+/** Главная страница проекта на GitHub — в браузере или приложении GitHub. */
+private fun openGithub(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/${UpdateChecker.REPO}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
 
 @Composable
 fun GeneralScreen(open: (Screen) -> Unit) {
@@ -78,7 +95,10 @@ fun GeneralScreen(open: (Screen) -> Unit) {
 
         SectionHeader("Помощь")
         Group {
-            GroupItem(Pos.First, Icons.Rounded.Lightbulb, "Инструкция", "Как включить остров на Android 13+",
+            GroupItem(Pos.First, ImageVector.vectorResource(R.drawable.ic_github), "Страница GitHub",
+                "Описание, новые версии и исходный код",
+                onClick = { openGithub(context) }, color = GithubPurple) { Arrow() }
+            GroupItem(Pos.Middle, Icons.Rounded.Lightbulb, "Инструкция", "Как включить остров на Android 13+",
                 onClick = { open(Screen.INSTRUCTION) }, color = Tile.Yellow) { Arrow() }
             GroupItem(Pos.Middle, Icons.Rounded.Navigation, "Диагностика навигации",
                 "Что присылает навигатор, такси или доставка — если не видно расстояния",

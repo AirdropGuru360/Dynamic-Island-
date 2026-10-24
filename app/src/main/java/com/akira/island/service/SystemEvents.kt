@@ -172,10 +172,7 @@ class SystemEvents(private val context: Context) {
                 )
             }
 
-            Intent.ACTION_USER_PRESENT -> {
-                IslandBus.locked.value = false
-                notice(s.evUnlock, Notice("", null, ic(R.drawable.ios_lock_open), Color.White, style = NoticeStyle.PILL))
-            }
+            Intent.ACTION_USER_PRESENT -> onUnlocked()
 
             Intent.ACTION_SCREEN_OFF -> {
                 IslandBus.screenOn.value = false
@@ -276,6 +273,20 @@ class SystemEvents(private val context: Context) {
                 }, 1500)
             }
         }
+    }
+
+    private var lastUnlock = 0L
+
+    /**
+     * Разблокировали. Сообщение системы USER_PRESENT доходит с задержкой, поэтому служба острова
+     * зовёт это раньше — как только видит, что экран блокировки ушёл. Второй вызов подряд ничего не делает.
+     */
+    fun onUnlocked() {
+        IslandBus.locked.value = false
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastUnlock < 3_000) return
+        lastUnlock = now
+        notice(s.evUnlock, Notice("", null, ic(R.drawable.ios_lock_open), Color.White, style = NoticeStyle.PILL))
     }
 
     /** Заблокирован ли телефон так, что для входа нужен PIN-код, ключ или пароль. */

@@ -22,8 +22,17 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - Turn off separately: Dynamic cards → Alarm («Динамические карточки → Будильник») and Events → Alarm set («События → Будильник поставлен»).
 
 ### ⏱️ Clock timer and stopwatch without notifications
-- If Clock's notifications are off, Android gives them to no one. Now the island reads the Clock screen itself while it's open: set a timer or start the stopwatch — it appears in the island and keeps running after you leave the app. Paused shows a pause icon, reset removes it from the island.
+- If Clock's notifications are off, Android gives them to no one. Now the island watches the Clock screen itself while it's open: tap Start — the timer or stopwatch is in the island **right away** and keeps running after you leave the app; Pause — it freezes with a pause icon; Reset or delete — it disappears. Without a tap the timer is recognized by its moving digits: a stopwatch within a fraction of a second, a timer within a second.
+- The island doesn't keep walking the whole Clock screen: it remembers the time labels and refreshes only them, and gets screen changes and taps only while Clock is open — the app doesn't lag.
 - If Clock's notifications are on, the island still takes the timer from them.
+
+### ⚡ Snappier animations
+- The island expands, collapses and changes shape noticeably faster at the same Duration setting; content appears without delay, banners follow each other without a pause.
+- **Unlock** shows right when the lock screen goes away, not after the system message; the ring-mode pill shakes faster, event icons pop faster and the Paid check draws faster.
+
+### 🔗 Small things
+- General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.
+- The Liquid Glass label is now **«Экспериментальный»** ("Experimental").
 
 ### 🔕 System banners
 - A new **General → System banners** screen («Общие → Системные плашки»): the dialer, Clock, System UI (battery) and Android System (USB charging) — a tap opens their notification settings, right on the needed channel if the island has already seen it. Turn off "Pop on screen" there: the notification stays in the shade, and only the island shows the event on screen. Messenger notifications aren't affected.
