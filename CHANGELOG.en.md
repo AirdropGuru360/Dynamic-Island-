@@ -103,6 +103,12 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - **Event display** («Показ событий») moved to Appearance → Island expansion («Оформление → Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
 - New switches: Features → Behavior → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
 
+### 🔒 Security
+- The "Set a timer" command starts a timer in the island only from apps Android allows to set alarms and timers (the assistant, Clock, widgets) — not from any app.
+- The update installs only the island itself: if the downloaded file holds a different app, the installer won't open.
+- The service description and the Permissions screen say exactly what of the data the island reads goes online: only the song title and artist, to find lyrics.
+- GitHub build: code and dependencies build without write access to the repository, the release is published in a separate step without third-party actions, test APKs are kept for a week.
+
 ### 🔗 Small things
 - Added an easter egg.
 - The Single tap button is gone from Dynamic cards («Динамические карточки») — single tap is set in Gestures («Жесты»).

@@ -67,13 +67,15 @@
             </intent-filter>
         </activity>
 
-        <!-- «Поставь таймер» от помощника или виджета: если выбрать остров, таймер сразу в нём -->
+        <!-- «Поставь таймер» от помощника или виджета: если выбрать остров, таймер сразу в нём.
+         Как у «Часов» Android: позвать его могут только приложения с правом ставить будильники и таймеры -->
         <activity
             android:name=".ui.SetTimerActivity"
             android:excludeFromRecents="true"
             android:exported="true"
             android:label="@string/app_name"
             android:noHistory="true"
+            android:permission="com.android.alarm.permission.SET_ALARM"
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>

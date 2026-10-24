@@ -7,14 +7,22 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Сборка только читает репозиторий: Gradle и его зависимости не получают права на запись.
+# Писать (выпускать релиз) может только отдельная задача ниже, и только на основной ветке или теге.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.ver.outputs.tag }}
+      release: ${{ steps.ver.outputs.release }}
+      update: ${{ steps.ver.outputs.update }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@v4
         with:
@@ -24,18 +32,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Сборка
-        run: ./gradlew --no-daemon assembleRelease assembleDebug
+        run: ./gradlew --no-daemon assembleRelease
 
       - name: Переименовать APK
         run: |
           mkdir -p out
           cp app/build/outputs/apk/release/app-release.apk out/DynamicIsland.apk
-          cp app/build/outputs/apk/debug/app-debug.apk out/DynamicIsland-debug.apk
 
+      # Тестовые APK лежат неделю: потом пропадают сами, а версии для всех — в релизах
       - uses: actions/upload-artifact@v4
         with:
           name: DynamicIsland-apk
-          path: out/*.apk
+          path: out/DynamicIsland.apk
+          retention-days: 7
 
       # Релиз выходит сам, когда в app/build.gradle.kts повышают versionName
       # (или когда пушат тег v*). Описание на двух языках: CHANGELOG.en.md и CHANGELOG.md.
@@ -44,28 +53,47 @@ jobs:
         id: ver
         env:
           GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          v=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          v=$(grep -oP 'versionName = "\K[0-9A-Za-z.\-]+(?=")' app/build.gradle.kts)
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag="$GITHUB_REF_NAME"; else tag="v$v"; fi
+          # Тег идёт в имя релиза и в команды — только буквы, цифры, точки и дефисы
+          if [[ ! "$tag" =~ ^v[0-9A-Za-z.\-]+$ ]]; then echo "Странный тег: $tag" >&2; exit 1; fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          default="refs/heads/${{ github.event.repository.default_branch }}"
           exists=false
           gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && exists=true
           release=false
           update=false
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             release=true
-          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == "$default" ]]; then
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
             if [[ "$exists" == true ]]; then update=true; else release=true; fi
           fi
           echo "release=$release" >> "$GITHUB_OUTPUT"
           echo "update=$update" >> "$GITHUB_OUTPUT"
 
+  release:
+    needs: build
+    if: needs.build.outputs.release == 'true' || needs.build.outputs.update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.build.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: DynamicIsland-apk
+          path: out
+
       - name: Описание релиза из CHANGELOG.en.md и CHANGELOG.md
-        if: steps.ver.outputs.release == 'true' || steps.ver.outputs.update == 'true'
         run: |
-          v="${{ steps.ver.outputs.tag }}"
-          v="${v#v}"
+          v="${TAG#v}"
           section() { awk -v v="$v" 'index($0, "## [" v "]") == 1 {f=1; next} /^## \[/ {f=0} f' "$1"; }
           {
             echo "## 🇬🇧 English"
@@ -77,21 +105,14 @@ jobs:
           } > notes.md
           cat notes.md
 
+      # Релиз выпускает сам gh — без сторонних действий, которым пришлось бы доверить право на запись
       - name: Релиз
-        if: steps.ver.outputs.release == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: Dynamic Island ${{ steps.ver.outputs.tag }} · Динамический остров
-          body_path: notes.md
-          files: out/DynamicIsland.apk
-          make_latest: true
+        if: needs.build.outputs.release == 'true'
+        run: |
+          gh release create "$TAG" out/DynamicIsland.apk -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Dynamic Island $TAG · Динамический остров" --notes-file notes.md --latest
 
       - name: Обновить описание вышедшего релиза
-        if: steps.ver.outputs.update == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
+        if: needs.build.outputs.update == 'true'
         run: |
-          tag="${{ steps.ver.outputs.tag }}"
-          gh release edit "$tag" -R "$GITHUB_REPOSITORY" --notes-file notes.md --title "Dynamic Island $tag · Динамический остров"
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file notes.md --title "Dynamic Island $TAG · Динамический остров"

@@ -226,8 +226,8 @@ fun PermissionsScreen(onBack: () -> Unit, open: (Screen) -> Unit) {
     }
 
     Page(tr("Разрешения", "Permissions"), onBack,
-        subtitle = tr("Остров ничего не хранит и никуда не отправляет: разрешения нужны, только чтобы показывать события",
-            "The island doesn't store or send anything: permissions are only used to show events")) {
+        subtitle = tr("Остров не хранит и не отправляет ваши уведомления, звонки и экраны: разрешения нужны, только чтобы показывать события",
+            "The island doesn't store or send your notifications, calls or screens: permissions are only used to show events")) {
         Group {
             GroupItem(
                 Pos.First, Icons.Rounded.AccessibilityNew, tr("Спец. возможности", "Accessibility"),

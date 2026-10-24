@@ -183,7 +183,7 @@ object UpdateChecker {
             withContext(Dispatchers.IO) {
                 val dir = File(context.cacheDir, "update").apply { mkdirs() }
                 dir.listFiles()?.forEach { it.delete() }
-                val file = File(dir, "DynamicIsland-${release.version}.apk")
+                val file = File(dir, "DynamicIsland-${release.version.filter { it.isLetterOrDigit() || it == '.' }}.apk")
                 val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 15_000
                     readTimeout = 30_000
@@ -217,7 +217,9 @@ object UpdateChecker {
                 } finally {
                     conn.disconnect()
                 }
-                if (context.packageManager.getPackageArchiveInfo(file.path, 0) == null) {
+                // Ставим только сам остров: файл с другим приложением внутри не открываем.
+                // Подпись проверит установка Android — чужой ключ поверх острова она не поставит
+                if (context.packageManager.getPackageArchiveInfo(file.path, 0)?.packageName != context.packageName) {
                     file.delete()
                     error(tr("Файл обновления повреждён", "The update file is damaged"))
                 }
