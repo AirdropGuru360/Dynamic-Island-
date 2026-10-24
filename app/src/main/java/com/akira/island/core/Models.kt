@@ -233,8 +233,11 @@ data class Notice(
     val caption: String? = null,
     val style: NoticeStyle = NoticeStyle.WIDE,
     val message: AppMessage? = null,
-    /** Сколько показывать; null — из настроек */
-    val durationMs: Long? = null,
+    /**
+     * Насколько дольше «Показа событий» (Анимации → Показ событий) держать плашку: сообщению с кнопками
+     * нужно успеть нажать, оплате — приложить телефон. Всё считается от этой настройки.
+     */
+    val extraMs: Long = 0,
     /** Значок приложения, например банка при оплате */
     val appIcon: ImageBitmap? = null,
     /** Данные «живой активности» для плашки NoticeStyle.LIVE */

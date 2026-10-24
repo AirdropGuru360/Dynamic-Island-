@@ -62,6 +62,12 @@ data class IslandSettings(
     val cardLive: Boolean = true,
     /** Будильник: за 12 часов до него — время подъёма и сколько осталось спать */
     val cardAlarm: Boolean = true,
+    /** Кнопки острова для таймера «Часов» нажимают кнопки самих «Часов» (без уведомлений — открывая их на миг) */
+    val clockAutoTap: Boolean = true,
+    /** «Поставь таймер» от помощника и виджетов можно отдать острову */
+    val timerFromAssistant: Boolean = true,
+    /** Звонит таймер, будильник или входящий вызов — остров включает экран и не даёт ему погаснуть */
+    val wakeForAlerts: Boolean = true,
 
     // События
     val evChargeStart: Boolean = true,
@@ -206,6 +212,7 @@ object SettingsRepo {
             durationPercent = d.durationPercent,
             elasticity = d.elasticity,
             reduceEffects = d.reduceEffects,
+            noticeDurationMs = d.noticeDurationMs,
         )
     }
 }

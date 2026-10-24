@@ -102,7 +102,7 @@ object UpdateChecker {
                     tint = Tints.Blue,
                     caption = "Доступна версия",
                     openPkg = context.packageName,
-                    durationMs = 6000,
+                    extraMs = 3_500,
                 ),
             )
         }

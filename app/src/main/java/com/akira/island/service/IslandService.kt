@@ -369,10 +369,12 @@ class IslandService : AccessibilityService() {
         } else if (alerting && lastScreenOn && !screenOn) {
             wakeBlocked = true
         }
-        if (alert && !alerting && !screenOn) ScreenWaker.wake(this, scope) { alerting && !wakeBlocked }
+        // Настройка «Включать экран» выключена — остров экран не трогает
+        val wake = SettingsRepo.current.wakeForAlerts
+        if (wake && alert && !alerting && !screenOn) ScreenWaker.wake(this, scope) { alerting && !wakeBlocked }
         alerting = alert
         lastScreenOn = screenOn
-        setAlarmScreen(keepOn = alert, turnOn = alert && !wakeBlocked)
+        setAlarmScreen(keepOn = wake && alert, turnOn = wake && alert && !wakeBlocked)
     }
 
     /**

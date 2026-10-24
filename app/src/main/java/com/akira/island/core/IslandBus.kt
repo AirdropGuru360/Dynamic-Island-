@@ -67,7 +67,7 @@ object IslandBus {
         scope.launch {
             for (n in queue) {
                 notice.value = n
-                val duration = n.durationMs ?: SettingsRepo.current.noticeDurationMs.toLong()
+                val duration = SettingsRepo.current.noticeDurationMs + n.extraMs
                 // Уведомление уходит по времени или раньше, если его смахнули кликом
                 withTimeoutOrNull(duration) { notice.first { it?.id != n.id } }
                 // Пока отвечают или листают переписку, карточка остаётся; потом ещё чуть-чуть

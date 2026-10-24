@@ -3,10 +3,10 @@ package com.akira.island.ui.screens
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Restore
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -27,7 +27,6 @@ import com.akira.island.R
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
-import com.akira.island.ui.GroupSlider
 import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
 import com.akira.island.ui.Perms
@@ -73,13 +72,12 @@ fun GeneralScreen(open: (Screen) -> Unit) {
                 "Карточка музыки не показывается, пока открыт сам плеер", s.hideWhenPlayerOpen, color = Tile.Blue) { v ->
                 SettingsRepo.update { copy(hideWhenPlayerOpen = v) }
             }
-            GroupItem(Pos.Middle, Icons.Rounded.NotificationsOff, "Системные плашки",
+            GroupToggle(Pos.Middle, Icons.Rounded.LightMode, "Включать экран",
+                "Когда звонит таймер, будильник или входящий вызов — экран включается и не гаснет, пока звонит",
+                s.wakeForAlerts, color = Tile.Yellow) { v -> SettingsRepo.update { copy(wakeForAlerts = v) } }
+            GroupItem(Pos.Last, Icons.Rounded.NotificationsOff, "Системные плашки",
                 "Чтобы звонок, таймер и батарею показывал только остров, без плашек Android",
                 onClick = { open(Screen.BANNERS) }, color = Tile.Red) { Arrow() }
-            GroupSlider(
-                Pos.Last, Icons.Rounded.Schedule, "Показ событий",
-                value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = "%.1f с".format(s.noticeDurationMs / 1000f), color = Tile.Orange,
-            ) { v -> SettingsRepo.update { copy(noticeDurationMs = (v * 1000).toInt()) } }
         }
 
         SectionHeader("Обновления")

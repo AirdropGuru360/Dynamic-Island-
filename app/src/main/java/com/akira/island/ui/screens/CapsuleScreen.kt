@@ -8,6 +8,7 @@ import androidx.compose.material.icons.rounded.FormatColorFill
 import androidx.compose.material.icons.rounded.LineWeight
 import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.OpenWith
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
@@ -137,6 +138,11 @@ fun AnimScreen(onBack: () -> Unit) {
             ) { v -> SettingsRepo.update { copy(durationPercent = v.toInt()) } }
             GroupItem(Pos.Middle, Icons.Rounded.Waves, "Упругость", s.elasticity.title, color = Tile.Blue,
                 onClick = { elasticDialog = true })
+            // Сколько видно событие; плашки, которым нужно больше времени (сообщение с кнопками, оплата), — от него же
+            GroupSlider(
+                Pos.Middle, Icons.Rounded.Schedule, "Показ событий",
+                value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = "%.1f с".format(s.noticeDurationMs / 1000f), color = Tile.Orange,
+            ) { v -> SettingsRepo.update { copy(noticeDurationMs = (v * 1000).toInt()) } }
             GroupToggle(Pos.Last, Icons.Rounded.BlurOn, "Уменьшить эффекты", "Может быть полезно для не самых производительных устройств",
                 s.reduceEffects, color = Tile.Gray) { v -> SettingsRepo.update { copy(reduceEffects = v) } }
         }

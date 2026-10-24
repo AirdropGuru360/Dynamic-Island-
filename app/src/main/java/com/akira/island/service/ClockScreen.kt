@@ -662,8 +662,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     companion object {
         /** Ключи таймера и секундомера, прочитанных с экрана, — в отличие от ключей уведомлений */
         const val KEY_PREFIX = "clock-screen:"
-        /** Сколько неактивный (на паузе) таймер или секундомер ещё виден в острове */
-        const val INACTIVE_MS = 3_000L
+        /** Сколько неактивный (на паузе) таймер или секундомер ещё виден в острове — как любое событие («Показ событий») */
+        val INACTIVE_MS: Long get() = SettingsRepo.current.noticeDurationMs.toLong()
         private const val TIMER_KEY = KEY_PREFIX + "timer"
         private const val STOPWATCH_KEY = KEY_PREFIX + "stopwatch"
         private val TIMER_TABS = listOf("Таймер", "Timer")
@@ -690,12 +690,13 @@ object ClockControl {
             ClockAction.PAUSE -> c.pause
             ClockAction.RESET -> c.reset
         }
-        if (!own && intent != null && Controls.send(context, intent)) {
+        if (!own && intent != null && SettingsRepo.current.clockAutoTap && Controls.send(context, intent)) {
             optimistic(c, action)
             return
         }
         val r = reader
-        if (r == null || !ClockApps.isClock(context, c.pkg)) {
+        // «Кнопки для «Часов»» выключены — кнопки острова просто открывают приложение
+        if (r == null || !SettingsRepo.current.clockAutoTap || !ClockApps.isClock(context, c.pkg)) {
             Controls.openApp(context, c.pkg)
             return
         }

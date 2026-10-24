@@ -67,7 +67,7 @@ object PayMonitor {
                 caption = "К терминалу",
                 style = NoticeStyle.PAY_READY,
                 appIcon = NotificationParser.icon(context, pkg),
-                durationMs = 6000,
+                extraMs = 3_500,
             ),
         )
     }
@@ -110,7 +110,7 @@ object PayMonitor {
                 caption = NotificationParser.appLabel(context, sbn.packageName),
                 style = NoticeStyle.PAY_DONE,
                 appIcon = NotificationParser.icon(context, sbn.packageName),
-                durationMs = 3400,
+                extraMs = 900,
             ),
         )
         return true

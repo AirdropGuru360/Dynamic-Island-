@@ -134,8 +134,8 @@ object Messages {
                 tint = Tints.Blue,
                 style = NoticeStyle.MESSAGE,
                 message = message,
-                // С кнопками дольше: нужно успеть нажать
-                durationMs = if (actions.isEmpty()) 4500 else 7000,
+                // Текст читать дольше, чем короткое событие, а с кнопками — ещё дольше: нужно успеть нажать
+                extraMs = if (actions.isEmpty()) 2_000 else 4_500,
             ),
         )
     }

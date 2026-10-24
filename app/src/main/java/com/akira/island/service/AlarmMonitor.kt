@@ -57,7 +57,7 @@ class AlarmMonitor(private val context: Context) {
                 tint = Tints.Orange,
                 style = NoticeStyle.ALARM,
                 alarm = next,
-                durationMs = 4500,
+                extraMs = 2_000,
             ),
         )
     }

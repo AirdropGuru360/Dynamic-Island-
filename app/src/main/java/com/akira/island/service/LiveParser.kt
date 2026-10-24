@@ -118,7 +118,7 @@ object LiveParser {
         tint = liveTint(l.kind),
         style = NoticeStyle.LIVE,
         live = l,
-        durationMs = 4500,
+        extraMs = 2_000,
     )
 
     /** «300 м», «3,7 км» — сначала короткие подписи, где расстояние стоит отдельно, потом любое упоминание. */

@@ -35,6 +35,10 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - Animation speed is unchanged and still set by the Duration setting, but animations start right away: the island content, the ring-mode pill, event icons and the Paid check no longer wait before starting, and banners follow each other almost without a pause.
 - **Unlock** shows as soon as the lock screen goes away, not when the system message arrives.
 
+### ⚙️ Everything follows the settings
+- **Event display** («Показ событий») moved to Capsule settings → Island expansion («Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, "Hold near reader" 3.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
+- New switches: General → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
+
 ### 🔗 Small things
 - General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.
 - The Liquid Glass label is now **«Экспериментальный»** ("Experimental").

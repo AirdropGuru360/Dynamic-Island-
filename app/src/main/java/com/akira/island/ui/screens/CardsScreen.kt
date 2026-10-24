@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.KeyboardVoice
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Downloading
@@ -67,6 +69,13 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
                 "Когда таймер или секундомер «Часов» работает в фоне — даже если уведомления «Часов» выключены: " +
                     "остров запоминает их, пока вы в приложении",
                 s.cardTimer, color = Tile.Orange) { v -> SettingsRepo.update { copy(cardTimer = v) } }
+            ToggleCard(Icons.Rounded.TouchApp, "Кнопки для «Часов»",
+                "Пауза и сброс в острове нажимают кнопки самих «Часов»; если их уведомления выключены — на миг открывая приложение. " +
+                    "Выключено — кнопки просто открывают «Часы»",
+                s.clockAutoTap, color = Tile.Orange) { v -> SettingsRepo.update { copy(clockAutoTap = v) } }
+            ToggleCard(Icons.Rounded.KeyboardVoice, "Таймер от помощника",
+                "«Поставь таймер на 5 минут» от голосового помощника или виджета можно отдать острову — он сразу появится в нём",
+                s.timerFromAssistant, color = Tile.Pink) { v -> SettingsRepo.update { copy(timerFromAssistant = v) } }
             ToggleCard(Icons.Rounded.Bedtime, "Будильник",
                 "За 12 часов до будильника — время подъёма и сколько осталось спать, с циферблатом сна, как на iPhone",
                 s.cardAlarm, color = Tile.Indigo) { v -> SettingsRepo.update { copy(cardAlarm = v) } }

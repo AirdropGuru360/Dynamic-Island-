@@ -172,7 +172,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
                     Notice(
                         "Анна", icon = Ios.load(context, R.drawable.ios_chatbubble_ellipses), tint = Tints.Blue,
                         style = NoticeStyle.MESSAGE,
-                        durationMs = 7000,
+                        extraMs = 4_500,
                         message = AppMessage("test", context.packageName, "Остров", "Привет! Так выглядит уведомление в острове",
                             null, NotificationParser.icon(context, context.packageName), null,
                             actions = listOf(
@@ -197,7 +197,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
                 IslandBus.post(
                     Notice(
                         "Оплата", icon = Ios.load(context, R.drawable.ios_wifi), tint = Tints.Blue, caption = "К терминалу",
-                        style = NoticeStyle.PAY_READY, appIcon = NotificationParser.icon(context, context.packageName), durationMs = 2800,
+                        style = NoticeStyle.PAY_READY, appIcon = NotificationParser.icon(context, context.packageName), extraMs = 300,
                     ),
                 )
                 IslandBus.scope.launch {
@@ -205,7 +205,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
                     IslandBus.postNow(
                         Notice(
                             "Оплачено", "1 250 ₽", Ios.load(context, R.drawable.ios_checkmark_circle), Tints.Green, caption = "Остров",
-                            style = NoticeStyle.PAY_DONE, durationMs = 3400,
+                            style = NoticeStyle.PAY_DONE, extraMs = 900,
                         ),
                     )
                 }
