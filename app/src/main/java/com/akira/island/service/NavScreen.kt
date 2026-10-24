@@ -12,6 +12,7 @@ import com.akira.island.core.IslandBus
 import com.akira.island.core.LiveInfo
 import com.akira.island.core.LiveKind
 import com.akira.island.core.Turn
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -67,10 +68,10 @@ object NavScreen {
             return if (street != null && !instruction.contains(street, ignoreCase = true)) "$instruction · $street" else instruction
         }
         val phrase = when (turn) {
-            Turn.LEFT -> "Поверните налево"
-            Turn.RIGHT -> "Поверните направо"
-            Turn.STRAIGHT -> "Двигайтесь прямо"
-            Turn.UTURN -> "Развернитесь"
+            Turn.LEFT -> tr("Поверните налево", "Turn left")
+            Turn.RIGHT -> tr("Поверните направо", "Turn right")
+            Turn.STRAIGHT -> tr("Двигайтесь прямо", "Go straight")
+            Turn.UTURN -> tr("Развернитесь", "Make a U-turn")
             null -> null
         }
         return when {
@@ -170,7 +171,8 @@ object NavScreenParser {
         val time = all.firstOrNull { clock.matches(it.text) }?.text
         val left = (all.firstOrNull { hours.matches(it.text) } ?: all.firstOrNull { minutes.matches(it.text) })
             ?.text?.replace(Regex("""\s+"""), " ")
-        val eta = listOfNotNull(time?.let { "Прибытие в $it" }, left, total?.text?.replace(Regex("""\s+"""), " "))
+        val eta = listOfNotNull(time?.let { tr("Прибытие в $it", "Arrive $it") }, left?.let(LiveParser::units),
+            total?.text?.replace(Regex("""\s+"""), " ")?.let(LiveParser::units))
             .takeIf { it.isNotEmpty() }?.joinToString(" · ")
         // Направление — только из подсказки: в подписях кнопок («← шаг влево») тоже бывают «влево» и «вправо»
         val instruction = LiveParser.instructionOf(texts.map { it.text })
@@ -333,7 +335,7 @@ class NavScreenReader(private val service: AccessibilityService, private val sco
             pkg = pkg,
             label = prev?.label ?: NotificationParser.appLabel(service, pkg),
             icon = prev?.icon ?: NotificationParser.icon(service, pkg),
-            distance = r.distance,
+            distance = r.distance?.let(LiveParser::units),
             street = r.street,
             eta = r.eta,
             turn = r.turn ?: turns[pkg],

@@ -47,10 +47,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akira.island.core.Lang
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.update.DownloadState
 import com.akira.island.update.UpdateChecker
 import com.akira.island.update.UpdateState
+import com.akira.island.update.localNotes
 import kotlinx.coroutines.launch
 
 /**
@@ -73,9 +76,11 @@ fun UpdateSection() {
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("Доступна версия ${release.version}", color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                val size = if (release.sizeBytes > 0) " · %.1f МБ".format(release.sizeBytes / 1_048_576.0) else ""
-                Text("Сейчас установлена ${UpdateChecker.currentVersion(context)}$size", color = Ui.Sub, fontSize = 14.sp)
+                Text(tr("Доступна версия ${release.version}", "Version ${release.version} is available"),
+                    color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                val size = if (release.sizeBytes > 0) tr(" · %.1f МБ", " · %.1f MB").format(release.sizeBytes / 1_048_576.0) else ""
+                Text(tr("Сейчас установлена ${UpdateChecker.currentVersion(context)}$size", "Installed: ${UpdateChecker.currentVersion(context)}$size"),
+                    color = Ui.Sub, fontSize = 14.sp)
             }
         }
         if (release.notes.isNotBlank()) {
@@ -83,7 +88,7 @@ fun UpdateSection() {
                 Modifier.padding(top = 10.dp).clip(RoundedCornerShape(12.dp)).clickable { notes = !notes }.padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Что нового", color = Ui.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(tr("Что нового", "What's new"), color = Ui.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Icon(
                     Icons.Rounded.KeyboardArrowDown, null, tint = Ui.Primary,
                     modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = if (notes) 180f else 0f },
@@ -102,25 +107,27 @@ fun UpdateSection() {
                     color = Ui.Primary,
                     trackColor = Ui.IconBg,
                 )
-                Text("Скачиваю… ${(d.progress * 100).toInt()}%", color = Ui.Sub, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Text(tr("Скачиваю… ${(d.progress * 100).toInt()}%", "Downloading… ${(d.progress * 100).toInt()}%"),
+                    color = Ui.Sub, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
             }
             is DownloadState.Ready -> {
                 Text(
-                    "Если установка не открылась, разрешите острову устанавливать приложения и нажмите «Установить» ещё раз.",
+                    tr("Если установка не открылась, разрешите острову устанавливать приложения и нажмите «Установить» ещё раз.",
+                        "If the installer didn't open, allow the island to install apps and tap Install again."),
                     color = Ui.Sub, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 10.dp),
                 )
-                FilledPill("Установить") { UpdateChecker.install(context, d.file) }
+                FilledPill(tr("Установить", "Install")) { UpdateChecker.install(context, d.file) }
             }
             else -> {
                 if (d is DownloadState.Failed) {
                     Text(d.message, color = Color(0xFFFF8A80), fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilledPill("Обновить") { scope.launch { UpdateChecker.downloadAndInstall(context, release) } }
+                    FilledPill(tr("Обновить", "Update")) { scope.launch { UpdateChecker.downloadAndInstall(context, release) } }
                     Spacer(Modifier.width(10.dp))
                     Box(
                         Modifier.clip(CircleShape).clickable { UpdateChecker.skip(release.version) }.padding(horizontal = 16.dp, vertical = 12.dp),
-                    ) { Text("Позже", color = Ui.Sub, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                    ) { Text(tr("Позже", "Later"), color = Ui.Sub, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
                 }
             }
         }
@@ -137,11 +144,11 @@ private fun FilledPill(text: String, onClick: () -> Unit) {
 
 /** Что показать про проверку обновлений: подпись под «Проверить сейчас». */
 fun updateStatusText(state: UpdateState, current: String): String = when (state) {
-    UpdateState.Checking -> "Проверяю…"
-    UpdateState.UpToDate -> "У вас последняя версия $current"
-    is UpdateState.Available -> "Доступна версия ${state.release.version}"
+    UpdateState.Checking -> tr("Проверяю…", "Checking…")
+    UpdateState.UpToDate -> tr("У вас последняя версия $current", "You have the latest version $current")
+    is UpdateState.Available -> tr("Доступна версия ${state.release.version}", "Version ${state.release.version} is available")
     is UpdateState.Error -> state.message
-    UpdateState.Idle -> "Сейчас установлена версия $current"
+    UpdateState.Idle -> tr("Сейчас установлена версия $current", "Installed version: $current")
 }
 
 /**
@@ -153,7 +160,7 @@ fun WhatsNewDialog() {
     val context = LocalContext.current
     val current = remember { UpdateChecker.currentVersion(context) }
     val notes = remember {
-        runCatching { context.assets.open("whatsnew.md").bufferedReader().use { it.readText() } }.getOrNull()
+        runCatching { context.assets.open(whatsNewFile()).bufferedReader().use { it.readText() } }.getOrNull()
     }
     val seen = SettingsRepo.current.lastSeenVersion
     var show by remember {
@@ -177,36 +184,35 @@ fun NotesDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val current = remember { UpdateChecker.currentVersion(context) }
     val notes = remember {
-        runCatching { context.assets.open("whatsnew.md").bufferedReader().use { it.readText() } }.getOrNull()
+        runCatching { context.assets.open(whatsNewFile()).bufferedReader().use { it.readText() } }.getOrNull()
     }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Ui.Card,
         titleContentColor = Ui.Text,
-        title = { Text("Что нового в $current") },
+        title = { Text(tr("Что нового в $current", "What's new in $current")) },
         text = {
             if (notes != null) {
                 ReleaseNotes(notes, Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()))
             } else {
-                Text("Список изменений не найден", color = Ui.Sub, fontSize = 14.sp)
+                Text(tr("Список изменений не найден", "No list of changes found"), color = Ui.Sub, fontSize = 14.sp)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Понятно", color = Ui.Primary) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Понятно", "Got it"), color = Ui.Primary) } },
     )
 }
 
 /** Список изменений: «### Раздел» — заголовок, «- пункт» — маркер, **жирное** выделяется. */
 @Composable
 fun ReleaseNotes(markdown: String, modifier: Modifier = Modifier) {
-    // В релизе описание на двух языках: приложение на русском, поэтому показываем русскую часть
-    val all = markdown.lines()
-    val ru = all.indexOfFirst { it.startsWith("## ") && "Русский" in it }
-    val lines = if (ru >= 0) all.drop(ru + 1) else all
+    // В релизе описание на двух языках — показываем часть на языке приложения
+    val lines = localNotes(markdown)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         lines.forEach { raw ->
             val line = raw.trimEnd()
             when {
-                line.isBlank() || line.startsWith("## ") || line.startsWith("# ") || line == "---" || line.startsWith("**Установка") -> Unit
+                line.isBlank() || line.startsWith("## ") || line.startsWith("# ") || line == "---" ||
+                    line.startsWith("**Установка") || line.startsWith("**Install") -> Unit
                 line.startsWith("### ") -> Text(
                     line.removePrefix("### "), color = Ui.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 8.dp),
@@ -230,3 +236,6 @@ private fun inline(text: String): AnnotatedString = buildAnnotatedString {
         if (i % 2 == 1) withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Ui.Text)) { append(part) } else append(part)
     }
 }
+
+/** «Что нового» внутри приложения на его языке. */
+private fun whatsNewFile() = if (Lang.en) "whatsnew.en.md" else "whatsnew.md"

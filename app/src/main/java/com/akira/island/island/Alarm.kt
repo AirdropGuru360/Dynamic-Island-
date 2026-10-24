@@ -48,13 +48,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.AlarmInfo
 import com.akira.island.core.Controls
+import com.akira.island.core.Lang
 import com.akira.island.core.Notice
 import com.akira.island.core.Tints
+import com.akira.island.core.tr
 import com.akira.island.data.IslandSettings
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.roundToLong
 import kotlin.math.sin
@@ -76,14 +77,14 @@ fun wakeTime(context: Context, triggerAt: Long): String = DateFormat.getTimeForm
 
 /** «8 ч 15 мин», «45 мин», «меньше минуты» — как пишет Android, когда ставишь будильник. */
 fun durationWords(ms: Long): String {
-    if (ms < 60_000) return "меньше минуты"
+    if (ms < 60_000) return tr("меньше минуты", "less than a minute")
     val minutes = (ms + 59_999) / 60_000
     val h = minutes / 60
     val m = minutes % 60
     return when {
-        h == 0L -> "$m мин"
-        m == 0L -> "$h ч"
-        else -> "$h ч $m мин"
+        h == 0L -> tr("$m мин", "$m min")
+        m == 0L -> tr("$h ч", "$h h")
+        else -> tr("$h ч $m мин", "$h h $m min")
     }
 }
 
@@ -91,9 +92,10 @@ fun durationWords(ms: Long): String {
 fun alarmDay(triggerAt: Long, now: Long): String {
     val days = ((midnight(triggerAt) - midnight(now)) / DAY.toDouble()).roundToLong()
     return when (days) {
-        0L -> "сегодня"
-        1L -> "завтра"
-        else -> SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(triggerAt)).lowercase(Locale.getDefault())
+        0L -> tr("сегодня", "today")
+        1L -> tr("завтра", "tomorrow")
+        // По-русски день недели строчными («завтра», «пятница»), по-английски — с большой («Friday»)
+        else -> SimpleDateFormat("EEEE", Lang.locale).format(Date(triggerAt)).let { if (Lang.en) it else it.lowercase(Lang.locale) }
     }
 }
 
@@ -192,7 +194,7 @@ fun SleepDial(now: Long, triggerAt: Long, modifier: Modifier = Modifier, compact
                     "%d:%02d".format(left / 3_600_000, left / 60_000 % 60),
                     color = Color.White, fontSize = 17.sp, style = Digits, maxLines = 1,
                 )
-                Text(if (isWakeUp(triggerAt)) "сна" else "до звонка", color = Dim, fontSize = 9.sp, maxLines = 1)
+                Text(if (isWakeUp(triggerAt)) tr("сна", "of sleep") else tr("до звонка", "until alarm"), color = Dim, fontSize = 9.sp, maxLines = 1)
             }
         }
     }
@@ -245,13 +247,15 @@ fun AlarmExpanded(a: AlarmInfo, s: IslandSettings) {
         SleepDial(now, a.triggerAt, Modifier.size(96.dp), animate = !s.reduceEffects)
         Spacer(Modifier.width(18.dp))
         Column(Modifier.weight(1f)) {
-            Text("${if (wake) "Подъём" else "Будильник"} · ${alarmDay(a.triggerAt, now)}", color = Dim, fontSize = 14.sp, maxLines = 1)
+            Text("${if (wake) tr("Подъём", "Wake up") else tr("Будильник", "Alarm")} · ${alarmDay(a.triggerAt, now)}",
+                color = Dim, fontSize = 14.sp, maxLines = 1)
             Text(wakeTime(context, a.triggerAt), color = Color.White, fontSize = 44.sp, style = Digits.copy(fontWeight = FontWeight.Normal),
                 maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(if (wake) Ios.moon else Ios.alarm, null, tint = if (wake) NightTint else AlarmTint, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(if (wake) "Сон — ${durationWords(left)}" else "Через ${durationWords(left)}",
+                Text(if (wake) tr("Сон — ${durationWords(left)}", "Sleep — ${durationWords(left)}")
+                    else tr("Через ${durationWords(left)}", "In ${durationWords(left)}"),
                     color = AlarmTint, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -278,13 +282,13 @@ fun AlarmBanner(n: Notice, a: AlarmInfo, s: IslandSettings, wideWidth: Dp) {
             SleepDial(now, a.triggerAt, Modifier.size(height * 0.64f), compact = true, animate = !s.reduceEffects)
             Spacer(Modifier.width(10.dp))
             Column {
-                Text(if (wake) "Подъём" else "Будильник", color = Dim, fontSize = 12.sp, maxLines = 1)
+                Text(if (wake) tr("Подъём", "Wake up") else tr("Будильник", "Alarm"), color = Dim, fontSize = 12.sp, maxLines = 1)
                 Text(wakeTime(context, a.triggerAt), color = Color.White, fontSize = 20.sp, style = Digits, maxLines = 1)
             }
         }
         Spacer(Modifier.width(compactGap(s)))
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(if (wake) "сон" else "через", color = Dim, fontSize = 12.sp, maxLines = 1)
+            Text(if (wake) tr("сон", "sleep") else tr("через", "in"), color = Dim, fontSize = 12.sp, maxLines = 1)
             Text(durationWords((a.triggerAt - now).coerceAtLeast(0)), color = AlarmTint, fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }

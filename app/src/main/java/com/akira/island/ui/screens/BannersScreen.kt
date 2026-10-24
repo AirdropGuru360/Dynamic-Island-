@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akira.island.core.tr
 import com.akira.island.service.SystemBanners
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
@@ -44,48 +45,65 @@ fun BannersScreen(onBack: () -> Unit) {
     val calls = remember(seen) { SystemBanners.callApps(context, seen) }
     val clocks = remember(seen) { SystemBanners.clockApps(context, seen) }
 
-    Page("Системные плашки", onBack) {
+    Page(tr("Системные плашки", "System banners"), onBack) {
         Box(
             Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(24.dp)).background(Ui.Card)
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Text(
-                "Android показывает свои всплывающие плашки поверх острова, и запретить их стороннему приложению система не даёт. " +
-                    "Нажмите на приложение и выключите «Всплывающие уведомления» (на некоторых телефонах — «Показывать поверх других» " +
-                    "или «Баннеры»). Уведомление останется в шторке, а на экране событие покажет только остров.",
+                tr(
+                    "Android показывает свои всплывающие плашки поверх острова, и запретить их стороннему приложению система не даёт. " +
+                        "Нажмите на приложение и выключите «Всплывающие уведомления» (на некоторых телефонах — «Показывать поверх других» " +
+                        "или «Баннеры»). Уведомление останется в шторке, а на экране событие покажет только остров.",
+                    "Android shows its own pop-up banners on top of the island, and the system doesn't let a third-party app " +
+                        "block them. Tap an app and turn off “Pop on screen” (on some phones — “Show on top” or “Banners”). The " +
+                        "notification stays in the shade, and only the island shows the event on screen.",
+                ),
                 color = Ui.Sub, fontSize = 15.sp, lineHeight = 20.sp,
             )
         }
 
-        SectionHeader("Звонки")
+        SectionHeader(tr("Звонки", "Calls"))
         AppList(calls, Icons.Rounded.Call, Tile.Green,
-            "Канал входящих вызовов. Экран при звонке включит сам остров",
-            "Звонилки не нашлось — позвоните себе, и она появится здесь") { SystemBanners.openSettings(context, it) }
+            tr("Канал входящих вызовов. Экран при звонке включит сам остров", "The incoming calls channel. The island turns the screen on for calls itself"),
+            tr("Звонилки не нашлось — позвоните себе, и она появится здесь",
+                "No dialer found — call yourself and it will show up here")) { SystemBanners.openSettings(context, it) }
 
-        SectionHeader("Таймеры и будильники")
+        SectionHeader(tr("Таймеры и будильники", "Timers and alarms"))
         AppList(clocks, Icons.Rounded.Alarm, Tile.Orange,
-            "Сигнал таймера и будильника",
-            "Приложение «Часы» не нашлось") { SystemBanners.openSettings(context, it) }
+            tr("Сигнал таймера и будильника", "Timer and alarm alerts"),
+            tr("Приложение «Часы» не нашлось", "No Clock app found")) { SystemBanners.openSettings(context, it) }
         Text(
-            "Совет: не выключайте уведомления «Часов» целиком — выберите «Без звука» и «Свернуть» (или выключите только " +
-                "«Всплывающие»). Тогда таймер и секундомер появятся в острове мгновенно, а его кнопки будут работать, " +
-                "не открывая «Часы». Если уведомления выключены совсем, остров узнаёт таймер с экрана «Часов», " +
-                "а кнопки нажимает сам, на мгновение открывая приложение.",
+            tr(
+                "Совет: не выключайте уведомления «Часов» целиком — выберите «Без звука» и «Свернуть» (или выключите только " +
+                    "«Всплывающие»). Тогда таймер и секундомер появятся в острове мгновенно, а его кнопки будут работать, " +
+                    "не открывая «Часы». Если уведомления выключены совсем, остров узнаёт таймер с экрана «Часов», " +
+                    "а кнопки нажимает сам, на мгновение открывая приложение.",
+                "Tip: don't turn off Clock's notifications completely — choose “Silent” and “Minimize” (or turn off only " +
+                    "“Pop on screen”). Then the timer and stopwatch show up in the island instantly, and its buttons work " +
+                    "without opening Clock. If the notifications are fully off, the island reads the timer from the Clock " +
+                    "screen and presses the buttons itself, opening the app for a moment.",
+            ),
             color = Ui.Sub, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
         )
 
-        SectionHeader("Батарея и зарядка")
+        SectionHeader(tr("Батарея и зарядка", "Battery and charging"))
         Group {
             GroupItem(Pos.First, Icons.Rounded.BatteryAlert, SystemBanners.label(context, SystemBanners.SYSTEM_UI),
-                "«Батарея разряжена» — канал «Батарея». У некоторых прошивок система менять его не даёт",
+                tr("«Батарея разряжена» — канал «Батарея». У некоторых прошивок система менять его не даёт",
+                    "“Battery low” — the Battery channel. Some firmwares don't let you change it"),
                 color = Tile.Red, onClick = { SystemBanners.openSettings(context, SystemBanners.SYSTEM_UI) }) { Arrow() }
             GroupItem(Pos.Last, Icons.Rounded.Usb, SystemBanners.label(context, SystemBanners.ANDROID),
-                "Зарядка через USB и другие сообщения системы",
+                tr("Зарядка через USB и другие сообщения системы", "USB charging and other system messages"),
                 color = Tile.Gray, onClick = { SystemBanners.openSettings(context, SystemBanners.ANDROID) }) { Arrow() }
         }
         Text(
-            "Анимацию зарядки, которую рисует сама прошивка (Xiaomi, Samsung и др.), отключают в настройках экрана блокировки " +
-                "или батареи телефона, если производитель это позволяет.",
+            tr(
+                "Анимацию зарядки, которую рисует сама прошивка (Xiaomi, Samsung и др.), отключают в настройках экрана блокировки " +
+                    "или батареи телефона, если производитель это позволяет.",
+                "The charging animation drawn by the firmware itself (Xiaomi, Samsung and others) is turned off in the " +
+                    "phone's lock screen or battery settings, if the manufacturer allows it.",
+            ),
             color = Ui.Sub, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
         )
     }

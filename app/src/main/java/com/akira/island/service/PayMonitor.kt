@@ -13,6 +13,7 @@ import com.akira.island.core.NoticeStyle
 import com.akira.island.core.PayReady
 import com.akira.island.core.Tints
 import com.akira.island.R
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
 import kotlinx.coroutines.Job
@@ -177,7 +178,7 @@ object PayMonitor {
         clearReady()
         IslandBus.post(
             Notice(
-                title = "Оплачено",
+                title = tr("Оплачено", "Paid"),
                 state = sum,
                 icon = Ios.load(context, R.drawable.ios_checkmark_circle),
                 tint = Tints.Green,

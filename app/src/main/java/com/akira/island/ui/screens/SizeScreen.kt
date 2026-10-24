@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.IslandBus
+import com.akira.island.core.tr
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.rememberHaptic
@@ -71,7 +72,7 @@ fun SizeScreen(onBack: () -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
         Page(
-            "Положение",
+            tr("Положение", "Position"),
             onBack = cancel,
             action = {
                 Box(
@@ -81,16 +82,16 @@ fun SizeScreen(onBack: () -> Unit) {
                     },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Rounded.Restore, "Сбросить", tint = Ui.Text)
+                    Icon(Icons.Rounded.Restore, tr("Сбросить", "Reset"), tint = Ui.Text)
                 }
             },
         ) {
             Group {
                 GroupStepSlider(
-                    Pos.First, Icons.Rounded.SwapHoriz, "По горизонтали", s.offsetX, -200..200,
-                    action = "Центр" to { set { copy(offsetX = 0) } }, color = Tile.Blue,
+                    Pos.First, Icons.Rounded.SwapHoriz, tr("По горизонтали", "Horizontal"), s.offsetX, -200..200,
+                    action = tr("Центр", "Center") to { set { copy(offsetX = 0) } }, color = Tile.Blue,
                 ) { v -> set { copy(offsetX = v) } }
-                GroupStepSlider(Pos.Last, Icons.Rounded.SwapVert, "Отступ сверху", s.offsetY, -10..120, color = Tile.Indigo) { v ->
+                GroupStepSlider(Pos.Last, Icons.Rounded.SwapVert, tr("Отступ сверху", "Top offset"), s.offsetY, -10..120, color = Tile.Indigo) { v ->
                     set { copy(offsetY = v) }
                 }
             }
@@ -110,7 +111,7 @@ fun SizeScreen(onBack: () -> Unit) {
         ) {
             Icon(Icons.Rounded.Check, null, tint = Ui.OnPrimary, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Сохранить", color = Ui.OnPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(tr("Сохранить", "Save"), color = Ui.OnPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }

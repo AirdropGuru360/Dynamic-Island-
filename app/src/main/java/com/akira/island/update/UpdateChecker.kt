@@ -7,14 +7,17 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.akira.island.R
 import com.akira.island.core.IslandBus
+import com.akira.island.core.Lang
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
 import com.akira.island.island.releaseHighlights
 import com.akira.island.service.NotificationParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -88,7 +91,9 @@ object UpdateChecker {
         if (result.isSuccess) SettingsRepo.update { copy(lastUpdateCheck = now) }
         val release = result.getOrNull()
         state.value = when {
-            result.isFailure -> if (force) UpdateState.Error("Нет связи с GitHub. Проверьте интернет и попробуйте ещё раз.") else UpdateState.Idle
+            result.isFailure -> if (force) UpdateState.Error(
+                tr("Нет связи с GitHub. Проверьте интернет и попробуйте ещё раз.", "Can't reach GitHub. Check your internet connection and try again."),
+            ) else UpdateState.Idle
             release == null -> if (force) UpdateState.UpToDate else UpdateState.Idle
             !isNewer(release.version, currentVersion(context)) -> if (force) UpdateState.UpToDate else UpdateState.Idle
             !force && release.version == s.skippedVersion -> UpdateState.Idle
@@ -99,10 +104,10 @@ object UpdateChecker {
             announced = available.version
             IslandBus.post(
                 Notice(
-                    title = "Доступна версия ${available.version}",
+                    title = tr("Доступна версия ${available.version}", "Version ${available.version} is available"),
                     icon = Ios.load(context, R.drawable.ios_download),
                     tint = Tints.Lavender,
-                    caption = releaseHighlights(available.notes) ?: "Скачается и установится в одно нажатие",
+                    caption = releaseHighlights(available.notes) ?: tr("Скачается и установится в одно нажатие", "Downloads and installs in one tap"),
                     style = NoticeStyle.UPDATE,
                     appIcon = NotificationParser.icon(context, context.packageName),
                     update = available,
@@ -111,6 +116,39 @@ object UpdateChecker {
                 ),
             )
         }
+    }
+
+    /** Пример из «Проверки»: ничего не скачивается, проценты бегут сами, потом «Обновлено». */
+    const val DEMO_APK = "demo://update"
+
+    /** Карточка «Обновлено до …» в острове — после установки и в примере. */
+    fun updatedNotice(context: Context, version: String) = Notice(
+        title = tr("Обновлено до $version", "Updated to $version"),
+        icon = Ios.load(context, R.drawable.ios_check),
+        tint = Tints.Green,
+        caption = tr("Всё готово, настройки сохранены", "All set, your settings are kept"),
+        style = NoticeStyle.UPDATE,
+        appIcon = NotificationParser.icon(context, context.packageName),
+        openPkg = context.packageName,
+        extraMs = 2_000,
+    )
+
+    /** «Проверка» → «Обновление»: та же карточка, что придёт с новой версией, только понарошку. */
+    fun showDemo(context: Context) {
+        download.value = DownloadState.Idle
+        IslandBus.post(
+            Notice(
+                title = tr("Доступна версия 1.7", "Version 1.7 is available"),
+                icon = Ios.load(context, R.drawable.ios_download),
+                tint = Tints.Lavender,
+                caption = tr("Пример: так придёт новая версия", "Example: a new version arrives"),
+                style = NoticeStyle.UPDATE,
+                appIcon = NotificationParser.icon(context, context.packageName),
+                update = Release("1.7", "", DEMO_APK, "", 0L),
+                openPkg = context.packageName,
+                extraMs = 3_500,
+            ),
+        )
     }
 
     /** «Позже»: про эту версию больше не напоминаем, пока не выйдет следующая. */
@@ -123,8 +161,20 @@ object UpdateChecker {
     /** Скачивает APK в кэш приложения и сразу открывает установку. */
     suspend fun downloadAndInstall(context: Context, release: Release) {
         val url = release.apkUrl
+        if (url == DEMO_APK) {
+            if (download.value is DownloadState.Running) return
+            for (p in 0..100 step 5) {
+                download.value = DownloadState.Running(p / 100f)
+                delay(70)
+            }
+            download.value = DownloadState.Idle
+            IslandBus.notice.value = null
+            delay(350)
+            IslandBus.post(updatedNotice(context, release.version))
+            return
+        }
         if (url == null) {
-            download.value = DownloadState.Failed("В релизе нет APK. Откройте страницу релиза.")
+            download.value = DownloadState.Failed(tr("В релизе нет APK. Откройте страницу релиза.", "The release has no APK. Open the release page."))
             return
         }
         if (download.value is DownloadState.Running) return
@@ -163,20 +213,21 @@ object UpdateChecker {
                         }
                     }
                     // Связь оборвалась посреди файла — недокачанный APK установка не примет
-                    if (total > 0 && done < total) error("Скачано $done из $total байт")
+                    if (total > 0 && done < total) error(tr("Скачано $done из $total байт", "Downloaded $done of $total bytes"))
                 } finally {
                     conn.disconnect()
                 }
                 if (context.packageManager.getPackageArchiveInfo(file.path, 0) == null) {
                     file.delete()
-                    error("Файл обновления повреждён")
+                    error(tr("Файл обновления повреждён", "The update file is damaged"))
                 }
                 file
             }
         }
         val file = result.getOrNull()
         if (file == null) {
-            download.value = DownloadState.Failed("Не удалось скачать обновление. Проверьте интернет и попробуйте ещё раз.")
+            download.value = DownloadState.Failed(tr("Не удалось скачать обновление. Проверьте интернет и попробуйте ещё раз.",
+                "Couldn't download the update. Check your internet connection and try again."))
             return
         }
         download.value = DownloadState.Ready(file)
@@ -251,4 +302,17 @@ object UpdateChecker {
         }
         return false
     }
+}
+
+/**
+ * Описание релиза на двух языках («## 🇬🇧 English» и «## 🇷🇺 Русский») — строки на языке приложения.
+ * Если нужного раздела нет, описание целиком.
+ */
+fun localNotes(markdown: String): List<String> {
+    val all = markdown.lines()
+    val start = all.indexOfFirst { it.startsWith("## ") && (if (Lang.en) "English" in it else "Русский" in it) }
+    if (start < 0) return all
+    val rest = all.drop(start + 1)
+    val end = rest.indexOfFirst { it.startsWith("## ") && ("English" in it || "Русский" in it) }
+    return if (end < 0) rest else rest.take(end)
 }

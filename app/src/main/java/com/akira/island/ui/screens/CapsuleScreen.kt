@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Tints
+import com.akira.island.core.tr
 import com.akira.island.data.Elasticity
 import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
@@ -56,41 +57,44 @@ import com.akira.island.ui.Ui
 @Composable
 fun CapsuleScreen(open: (Screen) -> Unit) {
     val s by SettingsRepo.state.collectAsState()
-    Page("Оформление") {
+    Page(tr("Оформление", "Appearance")) {
         IslandPreview()
 
-        SectionHeader("Положение и размер")
+        SectionHeader(tr("Положение и размер", "Position and size"))
         Group {
-            GroupItem(Pos.First, Icons.Rounded.OpenWith, "Положение", "Сдвинуть капсулу точно над камерой",
+            GroupItem(Pos.First, Icons.Rounded.OpenWith, tr("Положение", "Position"),
+                tr("Сдвинуть капсулу точно над камерой", "Move the capsule exactly over the camera"),
                 color = Tile.Indigo, onClick = { open(Screen.SIZE) }) { Arrow() }
-            GroupItem(Pos.Last, Icons.Rounded.SwapHoriz, "Размер с активностью",
-                if (s.activeWidth == 0) "Толщина +${s.activeExtra} dp, ширина как без неё" else "Толщина +${s.activeExtra}, ширина +${s.activeWidth} dp",
+            GroupItem(Pos.Last, Icons.Rounded.SwapHoriz, tr("Размер с активностью", "Size with activity"),
+                if (s.activeWidth == 0) tr("Толщина +${s.activeExtra} dp, ширина как без неё", "Thickness +${s.activeExtra} dp, width as without it")
+                else tr("Толщина +${s.activeExtra}, ширина +${s.activeWidth} dp", "Thickness +${s.activeExtra}, width +${s.activeWidth} dp"),
                 color = Tile.Purple, onClick = { open(Screen.LOOK) }) { Arrow() }
         }
 
-        SectionHeader("Цвет и стекло")
+        SectionHeader(tr("Цвет и стекло", "Color and glass"))
         Group {
-            GroupItem(Pos.First, Icons.Rounded.FormatColorFill, "Цвет капсулы", "Цвет, контур и тень",
+            GroupItem(Pos.First, Icons.Rounded.FormatColorFill, tr("Цвет капсулы", "Capsule color"), tr("Цвет, контур и тень", "Color, outline and shadow"),
                 color = Tile.Orange, onClick = { open(Screen.COLORS) }) { Arrow() }
             GroupToggle(
                 if (s.liquidGlass) Pos.Middle else Pos.Last, Icons.Rounded.WaterDrop, "Liquid Glass",
-                "Стекло с бликами и сияющей кромкой, как в iOS. Блики двигаются при наклоне",
-                s.liquidGlass, color = Tile.Teal, badge = "Экспериментальный",
+                tr("Стекло с бликами и сияющей кромкой, как в iOS. Блики двигаются при наклоне",
+                    "Glass with highlights and a glowing edge, like in iOS. Highlights move when you tilt the phone"),
+                s.liquidGlass, color = Tile.Teal, badge = tr("Экспериментальный", "Experimental"),
             ) { v -> SettingsRepo.update { copy(liquidGlass = v) } }
             if (s.liquidGlass) {
                 GroupSlider(
-                    Pos.Last, Icons.Rounded.Opacity, "Плотность стекла",
+                    Pos.Last, Icons.Rounded.Opacity, tr("Плотность стекла", "Glass density"),
                     value = s.glassOpacity.toFloat(), range = 40f..95f, label = "${s.glassOpacity}%", color = Tile.Teal,
                 ) { v -> SettingsRepo.update { copy(glassOpacity = v.toInt()) } }
             }
         }
 
-        SectionHeader("Анимации")
+        SectionHeader(tr("Анимации", "Animations"))
         Group {
-            GroupItem(Pos.First, Icons.Rounded.Animation, "Раскрытие острова",
+            GroupItem(Pos.First, Icons.Rounded.Animation, tr("Раскрытие острова", "Island expansion"),
                 "${s.expandStyle.title} · ${s.durationPercent}% · ${s.elasticity.title.lowercase()}",
                 color = Tile.Blue, onClick = { open(Screen.ANIM) }) { Arrow() }
-            GroupItem(Pos.Last, Icons.Rounded.AutoAwesome, "Эффекты", effectsSummary(s),
+            GroupItem(Pos.Last, Icons.Rounded.AutoAwesome, tr("Эффекты", "Effects"), effectsSummary(s),
                 color = Tile.Purple, onClick = { open(Screen.EFFECTS) }) { Arrow() }
         }
     }
@@ -100,17 +104,17 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
 @Composable
 fun LookScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
-    Page("Размер с активностью", onBack) {
+    Page(tr("Размер с активностью", "Size with activity"), onBack) {
         IslandPreview()
         Group {
             GroupSlider(
-                Pos.First, Icons.Rounded.LineWeight, "Толщина",
+                Pos.First, Icons.Rounded.LineWeight, tr("Толщина", "Thickness"),
                 value = s.activeExtra.toFloat(), range = 0f..14f, label = "+${s.activeExtra} dp", steps = 13, color = Tile.Purple,
             ) { v -> SettingsRepo.update { copy(activeExtra = v.toInt()) } }
             GroupSlider(
-                Pos.Last, Icons.Rounded.SwapHoriz, "Ширина",
+                Pos.Last, Icons.Rounded.SwapHoriz, tr("Ширина", "Width"),
                 value = s.activeWidth.toFloat(), range = 0f..120f, steps = 23,
-                label = if (s.activeWidth == 0) "Как без неё" else "+${s.activeWidth} dp", color = Tile.Blue,
+                label = if (s.activeWidth == 0) tr("Как без неё", "As without it") else "+${s.activeWidth} dp", color = Tile.Blue,
             ) { v ->
                 // Пока двигают ползунок, на острове пример активности — сразу видно, не налезает ли он на значки
                 IslandBus.widthPreviewUntil.value = android.os.SystemClock.elapsedRealtime() + 2500
@@ -127,92 +131,99 @@ fun AnimScreen(onBack: () -> Unit) {
     var styleDialog by remember { mutableStateOf(false) }
     var elasticDialog by remember { mutableStateOf(false) }
 
-    Page("Раскрытие острова", onBack, action = {
-        Text("Сброс", color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetAnimations() })
+    Page(tr("Раскрытие острова", "Island expansion"), onBack, action = {
+        Text(tr("Сброс", "Reset"), color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetAnimations() })
     }) {
         Group {
-            GroupItem(Pos.First, Icons.Rounded.Animation, "Стиль раскрытия", s.expandStyle.title, color = Tile.Purple,
+            GroupItem(Pos.First, Icons.Rounded.Animation, tr("Стиль раскрытия", "Expansion style"), s.expandStyle.title, color = Tile.Purple,
                 onClick = { styleDialog = true })
             GroupSlider(
-                Pos.Middle, Icons.Rounded.Speed, "Длительность",
+                Pos.Middle, Icons.Rounded.Speed, tr("Длительность", "Duration"),
                 value = s.durationPercent.toFloat(), range = 0f..100f, label = "${s.durationPercent}%", color = Tile.Indigo,
             ) { v -> SettingsRepo.update { copy(durationPercent = v.toInt()) } }
-            GroupItem(Pos.Middle, Icons.Rounded.Waves, "Упругость", s.elasticity.title, color = Tile.Blue,
+            GroupItem(Pos.Middle, Icons.Rounded.Waves, tr("Упругость", "Elasticity"), s.elasticity.title, color = Tile.Blue,
                 onClick = { elasticDialog = true })
             // Сколько видно событие; плашки, которым нужно больше времени (сообщение с кнопками, оплата), — от него же
             GroupSlider(
-                Pos.Middle, Icons.Rounded.Schedule, "Показ событий",
-                value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = "%.1f с".format(s.noticeDurationMs / 1000f), color = Tile.Orange,
+                Pos.Middle, Icons.Rounded.Schedule, tr("Показ событий", "Event display"),
+                value = s.noticeDurationMs / 1000f, range = 1.5f..6f, label = tr("%.1f с", "%.1f s").format(s.noticeDurationMs / 1000f), color = Tile.Orange,
             ) { v -> SettingsRepo.update { copy(noticeDurationMs = (v * 1000).toInt()) } }
-            GroupToggle(Pos.Last, Icons.Rounded.BlurOn, "Уменьшить эффекты", "Может быть полезно для не самых производительных устройств",
+            GroupToggle(Pos.Last, Icons.Rounded.BlurOn, tr("Уменьшить эффекты", "Reduce effects"),
+                tr("Может быть полезно для не самых производительных устройств", "Can help on less powerful devices"),
                 s.reduceEffects, color = Tile.Gray) { v -> SettingsRepo.update { copy(reduceEffects = v) } }
         }
     }
 
     if (styleDialog) {
-        ChoiceDialog("Стиль раскрытия", ExpandStyle.entries, s.expandStyle, { it.title },
+        ChoiceDialog(tr("Стиль раскрытия", "Expansion style"), ExpandStyle.entries, s.expandStyle, { it.title },
             { v -> SettingsRepo.update { copy(expandStyle = v) } }) { styleDialog = false }
     }
     if (elasticDialog) {
-        ChoiceDialog("Упругость анимации", Elasticity.entries, s.elasticity, { it.title },
+        ChoiceDialog(tr("Упругость анимации", "Animation elasticity"), Elasticity.entries, s.elasticity, { it.title },
             { v -> SettingsRepo.update { copy(elasticity = v) } }) { elasticDialog = false }
     }
 }
 
 /** Что включено в «Эффектах» — подпись пункта. */
 private fun effectsSummary(s: IslandSettings): String {
-    if (s.reduceEffects) return "Выключены: включено «Уменьшить эффекты»"
+    if (s.reduceEffects) return tr("Выключены: включено «Уменьшить эффекты»", "Off: Reduce effects is on")
     val on = listOfNotNull(
-        "размытие".takeIf { s.fxBlur },
-        "эквалайзер".takeIf { s.fxEqualizer },
-        "свечение".takeIf { s.fxGlow },
-        "волны оплаты".takeIf { s.fxPay },
-        "вздрагивание".takeIf { s.fxShake },
+        tr("размытие", "blur").takeIf { s.fxBlur },
+        tr("эквалайзер", "equalizer").takeIf { s.fxEqualizer },
+        tr("свечение", "glow").takeIf { s.fxGlow },
+        tr("волны оплаты", "payment waves").takeIf { s.fxPay },
+        tr("вздрагивание", "shake").takeIf { s.fxShake },
     )
-    return if (on.isEmpty()) "Все выключены" else on.joinToString(", ").replaceFirstChar { it.uppercase() }
+    return if (on.isEmpty()) tr("Все выключены", "All off") else on.joinToString(", ").replaceFirstChar { it.uppercase() }
 }
 
 /** «Эффекты»: каждый живой эффект острова включается и выключается отдельно. */
 @Composable
 fun EffectsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
-    Page("Эффекты", onBack, action = {
-        Text("Сброс", color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetEffects() })
+    Page(tr("Эффекты", "Effects"), onBack, action = {
+        Text(tr("Сброс", "Reset"), color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetEffects() })
     }) {
         IslandPreview()
         if (s.reduceEffects) {
             Text(
-                "Сейчас включено «Уменьшить эффекты» в «Раскрытии острова» — пока оно включено, эффектов нет",
+                tr("Сейчас включено «Уменьшить эффекты» в «Раскрытии острова» — пока оно включено, эффектов нет",
+                    "Reduce effects is on in Island expansion — while it's on, there are no effects"),
                 color = Tints.Orange, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 8.dp),
             )
         }
 
-        SectionHeader("Движение")
+        SectionHeader(tr("Движение", "Motion"))
         Group {
-            GroupToggle(Pos.First, Icons.Rounded.BlurCircular, "Размытие при смене",
-                "Содержимое острова перетекает с размытием, как на iPhone (Android 12+)",
+            GroupToggle(Pos.First, Icons.Rounded.BlurCircular, tr("Размытие при смене", "Blur on change"),
+                tr("Содержимое острова перетекает с размытием, как на iPhone (Android 12+)",
+                    "The island's content flows with a blur, like on iPhone (Android 12+)"),
                 s.fxBlur, color = Tile.Blue) { v -> SettingsRepo.update { copy(fxBlur = v) } }
-            GroupToggle(Pos.Middle, Icons.Rounded.GraphicEq, "Живой эквалайзер",
-                "Полоски у музыки и звонка пляшут. Выключено — стоят ровно, так экономнее",
+            GroupToggle(Pos.Middle, Icons.Rounded.GraphicEq, tr("Живой эквалайзер", "Live equalizer"),
+                tr("Полоски у музыки и звонка пляшут. Выключено — стоят ровно, так экономнее",
+                    "The music and call bars dance. Off — they stand still, which saves power"),
                 s.fxEqualizer, color = Tile.Pink) { v -> SettingsRepo.update { copy(fxEqualizer = v) } }
-            GroupToggle(Pos.Last, Icons.Rounded.NotificationsActive, "Вздрагивание",
-                "Капсула вздрагивает при смене режима звука, колокольчик звонящего таймера качается",
+            GroupToggle(Pos.Last, Icons.Rounded.NotificationsActive, tr("Вздрагивание", "Shake"),
+                tr("Капсула вздрагивает при смене режима звука, колокольчик звонящего таймера качается",
+                    "The capsule shakes when the ring mode changes, and a ringing timer's bell swings"),
                 s.fxShake, color = Tile.Orange) { v -> SettingsRepo.update { copy(fxShake = v) } }
         }
 
-        SectionHeader("Свечение")
+        SectionHeader(tr("Свечение", "Glow"))
         Group {
-            GroupToggle(Pos.First, Icons.Rounded.Flare, "Свечение обложки",
-                "Мягкий ореол цвета обложки вокруг острова, пока играет музыка",
+            GroupToggle(Pos.First, Icons.Rounded.Flare, tr("Свечение обложки", "Artwork glow"),
+                tr("Мягкий ореол цвета обложки вокруг острова, пока играет музыка", "A soft halo in the artwork's color around the island while music plays"),
                 s.fxGlow, color = Tile.Purple) { v -> SettingsRepo.update { copy(fxGlow = v) } }
-            GroupToggle(Pos.Last, Icons.Rounded.Contactless, "Волны оплаты",
-                "Волны NFC вокруг острова, пока ждём терминал, и вспышка с искрами на «Оплачено»",
+            GroupToggle(Pos.Last, Icons.Rounded.Contactless, tr("Волны оплаты", "Payment waves"),
+                tr("Волны NFC вокруг острова, пока ждём терминал, и вспышка с искрами на «Оплачено»",
+                    "NFC waves around the island while waiting for the reader, and a burst of sparks on Paid"),
                 s.fxPay, color = Tile.Teal) { v -> SettingsRepo.update { copy(fxPay = v) } }
         }
 
-        SectionHeader("Батарея")
-        GroupToggle(Pos.Single, Icons.Rounded.BatterySaver, "Экономия заряда",
-            "В режиме энергосбережения Android остров сам обходится без живых эффектов",
+        SectionHeader(tr("Батарея", "Battery"))
+        GroupToggle(Pos.Single, Icons.Rounded.BatterySaver, tr("Экономия заряда", "Battery saving"),
+            tr("В режиме энергосбережения Android остров сам обходится без живых эффектов",
+                "In Android's battery saver mode the island skips live effects by itself"),
             s.batterySaver, color = Tile.Green) { v -> SettingsRepo.update { copy(batterySaver = v) } }
     }
 }

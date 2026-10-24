@@ -32,6 +32,7 @@ import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.R
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
 import kotlin.math.abs
@@ -73,14 +74,14 @@ class SystemEvents(private val context: Context) {
             main.post {
                 val wasEmpty = wifiNetworks.isEmpty()
                 wifiNetworks += network
-                if (wasEmpty) notice(s.evWifiOn, Notice("Wi-Fi", "Подключён", ic(R.drawable.ios_wifi), Tints.Blue))
+                if (wasEmpty) notice(s.evWifiOn, Notice("Wi-Fi", tr("Подключён", "Connected"), ic(R.drawable.ios_wifi), Tints.Blue))
             }
         }
 
         override fun onLost(network: Network) {
             main.post {
                 if (wifiNetworks.remove(network) && wifiNetworks.isEmpty()) {
-                    notice(s.evWifiOff, Notice("Wi-Fi", "Отключён", ic(R.drawable.ios_wifi), Tints.Gray))
+                    notice(s.evWifiOff, Notice("Wi-Fi", tr("Отключён", "Disconnected"), ic(R.drawable.ios_wifi), Tints.Gray))
                 }
             }
         }
@@ -97,8 +98,8 @@ class SystemEvents(private val context: Context) {
             notice(
                 s.evBrightness,
                 Notice(
-                    "Яркость",
-                    if (auto) "Авто" else "Вручную",
+                    tr("Яркость", "Brightness"),
+                    if (auto) tr("Авто", "Auto") else tr("Вручную", "Manual"),
                     if (auto) ic(R.drawable.ios_sunny) else ic(R.drawable.ios_contrast),
                     Tints.Yellow,
                 ),
@@ -160,7 +161,7 @@ class SystemEvents(private val context: Context) {
                 val level = IslandBus.battery.value.level
                 notice(
                     s.evChargeStart,
-                    Notice("Зарядка", if (level >= 0) "$level%" else null, ic(R.drawable.ios_flash), Tints.Green,
+                    Notice(tr("Зарядка", "Charging"), if (level >= 0) "$level%" else null, ic(R.drawable.ios_flash), Tints.Green,
                         battery = level.takeIf { it >= 0 }),
                 )
             }
@@ -170,7 +171,7 @@ class SystemEvents(private val context: Context) {
                 val level = IslandBus.battery.value.level
                 notice(
                     s.evChargeStop,
-                    Notice("Отключено", if (level >= 0) "$level%" else null, ic(R.drawable.ios_battery_full), Tints.Orange,
+                    Notice(tr("Отключено", "Unplugged"), if (level >= 0) "$level%" else null, ic(R.drawable.ios_battery_full), Tints.Orange,
                         battery = level.takeIf { it >= 0 }),
                 )
             }
@@ -202,22 +203,25 @@ class SystemEvents(private val context: Context) {
                 // Как фокус «Не беспокоить» на iPhone: луна и состояние
                 notice(
                     s.evDnd,
-                    Notice("Не беспокоить", if (on) "Вкл" else "Выкл", ic(R.drawable.ios_moon), if (on) Tints.Purple else Tints.Gray),
+                    Notice(tr("Не беспокоить", "Do Not Disturb"), if (on) tr("Вкл", "On") else tr("Выкл", "Off"), ic(R.drawable.ios_moon),
+                        if (on) Tints.Purple else Tints.Gray),
                 )
             }
 
             Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
                 val on = intent.getBooleanExtra("state", false)
-                if (on) notice(s.evAirplaneOn, Notice("Режим полёта", "Вкл", ic(R.drawable.ios_airplane), Tints.Orange))
-                else notice(s.evAirplaneOff, Notice("Режим полёта", "Выкл", ic(R.drawable.ios_airplane), Tints.Gray))
+                if (on) notice(s.evAirplaneOn, Notice(tr("Режим полёта", "Airplane Mode"), tr("Вкл", "On"), ic(R.drawable.ios_airplane), Tints.Orange))
+                else notice(s.evAirplaneOff, Notice(tr("Режим полёта", "Airplane Mode"), tr("Выкл", "Off"), ic(R.drawable.ios_airplane), Tints.Gray))
             }
 
             AudioManager.RINGER_MODE_CHANGED_ACTION -> {
                 val n = when (intent.getIntExtra(AudioManager.EXTRA_RINGER_MODE, -1)) {
                     // Как переключатель «Звонок/Бесшумно» на iPhone: короткая пилюля, колокольчик качается
-                    AudioManager.RINGER_MODE_NORMAL -> Notice("", "Звонок", ic(R.drawable.ios_notifications), Color.White, style = NoticeStyle.PILL)
-                    AudioManager.RINGER_MODE_VIBRATE -> Notice("", "Вибрация", ic(R.drawable.ios_phone_portrait), Tints.Purple, style = NoticeStyle.PILL)
-                    AudioManager.RINGER_MODE_SILENT -> Notice("", "Без звука", ic(R.drawable.ios_notifications_off), Tints.Red, style = NoticeStyle.PILL)
+                    AudioManager.RINGER_MODE_NORMAL -> Notice("", tr("Звонок", "Ring"), ic(R.drawable.ios_notifications), Color.White, style = NoticeStyle.PILL)
+                    AudioManager.RINGER_MODE_VIBRATE -> Notice("", tr("Вибрация", "Vibrate"), ic(R.drawable.ios_phone_portrait),
+                        Tints.Purple, style = NoticeStyle.PILL)
+                    AudioManager.RINGER_MODE_SILENT -> Notice("", tr("Без звука", "Silent"), ic(R.drawable.ios_notifications_off),
+                        Tints.Red, style = NoticeStyle.PILL)
                     else -> null
                 }
                 if (n != null) notice(s.evRinger, n)
@@ -238,12 +242,13 @@ class SystemEvents(private val context: Context) {
                     val battery = headsetBattery[device.address]
                     notice(
                         s.evHeadsetOn,
-                        Notice(name ?: "Наушники", null, ic(R.drawable.ios_headset), Tints.Green,
-                            ring = battery?.let { it / 100f }, caption = "Подключено"),
+                        Notice(name ?: tr("Наушники", "Headphones"), null, ic(R.drawable.ios_headset), Tints.Green,
+                            ring = battery?.let { it / 100f }, caption = tr("Подключено", "Connected")),
                     )
                 } else {
                     headsetBattery.remove(device.address)
-                    notice(s.evHeadsetOff, Notice(name ?: "Наушники", null, ic(R.drawable.ios_headset), Tints.Gray, caption = "Отключено"))
+                    notice(s.evHeadsetOff, Notice(name ?: tr("Наушники", "Headphones"), null, ic(R.drawable.ios_headset), Tints.Gray,
+                        caption = tr("Отключено", "Disconnected")))
                 }
             }
 
@@ -256,12 +261,14 @@ class SystemEvents(private val context: Context) {
 
             UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
                 val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                notice(s.evUsbOn, Notice(dev?.productName ?: "USB-устройство", "Подключено", ic(R.drawable.ios_hardware_chip), Tints.Teal))
+                notice(s.evUsbOn, Notice(dev?.productName ?: tr("USB-устройство", "USB device"), tr("Подключено", "Connected"),
+                    ic(R.drawable.ios_hardware_chip), Tints.Teal))
             }
 
             UsbManager.ACTION_USB_DEVICE_DETACHED -> {
                 val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                notice(s.evUsbOff, Notice(dev?.productName ?: "USB-устройство", "Отключено", ic(R.drawable.ios_hardware_chip), Tints.Gray))
+                notice(s.evUsbOff, Notice(dev?.productName ?: tr("USB-устройство", "USB device"), tr("Отключено", "Disconnected"),
+                    ic(R.drawable.ios_hardware_chip), Tints.Gray))
             }
 
             USB_STATE -> {
@@ -273,8 +280,8 @@ class SystemEvents(private val context: Context) {
                 // системы не определён, поэтому смотрим чуть позже, менялась ли зарядка рядом по времени
                 main.postDelayed({
                     if (abs(SystemClock.elapsedRealtime() - lastPowerChange) < 3000) return@postDelayed
-                    if (connected) notice(s.evUsbOn, Notice("USB", "Подключено", ic(R.drawable.ios_hardware_chip), Tints.Teal))
-                    else notice(s.evUsbOff, Notice("USB", "Отключено", ic(R.drawable.ios_hardware_chip), Tints.Gray))
+                    if (connected) notice(s.evUsbOn, Notice("USB", tr("Подключено", "Connected"), ic(R.drawable.ios_hardware_chip), Tints.Teal))
+                    else notice(s.evUsbOff, Notice("USB", tr("Отключено", "Disconnected"), ic(R.drawable.ios_hardware_chip), Tints.Gray))
                 }, 1500)
             }
         }
@@ -317,7 +324,7 @@ class SystemEvents(private val context: Context) {
             lowWarned = false
         } else if (level >= 0 && !lowWarned) {
             lowWarned = true
-            notice(s.evLowBattery, Notice("Низкий заряд", "$level%", ic(R.drawable.ios_battery_dead), Tints.Red, battery = level))
+            notice(s.evLowBattery, Notice(tr("Низкий заряд", "Low Battery"), "$level%", ic(R.drawable.ios_battery_dead), Tints.Red, battery = level))
         }
     }
 

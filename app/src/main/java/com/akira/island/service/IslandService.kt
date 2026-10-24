@@ -31,11 +31,9 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
-import com.akira.island.island.Ios
-import com.akira.island.core.Tints
 import com.akira.island.core.NoticeStyle
-import com.akira.island.core.Notice
 import com.akira.island.R
+import com.akira.island.core.LangScope
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Egg
@@ -228,18 +226,7 @@ class IslandService : AccessibilityService() {
         val seen = SettingsRepo.current.islandVersion
         if (seen != version) {
             if (seen.isNotEmpty() && SettingsRepo.current.autoUpdateCheck) {
-                IslandBus.post(
-                    Notice(
-                        title = "Обновлено до $version",
-                        icon = Ios.load(this, R.drawable.ios_check),
-                        tint = Tints.Green,
-                        caption = "Всё готово, настройки сохранены",
-                        style = NoticeStyle.UPDATE,
-                        appIcon = NotificationParser.icon(this, packageName),
-                        openPkg = packageName,
-                        extraMs = 2_000,
-                    ),
-                )
+                IslandBus.post(UpdateChecker.updatedNotice(this, version))
             }
             SettingsRepo.update { copy(islandVersion = version) }
         }
@@ -271,11 +258,13 @@ class IslandService : AccessibilityService() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 MaterialTheme(colorScheme = darkColorScheme(), typography = InterTypography) {
-                    IslandOverlay(
-                        onTransition = ::onTransition,
-                        onBodyBounds = { r -> if (r != body) { body = r; onBoundsChanged() } },
-                        onBubbleBounds = { r -> if (r != bubble) { bubble = r; onBoundsChanged() } },
-                    )
+                    LangScope {
+                        IslandOverlay(
+                            onTransition = ::onTransition,
+                            onBodyBounds = { r -> if (r != body) { body = r; onBoundsChanged() } },
+                            onBubbleBounds = { r -> if (r != bubble) { bubble = r; onBoundsChanged() } },
+                        )
+                    }
                 }
             }
         }

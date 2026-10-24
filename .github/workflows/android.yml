@@ -70,7 +70,7 @@ jobs:
           {
             echo "## 🇬🇧 English"
             section CHANGELOG.en.md
-            printf '\n**Install:** download `DynamicIsland.apk` below and open it on your phone. A new version installs over the old one, your settings are kept. The app interface is in Russian for now.\n\n---\n\n'
+            printf '\n**Install:** download `DynamicIsland.apk` below and open it on your phone. A new version installs over the old one, your settings are kept.\n\n---\n\n'
             echo "## 🇷🇺 Русский"
             section CHANGELOG.md
             printf '\n**Установка:** скачайте `DynamicIsland.apk` ниже и откройте на телефоне. Новая версия ставится поверх старой, настройки сохраняются.\n'

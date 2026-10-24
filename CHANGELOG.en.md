@@ -4,15 +4,25 @@
 
 Versioning: the second number (1.5, 1.6…) means new and changed features, the third (1.5.1…) means optimization and small fixes.
 
-> The app's interface is currently in Russian. Setting names below are given in English with the Russian label in brackets, so you can find them in the app.
+> Since 1.6.1 the app and the island speak English (Features → General → Language). Earlier versions were in Russian only, so older entries give the Russian label in brackets.
 
 ## [1.6.1] — 2026-10-23
+
+### 🌍 English
+- **The app and the island speak English**: every screen and island banner ("Charging", "Do Not Disturb", "Silent", "Paid", "Hold near reader"…), the alarm, player, navigation, calls and the update card. The wording matches the promo video; long English labels shrink a little instead of running into the camera.
+- **Features → General → Language** («Функции → Общие → Язык»): System default (Russian if the phone is in Russian, otherwise English), Русский or English. It switches right away, no restart needed.
+- The app name and the accessibility service description follow the phone's language. If a navigation app sends Russian units, the English island shows them in English too: "4.2 km", "12 min".
+
+### ⬇️ Updates right in the island
+- Like in the video: "Version is available" with Later and Update, percent and a ring while it downloads, and after installing — "Updated" with What's new and Done.
+- If the APK is already downloaded but the installer didn't open (a permission is needed), the button becomes **Install** and installs the downloaded file without downloading it again. A download error shows right on the card.
+- Try it («Проверка») has an **Update** demo: the card, running percent and "Updated", nothing is downloaded.
 
 ### 🗂️ The app, reorganized
 - **Four labeled tabs**: Home, Features, Appearance and About («Главная», «Функции», «Оформление», «О приложении»). Settings are separate from the version, help and links.
 - **Home** keeps just the essentials: the live preview, Island on («Остров включён»), **Permissions** («Разрешения») in one row (all granted or what's missing) and **Try it** («Проверка»). While the accessibility service is off, a "Turn on the island" card with a button and instructions sits at the top.
-- **Try it** shows every demo on one screen as tiles: event, ring mode, message, call, timer, alarm (a new demo), payment and navigation.
-- **Features** — what the island shows (cards, notifications, events, lyrics), controls (gestures, Behavior, system banners) and resetting settings.
+- **Try it** shows every demo on one screen as tiles: event, ring mode, message, call, timer, alarm, payment, navigation and update (alarm and update are new).
+- **Features** — what the island shows (cards, notifications, events, lyrics), controls (gestures, Behavior, system banners) and general (language, resetting settings).
 - **Appearance** — position and size, color and Liquid Glass, island expansion and effects.
 - **About** — the icon, version and whether an update is out, update checks, **What's new** at any time, instructions, navigation diagnostics, GitHub and About the island («Об острове»).
 - New screens: **Behavior** («Поведение»: when to show the island, collapsing, haptics, turning the screen on) and **Notifications** («Уведомления»: everything about messages in the island, including the button color). Dynamic cards and Events are now tidy sectioned lists without extra words.

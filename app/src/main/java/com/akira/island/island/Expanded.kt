@@ -86,6 +86,7 @@ import com.akira.island.core.CallInfo
 import com.akira.island.core.ChronoInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
+import com.akira.island.core.Lang
 import com.akira.island.core.LiveInfo
 import com.akira.island.core.Lyrics
 import com.akira.island.core.LyricsStatus
@@ -96,6 +97,7 @@ import com.akira.island.core.Tints
 import com.akira.island.core.TimerState
 import com.akira.island.core.TorchState
 import com.akira.island.core.formatDuration
+import com.akira.island.core.tr
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.service.ClockApps
@@ -103,7 +105,6 @@ import com.akira.island.service.ClockControl
 import com.akira.island.service.ClockScreenReader
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 private val Dim = Color.White.copy(alpha = 0.55f)
 
@@ -167,7 +168,7 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
             // Видно, что текст ищется или его нет — а не что функция сломалась
             Spacer(Modifier.height(12.dp))
             Text(
-                if (status?.second == LyricsStatus.LOADING) "Ищу текст песни…" else "Текст песни не найден",
+                if (status?.second == LyricsStatus.LOADING) tr("Ищу текст песни…", "Looking for lyrics…") else tr("Текст песни не найден", "No lyrics found"),
                 color = Color.White.copy(alpha = 0.35f), fontSize = 13.sp,
             )
         }
@@ -328,10 +329,10 @@ private fun TimerExpanded(t: TimerState, s: IslandSettings) {
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("Таймер", color = Tints.Orange, fontSize = 15.sp)
-                Text("Время вышло", color = Tints.Orange, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Text(tr("Таймер", "Timer"), color = Tints.Orange, fontSize = 15.sp)
+                Text(tr("Время вышло", "Time's up"), color = Tints.Orange, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
             }
-            PillButton(Ios.stop, "Стоп", bg = Tints.Orange, fg = Color.Black) { Controls.cancelTimer() }
+            PillButton(Ios.stop, tr("Стоп", "Stop"), bg = Tints.Orange, fg = Color.Black) { Controls.cancelTimer() }
         }
         return
     }
@@ -345,7 +346,7 @@ private fun TimerExpanded(t: TimerState, s: IslandSettings) {
         Spacer(Modifier.width(12.dp))
         RoundButton(Ios.close, size = 50.dp, bg = Color.White.copy(alpha = 0.2f), iconScale = 0.44f) { Controls.cancelTimer() }
         Spacer(Modifier.weight(1f))
-        Text(if (t.paused) "Пауза" else "Таймер", color = color, fontSize = 15.sp, modifier = Modifier.padding(top = 14.dp))
+        Text(if (t.paused) tr("Пауза", "Paused") else tr("Таймер", "Timer"), color = color, fontSize = 15.sp, modifier = Modifier.padding(top = 14.dp))
         Spacer(Modifier.width(8.dp))
         Text(formatDuration(left + 999), color = color, fontSize = 44.sp, style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
     }
@@ -391,7 +392,7 @@ private fun TorchCard(t: TorchState, s: IslandSettings) {
     val wave = if (s.reduceEffects) null else breath.animateFloat(0f, 1f, infiniteRepeatable(tween(1050, easing = LinearEasing)), label = "w")
     val flare = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    val label = if (max > 1 && t.on) "Фонарик · ${(share * 100).toInt()}%" else "Фонарик"
+    val label = if (max > 1 && t.on) tr("Фонарик · ${(share * 100).toInt()}%", "Flashlight · ${(share * 100).toInt()}%") else tr("Фонарик", "Flashlight")
 
     Box(
         Modifier
@@ -516,7 +517,8 @@ private fun ClockChrono(c: ChronoInfo) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(c.icon, 16.dp, Ios.timer, color)
                 Spacer(Modifier.width(5.dp))
-                Text(if (paused) "Пауза" else if (c.countDown) "Таймер" else "Секундомер", color = color, fontSize = 14.sp, maxLines = 1)
+                Text(if (paused) tr("Пауза", "Paused") else if (c.countDown) tr("Таймер", "Timer") else tr("Секундомер", "Stopwatch"),
+                    color = color, fontSize = 14.sp, maxLines = 1)
             }
             val text = if (c.countDown) formatDuration(value + 999) else formatDuration(value) + ",%d".format((value % 1000) / 100)
             Text(text, color = color, fontSize = 40.sp, style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1, softWrap = false)
@@ -609,7 +611,7 @@ private fun LiveExpanded(l: LiveInfo) {
             ) {
                 Icon(Ios.navigate, null, tint = Color.Black, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Открыть", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(tr("Открыть", "Open"), color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -623,7 +625,7 @@ private fun ChargingExpanded(b: BatteryInfo) {
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text("Заряжается", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(tr("Заряжается", "Charging"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.15f))) {
                 Box(Modifier.fillMaxWidth(b.level.coerceIn(0, 100) / 100f).fillMaxHeight().clip(CircleShape).background(Tints.Green))
@@ -640,8 +642,9 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
     val context = LocalContext.current
     val now = rememberWallNow(1000)
     val time = DateFormat.getTimeFormat(context).format(Date(now))
-    val date = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
-        .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    // «Пятница, 24 октября» или «Friday, October 24» — на языке острова
+    val date = SimpleDateFormat(if (Lang.en) "EEEE, MMMM d" else "EEEE, d MMMM", Lang.locale).format(Date(now))
+        .replaceFirstChar { it.titlecase(Lang.locale) }
     val alarm by IslandBus.nextAlarm.collectAsState()
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -656,7 +659,8 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
                     ) {
                         Icon(Ios.alarm, null, tint = AlarmTint, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(5.dp))
-                        Text("${wakeTime(context, a.triggerAt)} · через ${durationWords(a.triggerAt - now)}",
+                        Text(tr("${wakeTime(context, a.triggerAt)} · через ${durationWords(a.triggerAt - now)}",
+                            "${wakeTime(context, a.triggerAt)} · in ${durationWords(a.triggerAt - now)}"),
                             color = AlarmTint, fontSize = 13.sp, maxLines = 1)
                     }
                 }
@@ -687,25 +691,25 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
                 SettingsRepo.update { copy(timerMinutes = (timerMinutes - 1).coerceAtLeast(1)) }
             }
             Text(
-                "${s.timerMinutes} мин", color = Color.White, fontSize = 16.sp, style = Digits,
+                tr("${s.timerMinutes} мин", "${s.timerMinutes} min"), color = Color.White, fontSize = 16.sp, style = Digits,
                 textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
             )
             RoundButton(Ios.add, size = 38.dp, iconScale = 0.44f) {
                 SettingsRepo.update { copy(timerMinutes = (timerMinutes + 1).coerceAtMost(99)) }
             }
             Spacer(Modifier.width(8.dp))
-            PillButton(Ios.play, "Таймер", bg = Tints.Orange, fg = Color.Black) {
+            PillButton(Ios.play, tr("Таймер", "Timer"), bg = Tints.Orange, fg = Color.Black) {
                 Controls.startTimer(s.timerMinutes)
                 Controls.expand("timer")
             }
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton(Ios.stopwatch, "Секундомер", Modifier.weight(1f)) {
+            PillButton(Ios.stopwatch, tr("Секундомер", "Stopwatch"), Modifier.weight(1f)) {
                 Controls.startStopwatch()
                 Controls.expand("stopwatch")
             }
-            PillButton(Ios.flashlight, "Фонарик", Modifier.weight(1f).alpha(0.95f)) {
+            PillButton(Ios.flashlight, tr("Фонарик", "Flashlight"), Modifier.weight(1f).alpha(0.95f)) {
                 Controls.torchOn()
                 Controls.collapse()
             }

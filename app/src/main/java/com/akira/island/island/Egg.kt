@@ -54,6 +54,7 @@ import com.akira.island.core.IslandBus
 import com.akira.island.core.MediaInfo
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
+import com.akira.island.core.tr
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.CoroutineScope
@@ -111,7 +112,7 @@ object Egg {
 
     internal val sparks = ArrayList<Spark>()
 
-    private const val LINE = "Вас переполняет РЕШИМОСТЬ."
+    private val LINE get() = tr("Вас переполняет РЕШИМОСТЬ.", "You're filled with DETERMINATION.")
 
     /** «Hopes and Dreams» Тоби Фокса — по названию и исполнителю, альбому или подписи «Undertale». */
     fun matches(m: MediaInfo): Boolean {

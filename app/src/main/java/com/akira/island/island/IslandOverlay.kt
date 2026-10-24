@@ -79,6 +79,7 @@ import com.akira.island.core.IslandBus
 import com.akira.island.core.Lyrics
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
+import com.akira.island.core.tr
 import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
@@ -93,7 +94,7 @@ import kotlin.math.abs
 /** Пример активности для подбора ширины: стрелка направо и «300 м». */
 private val WidthDemo = com.akira.island.core.LiveInfo(
     key = "width-demo", pkg = "", kind = com.akira.island.core.LiveKind.NAV, title = "", text = "", sub = "",
-    icon = null, art = null, postTime = 0L, open = null, distance = "300 м", turn = com.akira.island.core.Turn.RIGHT,
+    icon = null, art = null, postTime = 0L, open = null, distance = tr("300 м", "300 m"), turn = com.akira.island.core.Turn.RIGHT,
 )
 
 /** Цвет острова на экране «Размер и положение»: его нужно спрятать под вырезом камеры. */

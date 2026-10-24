@@ -49,9 +49,11 @@ import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Notice
 import com.akira.island.core.Tints
+import com.akira.island.core.tr
 import com.akira.island.data.IslandSettings
 import com.akira.island.update.DownloadState
 import com.akira.island.update.UpdateChecker
+import com.akira.island.update.localNotes
 import kotlinx.coroutines.launch
 
 /** Чем писать на сиреневых кнопках — тёмным, как в ролике. */
@@ -101,6 +103,9 @@ fun UpdateCard(n: Notice, s: IslandSettings, wideWidth: Dp) {
     val release = n.update
     val download by UpdateChecker.download.collectAsState()
     val progress = (download as? DownloadState.Running)?.progress?.takeIf { release != null }
+    // Скачалось, но установка не открылась (нужно разрешение) — «Установить» ставит уже скачанный файл
+    val ready = (download as? DownloadState.Ready)?.file?.takeIf { release != null }
+    val failed = (download as? DownloadState.Failed)?.message?.takeIf { release != null }
     val loading = progress != null
     // Пока качается, плашка не уходит по таймеру
     DisposableEffect(loading) {
@@ -114,8 +119,10 @@ fun UpdateCard(n: Notice, s: IslandSettings, wideWidth: Dp) {
             Column(Modifier.weight(1f)) {
                 Text(n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
-                if (n.caption != null) {
-                    Text(n.caption, color = Tints.Gray, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val caption = failed ?: n.caption
+                if (caption != null) {
+                    Text(caption, color = if (failed != null) Tints.Orange else Tints.Gray, fontSize = 13.sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
                 }
             }
             when {
@@ -131,21 +138,28 @@ fun UpdateCard(n: Notice, s: IslandSettings, wideWidth: Dp) {
         }
         Spacer(Modifier.height(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CardButton(if (release == null) "Что нового" else "Позже", Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.75f)) {
-                if (release == null) Controls.openApp(context, context.packageName) else UpdateChecker.skip(release.version)
+            CardButton(if (release == null) tr("Что нового", "What's new") else tr("Позже", "Later"),
+                Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.75f)) {
+                when {
+                    release == null -> Controls.openApp(context, context.packageName)
+                    // Пример из «Проверки» не должен скрыть настоящую версию
+                    release.apkUrl != UpdateChecker.DEMO_APK -> UpdateChecker.skip(release.version)
+                }
                 IslandBus.notice.value = null
             }
             CardButton(
                 when {
-                    release == null -> "Готово"
+                    release == null -> tr("Готово", "Done")
                     progress != null -> "${(progress * 100).toInt()}%"
-                    else -> "Обновить"
+                    ready != null -> tr("Установить", "Install")
+                    else -> tr("Обновить", "Update")
                 },
                 Tints.Lavender, Ink, bold = true,
                 icon = if (release != null && progress == null) Ios.download else null,
             ) {
                 when {
                     release == null -> IslandBus.notice.value = null
+                    ready != null -> UpdateChecker.install(context.applicationContext, ready)
                     progress == null -> {
                         val app = context.applicationContext
                         IslandBus.scope.launch { UpdateChecker.downloadAndInstall(app, release) }
@@ -222,12 +236,11 @@ private fun RowScope.CardButton(
 
 /** Что нового в релизе одной строкой — заголовки разделов из описания: «Плашка уведомления, Ответ из острова, Будильник». */
 fun releaseHighlights(notes: String): String? {
-    val heads = notes.lines()
+    // В описании два языка — берём заголовки на языке острова
+    val heads = localNotes(notes)
         .map { it.trim() }
         .filter { it.startsWith("### ") }
         .map { h -> h.removePrefix("### ").dropWhile { !it.isLetterOrDigit() }.substringBefore(" — ").trim() }
         .filter { it.isNotEmpty() }
-    // В описании два языка — берём русские заголовки, если они есть
-    val ru = heads.filter { h -> h.any { it in 'а'..'я' || it in 'А'..'Я' } }
-    return (ru.ifEmpty { heads }).take(3).joinToString(", ").ifEmpty { null }
+    return heads.take(3).joinToString(", ").ifEmpty { null }
 }

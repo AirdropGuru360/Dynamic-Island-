@@ -178,7 +178,7 @@ object Controls {
     fun showTestCall() {
         val now = System.currentTimeMillis()
         IslandBus.calls.value = IslandBus.calls.value +
-            (TEST_CALL to CallInfo(TEST_CALL, "", "Анна", null, true, now, now, null, null, null, null))
+            (TEST_CALL to CallInfo(TEST_CALL, "", tr("Анна", "Anna"), null, true, now, now, null, null, null, null))
         IslandBus.scope.launch {
             delay(20_000)
             IslandBus.calls.value = IslandBus.calls.value - TEST_CALL
@@ -191,10 +191,10 @@ object Controls {
     fun showTestLive(context: Context) {
         val live = LiveInfo(
             key = TEST_LIVE, pkg = context.packageName, kind = LiveKind.NAV,
-            title = "300 м", text = "Поверните направо на Тверскую улицу", sub = "",
+            title = tr("300 м", "300 m"), text = tr("Поверните направо на Тверскую улицу", "Turn right onto Main Street"), sub = "",
             icon = com.akira.island.service.NotificationParser.icon(context, context.packageName), art = null,
             postTime = System.currentTimeMillis(), open = null,
-            distance = "300 м", eta = "Прибытие в 18:42 · 12 мин · 4,2 км", turn = Turn.RIGHT,
+            distance = tr("300 м", "300 m"), eta = tr("Прибытие в 18:42 · 12 мин · 4,2 км", "Arrive 18:42 · 12 min · 4.2 km"), turn = Turn.RIGHT,
             expiresAt = System.currentTimeMillis() + TEST_LIVE_MS,
         )
         IslandBus.live.value = IslandBus.live.value + (TEST_LIVE to live)

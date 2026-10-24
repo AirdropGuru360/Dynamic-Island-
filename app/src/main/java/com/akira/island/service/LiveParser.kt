@@ -20,6 +20,8 @@ import com.akira.island.island.Ios
 import com.akira.island.island.liveTint
 import android.os.SystemClock
 import com.akira.island.core.IslandBus
+import com.akira.island.core.Lang
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,9 +52,9 @@ object LiveParser {
         val fields = listOf(head, text, big, sub)
         // Собрать чужую раскладку — дорого, а обычные уведомления (акции, «заказ доставлен») её не требуют
         val remote = if (!sbn.isOngoing) {
-            Remote(emptyList(), null, "не разбиралась: уведомление не постоянное")
+            Remote(emptyList(), null, tr("не разбиралась: уведомление не постоянное", "not parsed: the notification isn't ongoing"))
         } else if (findDistance(fields) != null && findEta(fields) != null) {
-            Remote(emptyList(), null, "не разбиралась: расстояние и время есть в полях")
+            Remote(emptyList(), null, tr("не разбиралась: расстояние и время есть в полях", "not parsed: distance and time are in the fields"))
         } else {
             remoteFor(context, sbn.key, n)
         }
@@ -129,14 +131,33 @@ object LiveParser {
         return null
     }
 
-    private fun normalize(s: String) = s.trim().trimEnd('.').replace(Regex("""\s+"""), " ")
+    private fun normalize(s: String) = units(s.trim().trimEnd('.').replace(Regex("""\s+"""), " "))
+
+    private val ruUnit = Regex("""(\d+)(?:,(\d+))?\s?(км|метров|метра|мин|м|ч)\.?(?!\p{L})""")
+
+    /** По-английски — и единицы: «4,2 км» → «4.2 km», «12 мин» → «12 min». Иначе как прислал навигатор. */
+    fun units(s: String): String {
+        if (!Lang.en) return s
+        return ruUnit.replace(s) { m ->
+            val (whole, frac, unit) = m.destructured
+            val n = if (frac.isEmpty()) whole else "$whole.$frac"
+            val u = when (unit) {
+                "км" -> "km"
+                "мин" -> "min"
+                "ч" -> "h"
+                else -> "m"
+            }
+            "$n $u"
+        }
+    }
 
     /** «15:52 · 9 мин» из любых подписей уведомления. */
     internal fun findEta(texts: List<String>): String? {
         val joined = texts.joinToString(" ")
         val time = clock.find(joined)?.value
         val min = minutes.find(joined)?.value
-        return listOfNotNull(time?.let { "Прибытие в $it" }, min?.replace(Regex("""\s+"""), " ")).takeIf { it.isNotEmpty() }?.joinToString(" · ")
+        return listOfNotNull(time?.let { tr("Прибытие в $it", "Arrive $it") }, min?.replace(Regex("""\s+"""), " ")?.let(::units))
+            .takeIf { it.isNotEmpty() }?.joinToString(" · ")
     }
 
     private val maneuverWords = listOf(
@@ -185,7 +206,7 @@ object LiveParser {
 
     private fun remoteViews(context: Context, n: Notification): Remote {
         val rv = n.bigContentView ?: n.contentView ?: n.headsUpContentView
-            ?: return Remote(emptyList(), null, "своей раскладки нет")
+            ?: return Remote(emptyList(), null, tr("своей раскладки нет", "no custom layout"))
         return runCatching {
             val root = rv.apply(context, FrameLayout(context))
             val texts = mutableListOf<String>()
@@ -202,8 +223,10 @@ object LiveParser {
                 if (v is ViewGroup) for (i in 0 until v.childCount) walk(v.getChildAt(i))
             }
             walk(root)
-            Remote(texts, image, "раскладка есть, текстов: ${texts.size}")
-        }.getOrElse { Remote(emptyList(), null, "раскладку не удалось прочитать: ${it.javaClass.simpleName}") }
+            Remote(texts, image, tr("раскладка есть, текстов: ${texts.size}", "custom layout, texts: ${texts.size}"))
+        }.getOrElse {
+            Remote(emptyList(), null, tr("раскладку не удалось прочитать: ${it.javaClass.simpleName}", "couldn't read the layout: ${it.javaClass.simpleName}"))
+        }
     }
 }
 
@@ -227,14 +250,15 @@ object LiveDebug {
         val n = sbn.notification
         val body = buildString {
             appendLine(NotificationParser.appLabel(context, sbn.packageName) + " (" + sbn.packageName + ")")
-            appendLine("постоянное: ${sbn.isOngoing}, категория: ${n.category ?: "—"}")
-            appendLine("заголовок: ${title.ifEmpty { "—" }}")
-            appendLine("текст: ${text.ifEmpty { "—" }}")
-            if (bigText.isNotEmpty() && bigText != text) appendLine("большой текст: $bigText")
-            appendLine("подпись: ${sub.ifEmpty { "—" }}")
-            appendLine("раскладка: $remoteNote")
+            val category = n.category ?: "—"
+            appendLine(tr("постоянное: ${sbn.isOngoing}, категория: $category", "ongoing: ${sbn.isOngoing}, category: $category"))
+            appendLine(tr("заголовок: ", "title: ") + title.ifEmpty { "—" })
+            appendLine(tr("текст: ", "text: ") + text.ifEmpty { "—" })
+            if (bigText.isNotEmpty() && bigText != text) appendLine(tr("большой текст: ", "big text: ") + bigText)
+            appendLine(tr("подпись: ", "subtext: ") + sub.ifEmpty { "—" })
+            appendLine(tr("раскладка: ", "layout: ") + remoteNote)
             remote.forEachIndexed { i, t -> appendLine("  [$i] $t") }
-            append("кнопки: " + (n.actions?.joinToString { it.title?.toString().orEmpty() } ?: "—"))
+            append(tr("кнопки: ", "buttons: ") + (n.actions?.joinToString { it.title?.toString().orEmpty() } ?: "—"))
         }
         put(sbn.key, body)
     }
@@ -255,8 +279,13 @@ object LiveDebug {
     /** Подписи экрана навигатора — чтобы было видно, откуда остров берёт расстояние. */
     fun recordScreen(context: Context, pkg: String, items: List<ScreenItem>, r: NavScreenParser.Result) {
         val body = buildString {
-            appendLine("Экран: " + NotificationParser.appLabel(context, pkg) + " (" + pkg + ")")
-            appendLine("нашлось: расстояние ${r.distance ?: "—"}, улица ${r.street ?: "—"}, прибытие ${r.eta ?: "—"}, поворот ${r.turn ?: "по картинке"}")
+            appendLine(tr("Экран: ", "Screen: ") + NotificationParser.appLabel(context, pkg) + " (" + pkg + ")")
+            val dist = r.distance ?: "—"
+            val street = r.street ?: "—"
+            val eta = r.eta ?: "—"
+            val turn = r.turn?.toString() ?: tr("по картинке", "from the picture")
+            appendLine(tr("нашлось: расстояние $dist, улица $street, прибытие $eta, поворот $turn",
+                "found: distance $dist, street $street, arrival $eta, turn $turn"))
             items.filter { it.text.isNotEmpty() }.sortedWith(compareBy({ it.top }, { it.left })).take(40).forEach {
                 appendLine("  «${it.text}» ${it.left},${it.top}–${it.right},${it.bottom}")
             }

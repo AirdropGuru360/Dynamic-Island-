@@ -8,6 +8,7 @@ import android.provider.AlarmClock
 import android.provider.Settings
 import android.service.notification.StatusBarNotification
 import android.telecom.TelecomManager
+import com.akira.island.core.tr
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -49,8 +50,8 @@ object SystemBanners {
     }
 
     fun label(context: Context, pkg: String): String = when (pkg) {
-        SYSTEM_UI -> "Системный интерфейс"
-        ANDROID -> "Система Android"
+        SYSTEM_UI -> tr("Системный интерфейс", "System UI")
+        ANDROID -> tr("Система Android", "Android System")
         else -> NotificationParser.appLabel(context, pkg)
     }
 

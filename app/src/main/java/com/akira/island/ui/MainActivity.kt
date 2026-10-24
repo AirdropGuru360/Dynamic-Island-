@@ -61,6 +61,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.R
+import com.akira.island.core.LangScope
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.screens.AnimScreen
 import com.akira.island.ui.screens.AppInfoScreen
@@ -120,61 +122,64 @@ private fun AppRoot() {
     // Раз в 6 часов спрашиваем GitHub, не вышла ли новая версия; после обновления — «Что нового»
     val context = LocalContext.current
     LaunchedEffect(Unit) { UpdateChecker.check(context.applicationContext, force = false) }
-    WhatsNewDialog()
+    // Сменили язык — экраны рисуются заново на нём, а открытая вкладка и экран остаются
+    LangScope {
+        WhatsNewDialog()
 
-    Box(Modifier.fillMaxSize().background(Ui.Bg)) {
-        val key = stack.lastOrNull()?.name ?: "tab$tab"
-        AnimatedContent(
-            targetState = key,
-            transitionSpec = {
-                if (targetState.startsWith("tab") && initialState.startsWith("tab")) {
-                    fadeIn(tween(220)) togetherWith fadeOut(tween(120))
-                } else if (forward) {
-                    (slideInHorizontally { it / 4 } + fadeIn()) togetherWith (slideOutHorizontally { -it / 8 } + fadeOut())
-                } else {
-                    (slideInHorizontally { -it / 8 } + fadeIn()) togetherWith (slideOutHorizontally { it / 4 } + fadeOut())
+        Box(Modifier.fillMaxSize().background(Ui.Bg)) {
+            val key = stack.lastOrNull()?.name ?: "tab$tab"
+            AnimatedContent(
+                targetState = key,
+                transitionSpec = {
+                    if (targetState.startsWith("tab") && initialState.startsWith("tab")) {
+                        fadeIn(tween(220)) togetherWith fadeOut(tween(120))
+                    } else if (forward) {
+                        (slideInHorizontally { it / 4 } + fadeIn()) togetherWith (slideOutHorizontally { -it / 8 } + fadeOut())
+                    } else {
+                        (slideInHorizontally { -it / 8 } + fadeIn()) togetherWith (slideOutHorizontally { it / 4 } + fadeOut())
+                    }
+                },
+                label = "nav",
+            ) { k ->
+                when (k) {
+                    "tab0" -> HomeScreen(open)
+                    "tab1" -> FeaturesScreen(open)
+                    "tab2" -> CapsuleScreen(open)
+                    "tab3" -> AppInfoScreen(open)
+                    Screen.CARDS.name -> CardsScreen(back) { open(Screen.INSTRUCTION) }
+                    Screen.EVENTS.name -> EventsScreen(back)
+                    Screen.GESTURES.name -> GesturesScreen(back)
+                    Screen.LYRICS.name -> LyricsScreen(back)
+                    Screen.SIZE.name -> SizeScreen(back)
+                    Screen.COLORS.name -> ColorsScreen(back)
+                    Screen.INSTRUCTION.name -> InstructionScreen(back)
+                    Screen.ABOUT.name -> IdeaScreen(back)
+                    Screen.DIAG.name -> DiagScreen(back)
+                    Screen.LOOK.name -> LookScreen(back)
+                    Screen.ANIM.name -> AnimScreen(back)
+                    Screen.EFFECTS.name -> EffectsScreen(back)
+                    Screen.BANNERS.name -> BannersScreen(back)
+                    Screen.PERMISSIONS.name -> PermissionsScreen(back, open)
+                    Screen.TESTS.name -> TestsScreen(back)
+                    Screen.NOTIFICATIONS.name -> NotificationsScreen(back)
+                    Screen.BEHAVIOR.name -> BehaviorScreen(back)
                 }
-            },
-            label = "nav",
-        ) { k ->
-            when (k) {
-                "tab0" -> HomeScreen(open)
-                "tab1" -> FeaturesScreen(open)
-                "tab2" -> CapsuleScreen(open)
-                "tab3" -> AppInfoScreen(open)
-                Screen.CARDS.name -> CardsScreen(back) { open(Screen.INSTRUCTION) }
-                Screen.EVENTS.name -> EventsScreen(back)
-                Screen.GESTURES.name -> GesturesScreen(back)
-                Screen.LYRICS.name -> LyricsScreen(back)
-                Screen.SIZE.name -> SizeScreen(back)
-                Screen.COLORS.name -> ColorsScreen(back)
-                Screen.INSTRUCTION.name -> InstructionScreen(back)
-                Screen.ABOUT.name -> IdeaScreen(back)
-                Screen.DIAG.name -> DiagScreen(back)
-                Screen.LOOK.name -> LookScreen(back)
-                Screen.ANIM.name -> AnimScreen(back)
-                Screen.EFFECTS.name -> EffectsScreen(back)
-                Screen.BANNERS.name -> BannersScreen(back)
-                Screen.PERMISSIONS.name -> PermissionsScreen(back, open)
-                Screen.TESTS.name -> TestsScreen(back)
-                Screen.NOTIFICATIONS.name -> NotificationsScreen(back)
-                Screen.BEHAVIOR.name -> BehaviorScreen(back)
             }
-        }
 
-        AnimatedVisibility(
-            visible = stack.isEmpty(),
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            BottomBar(tab) { tab = it }
+            AnimatedVisibility(
+                visible = stack.isEmpty(),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                BottomBar(tab) { tab = it }
+            }
         }
     }
 }
 
 /** Вкладки: главная, что показывает остров, как он выглядит, и о приложении — отдельно от настроек. */
-private val tabTitles = listOf("Главная", "Функции", "Оформление", "О приложении")
+private fun tabTitles() = listOf(tr("Главная", "Home"), tr("Функции", "Features"), tr("Оформление", "Appearance"), tr("О приложении", "About"))
 
 @Composable
 private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
@@ -196,7 +201,7 @@ private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        tabTitles.forEachIndexed { i, title ->
+        tabTitles().forEachIndexed { i, title ->
             val on = i == selected
             val pill by animateColorAsState(if (on) Ui.Primary else Ui.Nav, tween(200), label = "tab")
             Column(

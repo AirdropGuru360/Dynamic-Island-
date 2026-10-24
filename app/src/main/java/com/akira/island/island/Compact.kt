@@ -98,6 +98,7 @@ import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.service.Messages
 import androidx.compose.runtime.collectAsState
+import com.akira.island.core.tr
 import com.akira.island.ui.Inter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -147,7 +148,7 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
                             transformOrigin = TransformOrigin(0.5f, 0.1f)
                         })
                     },
-                    right = { Text("Таймер", color = Tints.Orange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) },
+                    right = { Text(tr("Таймер", "Timer"), color = Tints.Orange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) },
                 )
             } else {
                 val left = act.t.left(now)
@@ -233,7 +234,7 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
 
         is Act.NoticeA -> NoticeCompact(act.n, s, wideWidth)
 
-        is Act.PayA -> PayReady("Оплата", "К терминалу", act.p.icon, s, wideWidth)
+        is Act.PayA -> PayReady(tr("Оплата", "Pay"), tr("К терминалу", "Hold near reader"), act.p.icon, s, wideWidth)
     }
 }
 
@@ -471,7 +472,7 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, @Suppress("
             }
             Spacer(Modifier.width(compactGap(s)))
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                Text("сейчас", color = dim, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                Text(tr("сейчас", "now"), color = dim, fontSize = 12.sp, maxLines = 1, softWrap = false)
                 Spacer(Modifier.width(4.dp))
                 Icon(Ios.bell, null, tint = dim, modifier = Modifier.size(12.dp))
             }
@@ -495,7 +496,7 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, @Suppress("
                     }
                 }
                 if (hidden) {
-                    Text("Содержимое скрыто", color = dim, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 1)
+                    Text(tr("Содержимое скрыто", "Content hidden"), color = dim, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 1)
                 } else if (open && m.history.size > 1) {
                     m.history.forEachIndexed { i, line ->
                         Text(
@@ -524,7 +525,7 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, @Suppress("
                         // Как в ролике: на миг «Отправлено» с галочкой и кому
                         IslandBus.post(
                             Notice(
-                                title = "Отправлено",
+                                title = tr("Отправлено", "Sent"),
                                 state = n.title,
                                 icon = n.icon,
                                 tint = accent,
@@ -534,7 +535,7 @@ private fun MessageCard(n: Notice, m: AppMessage, s: IslandSettings, @Suppress("
                         )
                     } else {
                         // Поле остаётся открытым с текстом — можно попробовать ещё раз или ответить в приложении
-                        Toast.makeText(context, "Не удалось отправить ответ", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, tr("Не удалось отправить ответ", "Couldn't send the reply"), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -720,8 +721,8 @@ private fun PayReady(title: String, caption: String?, appIcon: ImageBitmap?, s: 
         Spacer(Modifier.width(compactGap(s)))
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             if (caption != null) {
-                Text(caption, color = Tints.Gray, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false))
+                // «Hold near reader» длиннее «К терминалу» — чуть уменьшается, а не обрезается
+                FitText(caption, Tints.Gray, 14.sp, 11.sp, FontWeight.Normal, Modifier.weight(1f, fill = false))
             }
             if (appIcon != null) {
                 Spacer(Modifier.width(9.dp))
@@ -832,7 +833,7 @@ private fun LiveBanner(n: Notice, l: LiveInfo, s: IslandSettings, wideWidth: Dp)
                     overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
             }
             // На узкой плашке — коротко: «12:31 · 19 ч»; полностью — в раскрытом виде
-            val shortEta = l.eta?.removePrefix("Прибытие в ")?.split(" · ")?.take(2)?.joinToString(" · ")
+            val shortEta = l.eta?.removePrefix("Прибытие в ")?.removePrefix("Arrive ")?.split(" · ")?.take(2)?.joinToString(" · ")
             if (shortEta != null) {
                 Text(shortEta, color = tint, fontSize = 13.sp, style = Digits, maxLines = 1)
             }
@@ -873,7 +874,7 @@ private fun IncomingCall(c: CallInfo, s: IslandSettings, wideWidth: Dp) {
         }
         Spacer(Modifier.width(11.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            Text("Входящий вызов", color = Tints.Gray, fontSize = 12.5.sp, lineHeight = 15.sp, maxLines = 1)
+            Text(tr("Входящий вызов", "Incoming call"), color = Tints.Gray, fontSize = 12.5.sp, lineHeight = 15.sp, maxLines = 1)
             Text(c.name, color = Color.White, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
         }

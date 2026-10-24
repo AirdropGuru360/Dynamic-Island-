@@ -28,7 +28,7 @@ Notifications with reply · navigation · payments · music with lyrics · calls
 </div>
 
 > [!NOTE]
-> The app's interface is currently in Russian. Below, setting names are given in English with the Russian label in brackets, so you can find them in the app.
+> Since 1.6.1 the app and the island speak English and Russian — switch in Features → General → Language («Функции → Общие → Язык»). Russian labels in brackets are for older versions.
 
 ---
 
@@ -120,6 +120,7 @@ Four tabs:
   - **Lyrics** — in the expanded player.
   - **Gestures** and **Behavior** — when to show and collapse the island, the second-activity circle, haptics, turning the screen on for a call.
   - **System banners** — shortcuts to the Android settings where you turn off the pop-ups of the dialer, Clock and battery, so only the island shows these events.
+  - **Language** — English or Russian, for the app and the island at once (General → Language).
 - **Appearance** («Оформление») — how the island looks:
   - **Position** — horizontal offset and top offset; the capsule updates on screen right away.
   - **Size with activity** — how much thicker and wider the capsule with an activity is than the idle one, with a live preview.

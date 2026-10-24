@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupSlider
@@ -55,32 +56,39 @@ private val outlineColors = listOf(
 @Composable
 fun ColorsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
-    Page("Цвет капсулы", onBack) {
+    Page(tr("Цвет капсулы", "Capsule color"), onBack) {
         IslandPreview()
 
-        SectionHeader("Цвет")
+        SectionHeader(tr("Цвет", "Color"))
         Swatches(capsuleColors, s.color) { c -> SettingsRepo.update { copy(color = c) } }
 
-        SectionHeader("Контур")
+        SectionHeader(tr("Контур", "Outline"))
         Group {
-            GroupToggle(Pos.First, Icons.Rounded.BorderStyle, "Контур", "Тонкая обводка вокруг капсулы", s.outline, color = Tile.Gray) { v ->
+            GroupToggle(Pos.First, Icons.Rounded.BorderStyle, tr("Контур", "Outline"),
+                tr("Тонкая обводка вокруг капсулы", "A thin line around the capsule"),
+                s.outline, color = Tile.Gray) { v ->
                 SettingsRepo.update { copy(outline = v) }
             }
-            GroupToggle(Pos.Middle, Icons.Rounded.Image, "Цвет из обложки", "Пока играет музыка, контур окрашивается в цвет обложки",
+            GroupToggle(Pos.Middle, Icons.Rounded.Image, tr("Цвет из обложки", "Color from artwork"),
+                tr("Пока играет музыка, контур окрашивается в цвет обложки", "While music plays, the outline takes the artwork's color"),
                 s.outlineFromArt, color = Tile.Pink) { v -> SettingsRepo.update { copy(outlineFromArt = v, outline = outline || v) } }
-            GroupSlider(Pos.Last, Icons.Rounded.LineWeight, "Толщина", s.outlineWidth, 0.5f..4f, "%.1f dp".format(s.outlineWidth), color = Tile.Gray) { v ->
+            GroupSlider(Pos.Last, Icons.Rounded.LineWeight, tr("Толщина", "Thickness"), s.outlineWidth, 0.5f..4f,
+                "%.1f dp".format(s.outlineWidth), color = Tile.Gray) { v ->
                 SettingsRepo.update { copy(outlineWidth = (v * 2).toInt() / 2f) }
             }
         }
         Swatches(outlineColors, s.outlineColor) { c -> SettingsRepo.update { copy(outlineColor = c, outline = true) } }
 
-        SectionHeader("Тень")
-        GroupToggle(Pos.Single, Icons.Rounded.Layers, "Тень", "Мягкая тень под капсулой — заметна на светлых экранах", s.shadow, color = Tile.Indigo) { v ->
+        SectionHeader(tr("Тень", "Shadow"))
+        GroupToggle(Pos.Single, Icons.Rounded.Layers, tr("Тень", "Shadow"),
+            tr("Мягкая тень под капсулой — заметна на светлых экранах", "A soft shadow under the capsule — visible on light screens"),
+            s.shadow, color = Tile.Indigo) { v ->
             SettingsRepo.update { copy(shadow = v) }
         }
 
         Text(
-            "Цвет кнопок «Ответить» и «Пометить прочитанным» — в «Функции» → «Уведомления».",
+            tr("Цвет кнопок «Ответить» и «Пометить прочитанным» — в «Функции» → «Уведомления».",
+                "The color of the Reply and Mark as read buttons is in Features → Notifications."),
             color = Ui.Sub, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 8.dp),
         )
     }

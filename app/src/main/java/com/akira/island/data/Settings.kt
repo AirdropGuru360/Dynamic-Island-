@@ -2,6 +2,7 @@ package com.akira.island.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.akira.island.core.tr
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,42 +12,70 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
-enum class ExpandStyle(val title: String) {
-    FRUIT("Как Фрукт"),
-    SPRING("Пружина"),
-    SMOOTH("Плавно"),
-    INSTANT("Без анимации"),
+enum class ExpandStyle(private val ru: String, private val en: String) {
+    FRUIT("Как Фрукт", "Like a Fruit"),
+    SPRING("Пружина", "Spring"),
+    SMOOTH("Плавно", "Smooth"),
+    INSTANT("Без анимации", "No animation"),
+    ;
+
+    val title: String get() = tr(ru, en)
 }
 
 @Serializable
-enum class Elasticity(val title: String, val damping: Float) {
-    NONE("Без упругости", 1f),
-    LOW("Слабая упругость", 0.8f),
-    MEDIUM("Средняя упругость", 0.62f),
-    HIGH("Сильная упругость", 0.48f),
+enum class Elasticity(private val ru: String, private val en: String, val damping: Float) {
+    NONE("Без упругости", "No bounce", 1f),
+    LOW("Слабая упругость", "Light bounce", 0.8f),
+    MEDIUM("Средняя упругость", "Medium bounce", 0.62f),
+    HIGH("Сильная упругость", "Strong bounce", 0.48f),
+    ;
+
+    val title: String get() = tr(ru, en)
 }
 
 @Serializable
-enum class TapAction(val title: String) {
-    EXPAND("Раскрыть капсулу"),
-    OPEN_APP("Открыть приложение"),
-    PLAY_PAUSE("Пауза / воспроизведение"),
-    NEXT_TRACK("Следующий трек"),
-    NOTHING("Ничего"),
+enum class TapAction(private val ru: String, private val en: String) {
+    EXPAND("Раскрыть капсулу", "Expand the capsule"),
+    OPEN_APP("Открыть приложение", "Open the app"),
+    PLAY_PAUSE("Пауза / воспроизведение", "Play / pause"),
+    NEXT_TRACK("Следующий трек", "Next track"),
+    NOTHING("Ничего", "Nothing"),
+    ;
+
+    val title: String get() = tr(ru, en)
 }
 
 /** Откуда берётся цвет кнопок «Ответить», «Пометить прочитанным» и отправки в карточке уведомления. */
 @Serializable
-enum class AccentMode(val title: String, val hint: String) {
-    DEFAULT("Сиреневый", "Цвет приложения"),
-    SYSTEM("Системный", "Цвет из обоев Android 12+ (Material You)"),
-    ADAPTIVE("Из аватара", "Подбирается по аватару или значку приложения"),
-    CUSTOM("Свой", "Любой цвет из набора"),
+enum class AccentMode(private val ru: String, private val en: String, private val hintRu: String, private val hintEn: String) {
+    DEFAULT("Сиреневый", "Lavender", "Цвет приложения", "The app's color"),
+    SYSTEM("Системный", "System", "Цвет из обоев Android 12+ (Material You)", "From your Android 12+ wallpaper (Material You)"),
+    ADAPTIVE("Из аватара", "From the avatar", "Подбирается по аватару или значку приложения", "Matched to the avatar or app icon"),
+    CUSTOM("Свой", "Custom", "Любой цвет из набора", "Any color from the palette"),
+    ;
+
+    val title: String get() = tr(ru, en)
+    val hint: String get() = tr(hintRu, hintEn)
+}
+
+/** Язык приложения и острова. «Как в системе» — русский, если телефон на русском, иначе английский. */
+@Serializable
+enum class AppLanguage {
+    SYSTEM, RU, EN;
+
+    val title: String
+        get() = when (this) {
+            SYSTEM -> tr("Как в системе", "System default")
+            RU -> "Русский"
+            EN -> "English"
+        }
 }
 
 @Serializable
 data class IslandSettings(
     val enabled: Boolean = true,
+    /** Язык приложения и острова */
+    val language: AppLanguage = AppLanguage.SYSTEM,
 
     // Динамические карточки
     val cardMedia: Boolean = true,

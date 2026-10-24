@@ -12,6 +12,7 @@ import com.akira.island.core.IslandBus
 import com.akira.island.core.Notice
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
 
@@ -52,7 +53,7 @@ class AlarmMonitor(private val context: Context) {
         if (!s.enabled || !s.evAlarmSet) return
         IslandBus.post(
             Notice(
-                title = "Будильник",
+                title = tr("Будильник", "Alarm"),
                 icon = Ios.load(context, R.drawable.ios_alarm),
                 tint = Tints.Orange,
                 style = NoticeStyle.ALARM,

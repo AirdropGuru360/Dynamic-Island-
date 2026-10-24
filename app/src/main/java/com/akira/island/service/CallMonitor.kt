@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
 import com.akira.island.core.CallInfo
 import com.akira.island.core.IslandBus
+import com.akira.island.core.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,7 +73,7 @@ class CallMonitor(private val context: Context, private val scope: CoroutineScop
     private fun publish(incoming: Boolean) {
         val num = number
         val base = if (incoming) System.currentTimeMillis() else since
-        put(CallInfo(KEY, dialer(), num?.let(::format) ?: "Звонок", null, incoming, base, System.currentTimeMillis(),
+        put(CallInfo(KEY, dialer(), num?.let(::format) ?: tr("Звонок", "Call"), null, incoming, base, System.currentTimeMillis(),
             null, null, null, null))
         // Имя и фото из контактов подставляем, когда найдутся
         lookupJob?.cancel()

@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akira.island.core.tr
 
 @Composable
 fun IslandSwitch(checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
@@ -104,7 +105,7 @@ fun Page(
                     Modifier.size(48.dp).clip(CircleShape).background(Ui.Card).clickable(onClick = onBack),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Назад", tint = Ui.Text)
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("Назад", "Back"), tint = Ui.Text)
                 }
                 Spacer(Modifier.width(18.dp))
             } else {
@@ -463,6 +464,6 @@ fun <T> ChoiceDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Закрыть", color = Ui.Primary) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Закрыть", "Close"), color = Ui.Primary) } },
     )
 }
