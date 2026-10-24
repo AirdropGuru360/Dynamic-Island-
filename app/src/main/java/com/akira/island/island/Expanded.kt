@@ -152,7 +152,8 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
                 }
             }
             Spacer(Modifier.width(10.dp))
-            Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(30.dp, 20.dp), bars = 6)
+            val egg by IslandBus.egg.collectAsState()
+            if (egg) SoulHeart(Modifier.size(24.dp)) else Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(30.dp, 20.dp), bars = 6)
         }
 
         val lines = lyrics?.takeIf { it.key == m.key && s.lyricsEnabled && it.lines.isNotEmpty() }

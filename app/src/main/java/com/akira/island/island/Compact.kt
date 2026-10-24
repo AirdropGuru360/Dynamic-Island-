@@ -298,9 +298,13 @@ fun CompactRow(
 private fun MediaCompact(m: MediaInfo, s: IslandSettings) {
     val h = activeHeight(s)
     val art = h * 0.6f
+    val egg by IslandBus.egg.collectAsState()
     CompactRow(h, compactGap(s), sideMax(s),
         left = { Art(m.art, art, art * 0.27f) },
-        right = { Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(h * 0.62f, h * 0.44f)) },
+        right = {
+            // Пасхалка: вместо эквалайзера бьётся душа
+            if (egg) SoulHeart(Modifier.size(h * 0.5f)) else Equalizer(m.accent, m.playing, !s.reduceEffects, Modifier.size(h * 0.62f, h * 0.44f))
+        },
     )
 }
 
@@ -317,6 +321,7 @@ private fun NoticeCompact(n: Notice, s: IslandSettings, wideWidth: Dp) {
         n.style == NoticeStyle.PAY_DONE -> PayDone(n, s, wideWidth)
         n.style == NoticeStyle.LIVE && n.live != null -> LiveBanner(n, n.live, s, wideWidth)
         n.style == NoticeStyle.ALARM && n.alarm != null -> AlarmBanner(n, n.alarm, s, wideWidth)
+        n.style == NoticeStyle.EGG -> EggBanner(n, s)
         n.style == NoticeStyle.PILL || n.title.isBlank() && n.state == null -> PillNotice(n, s)
         else -> WideNotice(n, s, wideWidth)
     }
@@ -545,7 +550,7 @@ fun messageWidth(): Dp = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).c
  * уведомления, — с учётом того, на сколько остров опущен в настройках. Не выше шапки у камеры.
  */
 @Composable
-private fun messageTop(s: IslandSettings): Dp {
+fun messageTop(s: IslandSettings): Dp {
     val status = statusBarHeight()
     return maxOf(s.height.dp + 6.dp, status + 24.dp - s.offsetY.dp)
 }

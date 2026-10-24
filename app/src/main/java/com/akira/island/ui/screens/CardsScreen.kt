@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.KeyboardVoice
 import androidx.compose.material.icons.rounded.TouchApp
@@ -92,6 +93,9 @@ fun CardsScreen(onBack: () -> Unit, onInstruction: () -> Unit) {
                 s.cardLive, color = Tile.Teal) { v -> SettingsRepo.update { copy(cardLive = v) } }
             ToggleCard(Icons.Rounded.Call, "Звонки", "Входящий вызов с кнопками ответа и время разговора",
                 s.cardCall, color = Tile.Green) { v -> SettingsRepo.update { copy(cardCall = v) } }
+            ToggleCard(Icons.Rounded.AutoAwesome, "Пасхалки",
+                "Одну особенную песню остров узнаёт и устраивает для неё маленькое шоу в такт музыке. Какую — попробуйте угадать",
+                s.easterEggs, color = Tile.Red) { v -> SettingsRepo.update { copy(easterEggs = v) } }
         }
 
         // Розовая кнопка внизу: что делает одиночное нажатие на капсулу

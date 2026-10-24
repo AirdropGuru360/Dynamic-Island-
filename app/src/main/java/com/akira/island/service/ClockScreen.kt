@@ -154,6 +154,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     private var pending: Pending? = null
     /** Когда открылись «Часы»: столько остров уже смотрит на их цифры и знает, идут ли они */
     private var openedAt = 0L
+    /** Когда остров сам нажал кнопку «Часов»: их ответное «нажали» не должно стереть то, что он знает */
+    private var ownClickAt = 0L
     private var cleanupJob: Job? = null
 
     fun onForeground(pkg: String) {
@@ -193,19 +195,25 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     /** Нажали кнопку в «Часах»: «Старт», «Пауза», «Сброс» — экран вот-вот поменяется, читаем его несколько раз. */
     fun onClicked(event: AccessibilityEvent) {
         if (event.packageName?.toString() != current) return
+        // Это эхо нажатия самого острова — что нажато, он уже знает (подпись в эхе бывает пустой)
+        if (SystemClock.elapsedRealtime() - ownClickAt < 1_500) return
         val label = event.text.joinToString(" ") + " " + (event.contentDescription ?: "")
         // Подпись не узнали — смотрим на id кнопки; круглая кнопка Google Часов то запускает, то ставит на паузу
         val id = runCatching { event.source?.viewIdResourceName }.getOrNull().orEmpty().lowercase()
         val running = if (tab == Kind.STOPWATCH) stopwatch?.pausedMs == null && stopwatch != null else timer?.pausedMs == null && timer != null
-        hintKind = tab
-        hint = ClockWords.action(label) ?: when {
+        val action = ClockWords.action(label) ?: when {
             "reset" in id || "delete" in id -> ClockAction.RESET
             "pause" in id || ("stop" in id && "stopwatch" !in id) -> ClockAction.PAUSE
             "start" in id || "resume" in id || "play" in id -> ClockAction.START
             "fab" in id -> if (running) ClockAction.PAUSE else ClockAction.START
             else -> null
         }
-        hintAt = SystemClock.elapsedRealtime()
+        // Нажали что-то другое (вкладку, «Круг») — то, что известно о прошлом нажатии, не трогаем
+        if (action != null) {
+            hintKind = tab
+            hint = action
+            hintAt = SystemClock.elapsedRealtime()
+        }
         // После нажатия экран меняется — перечитываем его сразу, без ожидания
         needRescan = true
         scannedAt = 0L
@@ -304,10 +312,13 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         hint = p.action
         hintKind = want
         hintAt = now
+        ownClickAt = now
         pending = null
         if (p.opened) {
             scope.launch {
-                delay(350)
+                // Даём «Часам» встать и острову увидеть это, потом возвращаемся
+                delay(600)
+                runCatching { tick() }
                 service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             }
         }

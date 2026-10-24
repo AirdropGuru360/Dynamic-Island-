@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -116,6 +117,7 @@ fun IslandOverlay(
     val focus by IslandBus.focus.collectAsState()
     val calibrating by IslandBus.calibrating.collectAsState()
     val nextAlarm by IslandBus.nextAlarm.collectAsState()
+    val egg by IslandBus.egg.collectAsState()
     // Будильник появляется в острове за 12 часов — проверяем раз в полминуты
     var alarmNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(nextAlarm) {
@@ -236,9 +238,25 @@ fun IslandOverlay(
         return
     }
 
+    // Где остров в окне — вокруг него рисуются эффекты пасхалки
+    val body = remember { mutableStateOf(Rect.Zero) }
+    val onBody = remember(onBodyBounds) {
+        { r: Rect ->
+            body.value = r
+            onBodyBounds(r)
+        }
+    }
+    val eggOn = egg && !calibrating
+
     // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBodyBounds, onBubbleBounds)
+        // Пасхалка: свечение за островом, вспышки и звёзды поверх
+        if (eggOn) EggGlow { body.value }
+        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBody, onBubbleBounds)
+        if (eggOn) {
+            EggSparks { body.value }
+            EggDriver({ body.value }, s)
+        }
     }
 }
 
@@ -303,7 +321,7 @@ private fun IslandBody(
 
     val cornerTarget = when {
         expanded -> 44.dp
-        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 32.dp
+        primary is Act.NoticeA && (primary.n.style == NoticeStyle.MESSAGE || primary.n.style == NoticeStyle.EGG) -> 32.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
         primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE ||
             primary.n.style == NoticeStyle.LIVE || primary.n.style == NoticeStyle.ALARM) -> noticeHeight(s) / 2
@@ -361,13 +379,16 @@ private fun IslandBody(
     val current by rememberUpdatedState(primary)
     val isExpanded by rememberUpdatedState(expanded)
     val settings by rememberUpdatedState(s)
+    val egg by IslandBus.egg.collectAsState()
 
     Box(
         Modifier
             .onGloballyPositioned { onBounds(it.boundsInWindow()) }
             .graphicsLayer {
-                scaleX = jellyX.value * (1f + 0.03f * pull.value)
-                scaleY = jellyY.value * (1f + 0.08f * pull.value)
+                // Пасхалка: остров подпрыгивает в такт песни
+                val bump = Egg.bump()
+                scaleX = jellyX.value * (1f + 0.03f * pull.value) * bump
+                scaleY = jellyY.value * (1f + 0.08f * pull.value) * bump
                 translationX = shake.value.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
@@ -392,6 +413,16 @@ private fun IslandBody(
                     calibrating -> Modifier.border(2.dp, Color.White, shape)
                     s.outline -> Modifier.border(s.outlineWidth.dp, outlineColor, shape)
                     else -> Modifier
+                },
+            )
+            .then(
+                if (egg && !calibrating) {
+                    Modifier.drawWithContent {
+                        drawContent()
+                        eggRim(corner.toPx())
+                    }
+                } else {
+                    Modifier
                 },
             )
             .pointerInput(s.doubleTapAction != TapAction.NOTHING, s.longPressAction != TapAction.NOTHING) {

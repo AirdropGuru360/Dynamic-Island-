@@ -68,6 +68,8 @@ data class IslandSettings(
     val timerFromAssistant: Boolean = true,
     /** Звонит таймер, будильник или входящий вызов — остров включает экран и не даёт ему погаснуть */
     val wakeForAlerts: Boolean = true,
+    /** Особые песни остров встречает эффектами в такт музыке */
+    val easterEggs: Boolean = true,
 
     // События
     val evChargeStart: Boolean = true,

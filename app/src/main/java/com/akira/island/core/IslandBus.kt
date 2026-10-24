@@ -57,6 +57,8 @@ object IslandBus {
     val locked = MutableStateFlow(false)
     /** Открыт экран «Размер и положение»: остров красный, чтобы подогнать его под камеру */
     val calibrating = MutableStateFlow(false)
+    /** Играет та самая песня — остров празднует (пасхалка, Egg.kt) */
+    val egg = MutableStateFlow(false)
     /** Последнее касание раскрытого острова — чтобы не сворачивать его из-под пальца */
     @Volatile
     var lastTouch = 0L

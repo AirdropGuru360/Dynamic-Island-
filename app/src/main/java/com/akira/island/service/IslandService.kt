@@ -33,6 +33,7 @@ import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
+import com.akira.island.island.Egg
 import com.akira.island.island.ISLAND_PAD_DP
 import com.akira.island.island.IslandOverlay
 import com.akira.island.ui.InterTypography
@@ -109,6 +110,12 @@ class IslandService : AccessibilityService() {
     private var tall = true
     private val settle = Runnable {
         tall = false
+        updateDisplayHeight()
+    }
+    /** Играет пасхалка: свечению и звёздам вокруг острова нужно высокое окно */
+    private var eggTall = false
+    private val eggSettle = Runnable {
+        eggTall = false
         updateDisplayHeight()
     }
 
@@ -200,6 +207,22 @@ class IslandService : AccessibilityService() {
         scope.launch {
             combine(SettingsRepo.state, IslandBus.landscape) { s, land -> s to land }
                 .collect { (s, land) -> applySettings(s, land) }
+        }
+
+        // Пасхалка: та самая песня играет — окно острова высокое, пока горят эффекты, и ещё чуть-чуть, пока гаснут
+        Egg.watch(this, scope)
+        scope.launch {
+            combine(IslandBus.egg, IslandBus.media) { on, m -> on && m?.playing == true }
+                .distinctUntilChanged()
+                .collect { on ->
+                    handler.removeCallbacks(eggSettle)
+                    if (on) {
+                        eggTall = true
+                        updateDisplayHeight()
+                    } else {
+                        handler.postDelayed(eggSettle, 1_500)
+                    }
+                }
         }
     }
 
@@ -298,7 +321,7 @@ class IslandService : AccessibilityService() {
     /** Меняется только высота окна, верх остаётся на месте — картинка при этом не прыгает. */
     private fun updateDisplayHeight() {
         val view = display ?: return
-        val h = if (tall || IslandBus.expanded.value) tallHeight() else islandBottom().coerceAtLeast(dp(ISLAND_PAD_DP * 2))
+        val h = if (tall || eggTall || IslandBus.expanded.value) tallHeight() else islandBottom().coerceAtLeast(dp(ISLAND_PAD_DP * 2))
         if (displayParams.height == h) return
         displayParams.height = h
         runCatching { wm?.updateViewLayout(view, displayParams) }
@@ -487,6 +510,8 @@ class IslandService : AccessibilityService() {
 
     override fun onDestroy() {
         handler.removeCallbacks(settle)
+        handler.removeCallbacks(eggSettle)
+        IslandBus.egg.value = false
         setTiltEnabled(false)
         IslandBus.serviceRunning.value = false
         events?.stop()

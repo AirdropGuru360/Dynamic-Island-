@@ -32,6 +32,7 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - If Clock's notifications are on, the island still takes the timer from them.
 - **Buttons like the island's own timer**: the expanded island shows pause/resume and reset for the Clock timer and stopwatch, and they control Clock itself. With Clock's notifications on, the island taps the notification's buttons — instantly and without opening the app. With them off, it opens Clock for a moment, finds the button by its label or id, checks whether the timer is really running (so a round toggle button isn't pressed the wrong way), taps it and brings you back; while a timer runs Reset isn't shown, so the island pauses it first.
 - Pausing from the island no longer "bounces back": the island knows it pressed Pause and doesn't take the last step of the digits while Clock was stopping as the stopwatch running; when paused it shows exactly the time Clock shows. A stopwatch with fractions of a second is seen as paused almost instantly.
+- Pausing from the island also sticks when the island briefly opens Clock: Clock reports the tap with the button's new label ("Resume"), and the island took that for Start — Clock was paused while the time in the island kept running. Now the island recognises its own tap and goes back only once Clock has actually stopped.
 - **Inactive ones don't linger**: a paused, reset, deleted or finished Clock timer or stopwatch leaves the island — a pause stays visible for 3 seconds, and a reset or delete in Clock is noticed even as you leave the app.
 - Less delay: the island also recognizes a Clock button by its id (Google Clock's round button), and reads the Clock screen one last time as you leave — a timer started right before leaving isn't lost.
 - "Set a timer" from a voice assistant, widget or another app can go to the island: "Dynamic Island" now appears in the chooser, and the timer starts right in it, without Clock.
@@ -44,6 +45,10 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 ### ⚙️ Everything follows the settings
 - **Event display** («Показ событий») moved to Capsule settings → Island expansion («Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, "Hold near reader" 3.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
 - New switches: General → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
+
+### 🎵 Easter egg
+- The island recognises one special song and puts on a little show for it: it bounces to the beat, glows in rainbow colours, stars burst out from under it on the strong beats, and a heart beats instead of the equaliser. It starts with a banner in the style of a certain game. Which song? Try to guess.
+- Turn it off in Dynamic cards → Easter eggs («Динамические карточки → Пасхалки»). With Reduce effects («Уменьшить эффекты») the island doesn't bounce and no stars fly — only the glow and the heart remain.
 
 ### 🔗 Small things
 - General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.
