@@ -26,9 +26,9 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - The island doesn't keep walking the whole Clock screen: it remembers the time labels and refreshes only them, and gets screen changes and taps only while Clock is open — the app doesn't lag.
 - If Clock's notifications are on, the island still takes the timer from them.
 
-### ⚡ Snappier animations
-- The island expands, collapses and changes shape noticeably faster at the same Duration setting; content appears without delay, banners follow each other without a pause.
-- **Unlock** shows right when the lock screen goes away, not after the system message; the ring-mode pill shakes faster, event icons pop faster and the Paid check draws faster.
+### ⚡ Animations without delay
+- Animation speed is unchanged and still set by the Duration setting, but animations start right away: the island content, the ring-mode pill, event icons and the Paid check no longer wait before starting, and banners follow each other almost without a pause.
+- **Unlock** shows as soon as the lock screen goes away, not when the system message arrives.
 
 ### 🔗 Small things
 - General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.

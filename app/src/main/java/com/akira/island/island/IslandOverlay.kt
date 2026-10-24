@@ -329,12 +329,12 @@ private fun IslandBody(
         val amp = 0.07f * (1.25f - s.elasticity.damping)
         val dir = if (expanded) 1f else -1f
         launch {
-            jellyX.animateTo(1f - amp * dir, tween(80))
-            jellyX.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 420f))
+            jellyX.animateTo(1f - amp * dir, tween(110))
+            jellyX.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 260f))
         }
         launch {
-            jellyY.animateTo(1f + amp * dir, tween(80))
-            jellyY.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 420f))
+            jellyY.animateTo(1f + amp * dir, tween(110))
+            jellyY.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 260f))
         }
     }
     // Оттягивание вниз пальцем
@@ -355,8 +355,7 @@ private fun IslandBody(
     val pillId = (primary as? Act.NoticeA)?.n?.takeIf { it.style == NoticeStyle.PILL }?.id
     LaunchedEffect(pillId) {
         if (pillId == null || s.reduceEffects) return@LaunchedEffect
-        delay(40)
-        for (x in floatArrayOf(-8f, 7f, -5f, 3.5f, -2f, 0f)) shake.animateTo(x, tween(50))
+        for (x in floatArrayOf(-8f, 7f, -5f, 3.5f, -2f, 0f)) shake.animateTo(x, tween(60))
     }
 
     val current by rememberUpdatedState(primary)
@@ -474,15 +473,15 @@ private fun IslandBody(
                 val enter = if (s.reduceEffects) {
                     fadeIn(tween(150))
                 } else {
-                    fadeIn(tween(150, delayMillis = 30)) + scaleIn(tween(200), initialScale = 0.9f)
+                    fadeIn(tween(220)) + scaleIn(tween(280), initialScale = 0.88f)
                 }
-                (enter togetherWith fadeOut(tween(70))).using(SizeTransform(clip = true) { _, _ -> islandSpec(s) })
+                (enter togetherWith fadeOut(tween(90))).using(SizeTransform(clip = true) { _, _ -> islandSpec(s) })
             },
             label = "island",
         ) { f ->
             // Содержимое «перетекает» с лёгким размытием, как в острове iPhone (Android 12+)
             val blur by transition.animateFloat(
-                transitionSpec = { tween(180) },
+                transitionSpec = { tween(260) },
                 label = "blur",
             ) { state -> if (state == EnterExitState.Visible || s.reduceEffects) 0f else 9f }
             Box(
