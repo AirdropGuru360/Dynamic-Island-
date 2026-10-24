@@ -46,11 +46,8 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - **Event display** («Показ событий») moved to Capsule settings → Island expansion («Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, "Hold near reader" 3.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
 - New switches: General → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
 
-### 🎵 Easter egg
-- The island recognises one special song and puts on a little show for it: it bounces to the beat, glows in rainbow colours, stars burst out from under it on the strong beats, and a heart beats instead of the equaliser. It starts with a banner in the style of a certain game. Which song? Try to guess.
-- Turn it off in Dynamic cards → Easter eggs («Динамические карточки → Пасхалки»). With Reduce effects («Уменьшить эффекты») the island doesn't bounce and no stars fly — only the glow and the heart remain.
-
 ### 🔗 Small things
+- Added an easter egg.
 - General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.
 - The Liquid Glass label is now **«Экспериментальный»** ("Experimental").
 
