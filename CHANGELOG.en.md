@@ -25,6 +25,11 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - If Clock's notifications are off, Android gives them to no one. Now the island watches the Clock screen itself while it's open: tap Start — the timer or stopwatch is in the island **right away** and keeps running after you leave the app; Pause — it freezes with a pause icon; Reset or delete — it disappears. Without a tap the timer is recognized by its moving digits: a stopwatch within a fraction of a second, a timer within a second.
 - The island doesn't keep walking the whole Clock screen: it remembers the time labels and refreshes only them, and gets screen changes and taps only while Clock is open — the app doesn't lag.
 - If Clock's notifications are on, the island still takes the timer from them.
+- **Buttons like the island's own timer**: the expanded island shows pause/resume and reset for the Clock timer and stopwatch. With Clock's notifications on, the island taps the notification's buttons — instantly and without opening the app. With them off, it opens Clock for a moment, taps the right button itself and brings you back. The result shows in the island right away.
+- A **paused** Clock timer or stopwatch no longer disappears from the island; it shows with a pause icon.
+- Less delay: the island also recognizes a Clock button by its id (Google Clock's round button), and reads the Clock screen one last time as you leave — a timer started right before leaving isn't lost.
+- "Set a timer" from a voice assistant, widget or another app can go to the island: "Dynamic Island" now appears in the chooser, and the timer starts right in it, without Clock.
+- System banners now has a tip: choose "Silent" and "Minimize" for Clock's notifications instead of turning them off completely, then everything works instantly.
 
 ### ⚡ Animations without delay
 - Animation speed is unchanged and still set by the Duration setting, but animations start right away: the island content, the ring-mode pill, event icons and the Paid check no longer wait before starting, and banners follow each other almost without a pause.

@@ -159,7 +159,7 @@ class IslandService : AccessibilityService() {
         alarm = TimerAlarm(this, scope).also { it.start() }
         calls = CallMonitor(this, scope).also { it.start() }
         navReader = NavScreenReader(this, scope)
-        clockReader = ClockScreenReader(this, scope)
+        clockReader = ClockScreenReader(this, scope).also { ClockControl.reader = it }
         alarmMonitor = AlarmMonitor(this).also { it.start() }
         IslandBus.serviceRunning.value = true
 
@@ -493,6 +493,7 @@ class IslandService : AccessibilityService() {
         calls?.stop()
         navReader?.stop()
         clockReader?.stop()
+        ClockControl.reader = null
         alarmMonitor?.stop()
         scope.cancel()
         touch?.let { runCatching { wm?.removeView(it) } }

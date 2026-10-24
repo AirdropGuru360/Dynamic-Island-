@@ -87,15 +87,28 @@ object NotificationParser {
             if (call != null) put(sbn.key, call) else remove(sbn.key)
         }
 
-        val chrono = call == null && !isMedia && ex.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false) && n.`when` > 0
+        val ticking = ex.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false) && n.`when` > 0
+        // Кнопки «Часов» (пауза, продолжить, сброс) — их нажимают кнопки острова
+        val clock = ClockApps.isClock(context, sbn.packageName)
+        val buttons = if (clock) ClockWords.buttons(n.actions) else emptyMap()
+        // Таймер или секундомер «Часов» на паузе: счёт стоит, время только в тексте, а в кнопках — «Продолжить»
+        val pausedMs = if (clock && !ticking && call == null && !isMedia && ClockAction.START in buttons) {
+            listOf(Notification.EXTRA_TITLE, Notification.EXTRA_TEXT, Notification.EXTRA_SUB_TEXT, Notification.EXTRA_BIG_TEXT)
+                .firstNotNullOfOrNull { ClockScreenParser.find(ex.getCharSequence(it)) }
+        } else {
+            null
+        }
+        val chrono = call == null && !isMedia && (ticking || pausedMs != null)
         IslandBus.chrono.value = IslandBus.chrono.value.toMutableMap().apply {
             if (chrono) {
-                val down = ex.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN, false)
+                val down = if (pausedMs != null) looksLikeTimer(n, title) else ex.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN, false)
                 val stop = n.actions?.firstOrNull { a ->
                     val t = a.title?.toString()?.lowercase().orEmpty()
                     listOf("стоп", "останов", "заверш", "stop", "finish").any { it in t }
                 }?.actionIntent
-                put(sbn.key, ChronoInfo(sbn.key, sbn.packageName, title, icon(context, sbn.packageName), n.`when`, down, sbn.postTime, stop))
+                put(sbn.key, ChronoInfo(sbn.key, sbn.packageName, title, icon(context, sbn.packageName), n.`when`, down, sbn.postTime, stop,
+                    pausedMs = pausedMs, pause = buttons[ClockAction.PAUSE], resume = buttons[ClockAction.START],
+                    reset = buttons[ClockAction.RESET]))
             } else {
                 remove(sbn.key)
             }
@@ -167,6 +180,15 @@ object NotificationParser {
             hangUp = hangUp ?: decline,
             open = n.contentIntent,
         )
+    }
+
+    /** Таймер на паузе или секундомер — по заголовку и каналу; по умолчанию таймер. */
+    private fun looksLikeTimer(n: Notification, title: String): Boolean {
+        val t = (title + " " + n.channelId.orEmpty()).lowercase()
+        return when {
+            "секундомер" in t || "stopwatch" in t -> false
+            else -> true
+        }
     }
 
     @Suppress("DEPRECATION")

@@ -63,6 +63,21 @@
             </intent-filter>
         </activity>
 
+        <!-- «Поставь таймер» от помощника или виджета: если выбрать остров, таймер сразу в нём -->
+        <activity
+            android:name=".ui.SetTimerActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SET_TIMER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Пустой прозрачный экран: включает дисплей, когда звонит таймер, если не вышло иначе -->
         <activity
             android:name=".service.WakeActivity"

@@ -9,6 +9,7 @@ import android.provider.AlarmClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.akira.island.core.ChronoInfo
+import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.CoroutineScope
@@ -36,15 +37,60 @@ object ClockApps {
     fun packages(context: Context): Set<String> = found ?: (known + runCatching {
         @Suppress("DEPRECATION")
         context.packageManager.queryIntentActivities(Intent(AlarmClock.ACTION_SET_TIMER), 0).map { it.activityInfo.packageName }
-    }.getOrDefault(emptyList())).also { found = it }
+    }.getOrDefault(emptyList()) - context.packageName).also { found = it }
 
     fun isClock(context: Context, pkg: String) = pkg in packages(context)
+}
+
+/** Что делает кнопка «Часов». */
+enum class ClockAction { START, PAUSE, RESET }
+
+/** Подписи кнопок «Часов» — для нажатий на экране, кнопок уведомления и поиска кнопки, которую нажмёт остров. */
+object ClockWords {
+    private val start = listOf("старт", "start", "начать", "пуск", "запуст", "продолж", "возобнов", "resume")
+    private val pause = setOf("пауза", "pause", "стоп", "stop")
+    private val reset = listOf("сброс", "reset", "удал", "delete", "отмен", "cancel", "очист", "clear")
+    private val nonLetters = Regex("[^\\p{L}]+")
+
+    /** Кнопки на экране «Часов», которые остров ищет и нажимает сам, — подпись целиком. */
+    val labels = mapOf(
+        ClockAction.START to listOf("Старт", "Начать", "Продолжить", "Пуск", "Возобновить", "Start", "Resume"),
+        ClockAction.PAUSE to listOf("Пауза", "Стоп", "Pause", "Stop"),
+        ClockAction.RESET to listOf("Сбросить", "Сброс", "Удалить", "Reset", "Delete"),
+    )
+
+    /** По началу слова; «стоп» — только целым словом, иначе совпадёт «Stopwatch». */
+    fun action(label: CharSequence?): ClockAction? {
+        val words = label?.toString()?.lowercase()?.split(nonLetters)?.filter { it.isNotEmpty() } ?: return null
+        return when {
+            words.any { w -> reset.any { w.startsWith(it) } } -> ClockAction.RESET
+            words.any { w -> w in pause || w.startsWith("приостанов") } -> ClockAction.PAUSE
+            words.any { w -> start.any { w.startsWith(it) } } -> ClockAction.START
+            else -> null
+        }
+    }
+
+    /** Кнопки из уведомления «Часов»: пауза, продолжить, сброс. */
+    fun buttons(actions: Array<android.app.Notification.Action>?): Map<ClockAction, android.app.PendingIntent> {
+        val out = HashMap<ClockAction, android.app.PendingIntent>()
+        actions?.forEach { a ->
+            val intent = a.actionIntent ?: return@forEach
+            val kind = action(a.title) ?: return@forEach
+            if (kind !in out) out[kind] = intent
+        }
+        return out
+    }
 }
 
 /** Разбор надписей экрана «Часов». Отдельно от Android, чтобы можно было проверить на примерах. */
 object ClockScreenParser {
     /** «4:59», «00:04:59», «01:05,23», «1:02:03.4» */
     private val time = Regex("""^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.,](\d{1,3}))?$""")
+
+    private val anywhere = Regex("""(?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d{1,3})?""")
+
+    /** Время где-нибудь в тексте: «Осталось 4:59» → 4:59. */
+    fun find(text: CharSequence?): Long? = text?.let { anywhere.find(it)?.value }?.let { parse(it) }
 
     fun parse(text: String): Long? {
         val m = time.matchEntire(text.filterNot { it.isWhitespace() }) ?: return null
@@ -67,7 +113,6 @@ object ClockScreenParser {
  */
 class ClockScreenReader(private val service: AccessibilityService, private val scope: CoroutineScope) {
     private enum class Kind { TIMER, STOPWATCH }
-    private enum class Hint { START, PAUSE, RESET }
 
     /** Надпись со временем на экране; [key] — id вида или место, [height] — главная надпись крупнее */
     private class Display(val key: String, val node: AccessibilityNodeInfo, val height: Int)
@@ -89,7 +134,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     private var lastTick = 0L
     private var needRescan = true
     private val seen = HashMap<String, Seen>()
-    private var hint: Hint? = null
+    private var hint: ClockAction? = null
     private var hintAt = 0L
     private var timer: Track? = null
     private var stopwatch: Track? = null
@@ -97,8 +142,15 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     private var stopwatchMisses = 0
     private val labels = HashMap<String, String>()
 
+    /** Кнопку нажимает сам остров: какую, для таймера или секундомера, до какого времени ждать и открыл ли «Часы» он сам */
+    private class Pending(val action: ClockAction, val timer: Boolean, val until: Long, val opened: Boolean)
+    private var pending: Pending? = null
+
     fun onForeground(pkg: String) {
         if (!ClockApps.isClock(service, pkg)) {
+            // Уходя из «Часов», читаем их в последний раз: окно ещё на экране, и таймер, запущенный
+            // перед самым уходом, не потеряется
+            if (current != null && SettingsRepo.current.cardTimer) runCatching { tick() }
             stopReading()
             return
         }
@@ -123,12 +175,15 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     /** Нажали кнопку в «Часах»: «Старт», «Пауза», «Сброс» — экран вот-вот поменяется, читаем его несколько раз. */
     fun onClicked(event: AccessibilityEvent) {
         if (event.packageName?.toString() != current) return
-        val words = (event.text.joinToString(" ") + " " + (event.contentDescription ?: ""))
-            .lowercase().split(Regex("[^\\p{L}]+")).filter { it.isNotEmpty() }
-        hint = when {
-            words.any { w -> RESET.any { w.startsWith(it) } } -> Hint.RESET
-            words.any { w -> w in PAUSE_WORDS || w.startsWith("приостанов") } -> Hint.PAUSE
-            words.any { w -> START.any { w.startsWith(it) } } -> Hint.START
+        val label = event.text.joinToString(" ") + " " + (event.contentDescription ?: "")
+        // Подпись не узнали — смотрим на id кнопки; круглая кнопка Google Часов то запускает, то ставит на паузу
+        val id = runCatching { event.source?.viewIdResourceName }.getOrNull().orEmpty().lowercase()
+        val running = if (tab == Kind.STOPWATCH) stopwatch?.pausedMs == null && stopwatch != null else timer?.pausedMs == null && timer != null
+        hint = ClockWords.action(label) ?: when {
+            "reset" in id || "delete" in id -> ClockAction.RESET
+            "pause" in id || ("stop" in id && "stopwatch" !in id) -> ClockAction.PAUSE
+            "start" in id || "resume" in id || "play" in id -> ClockAction.START
+            "fab" in id -> if (running) ClockAction.PAUSE else ClockAction.START
             else -> null
         }
         hintAt = SystemClock.elapsedRealtime()
@@ -143,6 +198,89 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         }
     }
 
+    /**
+     * Кнопка острова, когда нажать кнопку уведомления «Часов» нельзя (уведомления выключены или такой кнопки
+     * в нём нет): остров сразу показывает результат, открывает «Часы», сам нажимает нужную кнопку и, если
+     * открывал их сам, возвращает вас обратно. [own] — таймер прочитан с экрана, его ведёт этот класс.
+     */
+    fun control(pkg: String, isTimer: Boolean, action: ClockAction, own: Boolean) {
+        if (own) {
+            val wall = System.currentTimeMillis()
+            val next = (if (isTimer) timer else stopwatch)?.let { apply(it, isTimer, action, wall) }
+            if (isTimer) timer = next else stopwatch = next
+            publish(pkg)
+        }
+        val opened = current != pkg
+        pending = Pending(action, isTimer, SystemClock.elapsedRealtime() + 4_000, opened)
+        if (!opened) {
+            scope.launch {
+                delay(60)
+                runCatching { tick() }
+            }
+            return
+        }
+        val intents = listOfNotNull(
+            if (isTimer) Intent(AlarmClock.ACTION_SHOW_TIMERS).setPackage(pkg) else null,
+            service.packageManager.getLaunchIntentForPackage(pkg),
+        )
+        val started = intents.any { intent ->
+            runCatching { service.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+        }
+        if (!started) pending = null
+    }
+
+    private fun apply(t: Track, isTimer: Boolean, action: ClockAction, wall: Long): Track? {
+        val value = t.pausedMs ?: if (isTimer) (t.base - wall).coerceAtLeast(0) else wall - t.base
+        return when (action) {
+            ClockAction.PAUSE -> Track(t.key, t.base, value)
+            ClockAction.START -> Track(t.key, if (isTimer) wall + value else wall - value, null)
+            ClockAction.RESET -> null
+        }
+    }
+
+    /** «Часы» открылись — переходим на нужную вкладку и нажимаем кнопку; открыли их сами — потом назад. */
+    private fun performPending() {
+        val p = pending ?: return
+        if (SystemClock.elapsedRealtime() > p.until) {
+            pending = null
+            return
+        }
+        val root = service.rootInActiveWindow ?: return
+        if (root.packageName?.toString() != current) return
+        val want = if (p.timer) Kind.TIMER else Kind.STOPWATCH
+        if (tab != null && tab != want) {
+            if (clickLabel(root, if (p.timer) TIMER_TABS else STOPWATCH_TABS)) needRescan = true
+            return
+        }
+        if (!clickLabel(root, ClockWords.labels.getValue(p.action))) return
+        pending = null
+        if (p.opened) {
+            scope.launch {
+                delay(350)
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            }
+        }
+    }
+
+    /** Видимая кнопка с такой подписью целиком — или её нажимаемый родитель. */
+    private fun clickLabel(root: AccessibilityNodeInfo, labels: List<String>): Boolean {
+        for (label in labels) {
+            val nodes = runCatching { root.findAccessibilityNodeInfosByText(label) }.getOrNull().orEmpty()
+            for (node in nodes) {
+                val text = (node.text ?: node.contentDescription)?.toString()?.trim()
+                if (!node.isVisibleToUser || !text.equals(label, ignoreCase = true)) continue
+                var target: AccessibilityNodeInfo? = node
+                var up = 0
+                while (target != null && !target.isClickable && up < 3) {
+                    target = target.parent
+                    up++
+                }
+                if (target != null && target.isClickable && target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            }
+        }
+        return false
+    }
+
     /** Ушли из «Часов»: читать перестаём, но таймер и секундомер остров ведёт дальше сам. */
     fun stopReading() {
         loop?.cancel()
@@ -152,6 +290,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         seen.clear()
         hint = null
         needRescan = true
+        scannedAt = 0L
     }
 
     fun stop() {
@@ -194,7 +333,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         // Нажали «Старт» на своей вкладке — показываем сразу, не дожидаясь, пока цифры сдвинутся
         val main = displays.maxByOrNull { it.height }
         val mainValue = main?.let { seen[it.key]?.value }
-        if (hinted == Hint.START && main != null && mainValue != null) {
+        if (hinted == ClockAction.START && main != null && mainValue != null) {
             val t = timer
             val w = stopwatch
             if (tab == Kind.TIMER && bestTimer == null && mainValue > 0 && (t == null || t.pausedMs != null)) {
@@ -206,28 +345,29 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
                 seen[main.key]?.changedAt = now
             }
         }
-        if (hinted == Hint.PAUSE && main != null && mainValue != null) {
+        if (hinted == ClockAction.PAUSE && main != null && mainValue != null) {
             if (tab == Kind.TIMER) timer?.takeIf { it.pausedMs == null }?.let { timer = Track(it.key, it.base, mainValue) }
             if (tab == Kind.STOPWATCH) stopwatch?.takeIf { it.pausedMs == null }?.let { stopwatch = Track(it.key, it.base, mainValue) }
         }
-        if (hinted == Hint.RESET) {
+        if (hinted == ClockAction.RESET) {
             if (tab == Kind.TIMER) timer = null
             if (tab == Kind.STOPWATCH) stopwatch = null
         }
 
         // Сразу после «Старт» цифры ещё не успели сдвинуться — это не пауза
-        if (hinted != Hint.START) {
+        if (hinted != ClockAction.START) {
             timer = pauseIfStill(timer, now)
             stopwatch = pauseIfStill(stopwatch, now)
         }
         publish(pkg)
+        performPending()
     }
 
     /**
      * Новое значение надписи. Возвращает, что это — идущий таймер или секундомер, — когда это уже ясно:
      * две смены подряд с ходом часов, или одна, если открыта своя вкладка или только что нажали «Старт».
      */
-    private fun observe(key: String, v: Long, now: Long, hinted: Hint?): Kind? {
+    private fun observe(key: String, v: Long, now: Long, hinted: ClockAction?): Kind? {
         val s = seen[key]
         if (s == null) {
             seen[key] = Seen(v, now)
@@ -258,7 +398,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
             if (timer?.key == key) timer = null
             return null
         }
-        val sure = s.streak >= 2 || tab == kind || hinted == Hint.START || paused != null
+        val sure = s.streak >= 2 || tab == kind || hinted == ClockAction.START || paused != null
         return if (sure) kind else null
     }
 
@@ -286,8 +426,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     private fun rescan(pkg: String, now: Long) {
         scannedAt = now
         needRescan = false
-        val root = service.rootInActiveWindow ?: return
-        if (root.packageName?.toString() != pkg) return
+        val root = service.rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg } ?: windowRoot(pkg) ?: return
         val found = ArrayList<Display>()
         val tabs = arrayOfNulls<Kind>(1)
         collect(root, found, tabs, 0, HashMap())
@@ -301,6 +440,11 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         if (timerMisses >= 2) timer = null
         if (stopwatchMisses >= 2) stopwatch = null
     }
+
+    /** Окно «Часов», даже если поверх уже открывается другое приложение. */
+    private fun windowRoot(pkg: String): AccessibilityNodeInfo? = runCatching {
+        service.windows.firstNotNullOfOrNull { w -> w.root?.takeIf { it.packageName?.toString() == pkg } }
+    }.getOrNull()
 
     private fun collect(node: AccessibilityNodeInfo, out: MutableList<Display>, tabs: Array<Kind?>, depth: Int, ids: HashMap<String, Int>) {
         if (out.size > 20 || depth > 40) return
@@ -391,12 +535,57 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         }
     }
 
-    private companion object {
-        const val TIMER_KEY = "clock-screen:timer"
-        const val STOPWATCH_KEY = "clock-screen:stopwatch"
-        // Подписи кнопок «Часов» по началу слова; «стоп» — только целым словом, иначе совпадёт «Stopwatch»
-        val START = listOf("старт", "start", "начать", "пуск", "запуст", "продолж", "возобнов", "resume")
-        val PAUSE_WORDS = setOf("пауза", "pause", "стоп", "stop")
-        val RESET = listOf("сброс", "reset", "удал", "delete", "отмен", "cancel", "очист", "clear")
+    companion object {
+        /** Ключи таймера и секундомера, прочитанных с экрана, — в отличие от ключей уведомлений */
+        const val KEY_PREFIX = "clock-screen:"
+        private const val TIMER_KEY = KEY_PREFIX + "timer"
+        private const val STOPWATCH_KEY = KEY_PREFIX + "stopwatch"
+        private val TIMER_TABS = listOf("Таймер", "Timer")
+        private val STOPWATCH_TABS = listOf("Секундомер", "Stopwatch")
+    }
+}
+
+/**
+ * Кнопки острова для таймера и секундомера «Часов» — те же, что у своих: пауза или продолжить и сброс.
+ * Есть кнопка в уведомлении «Часов» — остров нажимает её, не открывая приложение. Нет (уведомления
+ * выключены) — нажимает кнопку на экране «Часов» сам. Результат в острове виден сразу.
+ */
+object ClockControl {
+    var reader: ClockScreenReader? = null
+
+    fun toggle(context: Context, c: ChronoInfo) = act(context, c, if (c.pausedMs != null) ClockAction.START else ClockAction.PAUSE)
+
+    fun reset(context: Context, c: ChronoInfo) = act(context, c, ClockAction.RESET)
+
+    private fun act(context: Context, c: ChronoInfo, action: ClockAction) {
+        val own = c.key.startsWith(ClockScreenReader.KEY_PREFIX)
+        val intent = when (action) {
+            ClockAction.START -> c.resume
+            ClockAction.PAUSE -> c.pause
+            ClockAction.RESET -> c.reset
+        }
+        if (!own && intent != null && Controls.send(context, intent)) {
+            optimistic(c, action)
+            return
+        }
+        val r = reader
+        if (r == null || !ClockApps.isClock(context, c.pkg)) {
+            Controls.openApp(context, c.pkg)
+            return
+        }
+        if (!own) optimistic(c, action)
+        r.control(c.pkg, c.countDown, action, own)
+    }
+
+    /** Показать результат нажатия сразу; новое уведомление «Часов» подтвердит его через мгновение. */
+    private fun optimistic(c: ChronoInfo, action: ClockAction) {
+        val now = System.currentTimeMillis()
+        val value = c.elapsed(now)
+        val next = when (action) {
+            ClockAction.PAUSE -> c.copy(pausedMs = value)
+            ClockAction.START -> c.copy(pausedMs = null, base = if (c.countDown) now + value else now - value)
+            ClockAction.RESET -> null
+        }
+        IslandBus.chrono.value = if (next == null) IslandBus.chrono.value - c.key else IslandBus.chrono.value + (c.key to next)
     }
 }

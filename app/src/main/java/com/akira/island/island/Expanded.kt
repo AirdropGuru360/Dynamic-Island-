@@ -101,6 +101,9 @@ import com.akira.island.core.TorchState
 import com.akira.island.core.formatDuration
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
+import com.akira.island.service.ClockApps
+import com.akira.island.service.ClockControl
+import com.akira.island.service.ClockScreenReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -526,14 +529,52 @@ private fun ChronoExpanded(c: ChronoInfo) {
         }
         return
     }
+    // «Часы» — с кнопками, как свой таймер; другие приложения с отсчётом — просто время, нажатие открывает их
+    if (c.key.startsWith(ClockScreenReader.KEY_PREFIX) || c.pause != null || c.resume != null || ClockApps.isClock(context, c.pkg)) {
+        ClockChrono(c)
+        return
+    }
     Row(Modifier.clickable { Controls.openApp(context, c.pkg) }, verticalAlignment = Alignment.CenterVertically) {
         AppIcon(c.icon, 46.dp, Ios.timer, Tints.Orange)
         Spacer(Modifier.width(14.dp))
-        Text(if (c.pausedMs != null) "Пауза" else c.title, color = Tints.Orange, fontSize = 15.sp, maxLines = 1,
-            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(top = 12.dp))
+        Text(c.title, color = Tints.Orange, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(top = 12.dp))
         Spacer(Modifier.width(8.dp))
         Text(formatDuration(c.elapsed(now)), color = Tints.Orange, fontSize = 40.sp,
             style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1)
+    }
+}
+
+/**
+ * Таймер и секундомер «Часов» — с теми же кнопками, что свои: пауза или продолжить и сброс.
+ * Кнопки нажимают кнопки «Часов» (см. ClockControl); нажатие на время открывает приложение.
+ */
+@Composable
+private fun ClockChrono(c: ChronoInfo) {
+    val context = LocalContext.current
+    val paused = c.pausedMs != null
+    val now = rememberWallNow(if (paused) 1_000 else if (c.countDown) 250 else 100)
+    val value = c.elapsed(now)
+    val color = if (c.countDown && !paused && value <= 10_000) Tints.Red else Tints.Orange
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RoundButton(if (paused) Ios.play else Ios.pause, size = 50.dp, bg = color.copy(alpha = 0.25f), fg = color, iconScale = 0.5f) {
+            ClockControl.toggle(context, c)
+        }
+        Spacer(Modifier.width(12.dp))
+        RoundButton(if (c.countDown) Ios.close else Ios.refresh, size = 50.dp, bg = Color.White.copy(alpha = 0.2f),
+            iconScale = if (c.countDown) 0.44f else 0.46f) {
+            ClockControl.reset(context, c)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f).clickable { Controls.openApp(context, c.pkg) }, horizontalAlignment = Alignment.End) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(c.icon, 16.dp, Ios.timer, color)
+                Spacer(Modifier.width(5.dp))
+                Text(if (paused) "Пауза" else if (c.countDown) "Таймер" else "Секундомер", color = color, fontSize = 14.sp, maxLines = 1)
+            }
+            val text = if (c.countDown) formatDuration(value + 999) else formatDuration(value) + ",%d".format((value % 1000) / 100)
+            Text(text, color = color, fontSize = 40.sp, style = Digits.copy(fontWeight = FontWeight.Normal), maxLines = 1, softWrap = false)
+        }
     }
 }
 

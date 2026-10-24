@@ -45,7 +45,7 @@ object SystemBanners {
             @Suppress("DEPRECATION")
             context.packageManager.queryIntentActivities(Intent(AlarmClock.ACTION_SET_TIMER), 0).map { it.activityInfo.packageName }
         }.getOrDefault(emptyList())
-        return (timers + seen.filterValues { !it.call }.keys).distinct().filter { it != SYSTEM_UI && it != ANDROID }
+        return (timers + seen.filterValues { !it.call }.keys).distinct().filter { it != SYSTEM_UI && it != ANDROID && it != context.packageName }
     }
 
     fun label(context: Context, pkg: String): String = when (pkg) {

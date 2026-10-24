@@ -77,8 +77,12 @@ data class ChronoInfo(
     val postTime: Long,
     /** Кнопка «Стоп» из уведомления (запись экрана, диктофон) */
     val stop: PendingIntent? = null,
-    /** На паузе: застывшее время (таймер или секундомер «Часов», прочитанный с их экрана) */
+    /** На паузе: застывшее время (таймер или секундомер «Часов») */
     val pausedMs: Long? = null,
+    /** Кнопки из уведомления «Часов»: остров нажимает их, не открывая приложение */
+    val pause: PendingIntent? = null,
+    val resume: PendingIntent? = null,
+    val reset: PendingIntent? = null,
 ) {
     fun elapsed(nowWall: Long): Long = pausedMs ?: if (countDown) (base - nowWall).coerceAtLeast(0) else nowWall - base
 
