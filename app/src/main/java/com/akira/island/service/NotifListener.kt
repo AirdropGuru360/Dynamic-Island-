@@ -98,7 +98,10 @@ object NotificationParser {
         } else {
             null
         }
-        val chrono = call == null && !isMedia && (ticking || pausedMs != null)
+        // Неактивный (на паузе) таймер, который остров уже убрал, снова не показываем
+        val chrono = call == null && !isMedia && (ticking || pausedMs != null) && !ClockControl.wasDismissed(sbn.key, pausedMs)
+        if (clock && chrono) ClockControl.reader?.onNotificationChrono(sbn.packageName)
+        if (pausedMs != null && chrono) ClockControl.dropPausedLater(sbn.key)
         IslandBus.chrono.value = IslandBus.chrono.value.toMutableMap().apply {
             if (chrono) {
                 val down = if (pausedMs != null) looksLikeTimer(n, title) else ex.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN, false)
@@ -198,6 +201,7 @@ object NotificationParser {
     fun onRemoved(key: String) {
         Messages.forget(key)
         LiveParser.forget(key)
+        ClockControl.forget(key)
         LiveDebug.forget(key)
         if (key in IslandBus.calls.value) IslandBus.calls.value = IslandBus.calls.value - key
         if (key in IslandBus.progress.value) IslandBus.progress.value = IslandBus.progress.value - key
