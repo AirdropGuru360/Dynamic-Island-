@@ -118,7 +118,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     private class Display(val key: String, val node: AccessibilityNodeInfo, val height: Int)
 
     /** Что последним видели в надписи: значение, когда оно сменилось и сколько смен подряд шли «как часы» */
-    private class Seen(var value: Long, var changedAt: Long, var kind: Kind? = null, var streak: Int = 0)
+    private class Seen(var value: Long, var changedAt: Long, var kind: Kind? = null, var streak: Int = 0, var fine: Boolean = false)
 
     /**
      * Что показывает остров: [base] — настенное время конца таймера или начала секундомера,
@@ -140,6 +140,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     private var needRescan = true
     private val seen = HashMap<String, Seen>()
     private var hint: ClockAction? = null
+    /** К чему относится нажатие: открытая вкладка или то, на что нажал сам остров */
+    private var hintKind: Kind? = null
     private var hintAt = 0L
     private var timer: Track? = null
     private var stopwatch: Track? = null
@@ -195,6 +197,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         // Подпись не узнали — смотрим на id кнопки; круглая кнопка Google Часов то запускает, то ставит на паузу
         val id = runCatching { event.source?.viewIdResourceName }.getOrNull().orEmpty().lowercase()
         val running = if (tab == Kind.STOPWATCH) stopwatch?.pausedMs == null && stopwatch != null else timer?.pausedMs == null && timer != null
+        hintKind = tab
         hint = ClockWords.action(label) ?: when {
             "reset" in id || "delete" in id -> ClockAction.RESET
             "pause" in id || ("stop" in id && "stopwatch" !in id) -> ClockAction.PAUSE
@@ -297,6 +300,10 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
                 if (!click(button.node)) return
             }
         }
+        // Что нажали, знаем сами — не ждём, придёт ли от «Часов» сообщение о нажатии (Compose его не шлёт)
+        hint = p.action
+        hintKind = want
+        hintAt = now
         pending = null
         if (p.opened) {
             scope.launch {
@@ -419,7 +426,7 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         // Полный обход экрана дорог: не чаще двух раз в секунду, а если ничего не менялось — раз в 3 секунды
         if ((needRescan && now - scannedAt > 500) || now - scannedAt > 3_000) rescan(pkg, now)
         val wall = System.currentTimeMillis()
-        val hinted = hint?.takeIf { now - hintAt < 1_500 }
+        val hinted = hint?.takeIf { now - hintAt < HINT_MS }
 
         var bestTimer: Pair<Display, Long>? = null
         var bestStopwatch: Pair<Display, Long>? = null
@@ -432,6 +439,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
             val text = (d.node.text ?: d.node.contentDescription)?.toString() ?: continue
             if (isTimeOfDay(text, wall)) continue
             val v = ClockScreenParser.parse(text) ?: continue
+            // Секундомер с долями секунды меняется постоянно — его паузу видно почти сразу
+            seen[d.key]?.fine = text.contains('.') || text.contains(',')
             when (observe(d.key, v, now, hinted)) {
                 Kind.TIMER -> if (d.height > (bestTimer?.first?.height ?: -1)) bestTimer = d to v
                 Kind.STOPWATCH -> if (d.height > (bestStopwatch?.first?.height ?: -1)) bestStopwatch = d to v
@@ -447,22 +456,23 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         if (hinted == ClockAction.START && main != null && mainValue != null) {
             val t = timer
             val w = stopwatch
-            if (tab == Kind.TIMER && bestTimer == null && mainValue > 0 && (t == null || t.pausedMs != null)) {
+            if (hintKind == Kind.TIMER && bestTimer == null && mainValue > 0 && (t == null || t.pausedMs != null)) {
                 timer = Track(main.key, wall + mainValue, null)
                 seen[main.key]?.changedAt = now
             }
-            if (tab == Kind.STOPWATCH && bestStopwatch == null && (w == null || w.pausedMs != null)) {
+            if (hintKind == Kind.STOPWATCH && bestStopwatch == null && (w == null || w.pausedMs != null)) {
                 stopwatch = Track(main.key, wall - mainValue, null)
                 seen[main.key]?.changedAt = now
             }
         }
         if (hinted == ClockAction.PAUSE && main != null && mainValue != null) {
-            if (tab == Kind.TIMER) timer?.takeIf { it.pausedMs == null }?.let { timer = pausedTrack(it, mainValue) }
-            if (tab == Kind.STOPWATCH) stopwatch?.takeIf { it.pausedMs == null }?.let { stopwatch = pausedTrack(it, mainValue) }
+            // Встаём на то время, что показывают «Часы», — оно точнее того, что остров успел насчитать сам
+            if (hintKind == Kind.TIMER) timer?.let { timer = Track(it.key, it.base, mainValue, it.pausedAt.takeIf { at -> at > 0 } ?: now) }
+            if (hintKind == Kind.STOPWATCH) stopwatch?.let { stopwatch = Track(it.key, it.base, mainValue, it.pausedAt.takeIf { at -> at > 0 } ?: now) }
         }
         if (hinted == ClockAction.RESET) {
-            if (tab == Kind.TIMER) timer = null
-            if (tab == Kind.STOPWATCH) stopwatch = null
+            if (hintKind == Kind.TIMER) timer = null
+            if (hintKind == Kind.STOPWATCH) stopwatch = null
         }
 
         // Сразу после «Старт» цифры ещё не успели сдвинуться — это не пауза
@@ -500,6 +510,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         s.kind = kind
         s.value = v
         s.changedAt = now
+        // Только что нажали «Пауза»: цифры могли сдвинуться ещё на шаг, пока «Часы» не успели встать, — это не ход
+        if (hinted == ClockAction.PAUSE) return null
         if (kind == null) {
             // Скачок: таймер сбросили к исходному времени или секундомер обнулили
             if (timer?.key == key && dv > 1_500) timer = null
@@ -521,7 +533,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
         val d = displays.firstOrNull { it.key == track.key } ?: return track
         val s = seen[d.key] ?: return track
         val visible = runCatching { d.node.isVisibleToUser }.getOrDefault(false)
-        return if (visible && now - s.changedAt > 1_500) pausedTrack(track, s.value) else track
+        val still = if (s.fine) 450 else 1_500
+        return if (visible && now - s.changedAt > still) pausedTrack(track, s.value) else track
     }
 
     /**
@@ -662,6 +675,8 @@ class ClockScreenReader(private val service: AccessibilityService, private val s
     companion object {
         /** Ключи таймера и секундомера, прочитанных с экрана, — в отличие от ключей уведомлений */
         const val KEY_PREFIX = "clock-screen:"
+        /** Сколько после нажатия «Старт», «Пауза» или «Сброс» остров верит нажатию больше, чем цифрам */
+        private const val HINT_MS = 2_000L
         /** Сколько неактивный (на паузе) таймер или секундомер ещё виден в острове — как любое событие («Показ событий») */
         val INACTIVE_MS: Long get() = SettingsRepo.current.noticeDurationMs.toLong()
         private const val TIMER_KEY = KEY_PREFIX + "timer"

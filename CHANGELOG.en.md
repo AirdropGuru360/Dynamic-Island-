@@ -8,6 +8,11 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 ## [1.6.1] — 2026-10-23
 
+### 🔔 Notification banner — sized like the system one
+- Width, margins and sizes now match an Android heads-up notification: 16 dp from the screen edges, a 40 dp avatar, 15 sp name, 14 sp text, 14 sp buttons, a smaller counter and reply field.
+- In iPhone island style: the app icon and name sit to the left of the camera and "now" with a bell to the right, and the notification itself starts below the status bar — at the same height as the system one, not right against the camera. The height follows the status bar and how far the island is lowered in Position.
+- Text grows with Android's font size without breaking the banner: the name and buttons are shortened with an ellipsis, the text takes up to three lines.
+
 ### 💬 Replying from the island works
 - Tapping the keyboard no longer closes the reply field: before, the very first letter collapsed the banner, so you couldn't reply at all.
 - The input closes when you hide the keyboard (Back), swipe the banner up, or tap outside the island while there's no keyboard. While a reply is open, Back closes the input instead of doing nothing.
@@ -26,6 +31,7 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - The island doesn't keep walking the whole Clock screen: it remembers the time labels and refreshes only them, and gets screen changes and taps only while Clock is open — the app doesn't lag.
 - If Clock's notifications are on, the island still takes the timer from them.
 - **Buttons like the island's own timer**: the expanded island shows pause/resume and reset for the Clock timer and stopwatch, and they control Clock itself. With Clock's notifications on, the island taps the notification's buttons — instantly and without opening the app. With them off, it opens Clock for a moment, finds the button by its label or id, checks whether the timer is really running (so a round toggle button isn't pressed the wrong way), taps it and brings you back; while a timer runs Reset isn't shown, so the island pauses it first.
+- Pausing from the island no longer "bounces back": the island knows it pressed Pause and doesn't take the last step of the digits while Clock was stopping as the stopwatch running; when paused it shows exactly the time Clock shows. A stopwatch with fractions of a second is seen as paused almost instantly.
 - **Inactive ones don't linger**: a paused, reset, deleted or finished Clock timer or stopwatch leaves the island — a pause stays visible for 3 seconds, and a reset or delete in Clock is noticed even as you leave the app.
 - Less delay: the island also recognizes a Clock button by its id (Google Clock's round button), and reads the Clock screen one last time as you leave — a timer started right before leaving isn't lost.
 - "Set a timer" from a voice assistant, widget or another app can go to the island: "Dynamic Island" now appears in the chooser, and the timer starts right in it, without Clock.

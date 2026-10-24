@@ -303,7 +303,7 @@ private fun IslandBody(
 
     val cornerTarget = when {
         expanded -> 44.dp
-        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 30.dp
+        primary is Act.NoticeA && primary.n.style == NoticeStyle.MESSAGE -> 32.dp
         primary is Act.NoticeA && primary.n.style == NoticeStyle.WIDE && primary.n.title.isNotBlank() -> noticeHeight(s) / 2
         primary is Act.NoticeA && (primary.n.style == NoticeStyle.PAY_READY || primary.n.style == NoticeStyle.PAY_DONE ||
             primary.n.style == NoticeStyle.LIVE || primary.n.style == NoticeStyle.ALARM) -> noticeHeight(s) / 2
