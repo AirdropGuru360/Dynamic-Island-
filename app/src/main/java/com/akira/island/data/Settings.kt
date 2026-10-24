@@ -154,8 +154,8 @@ data class IslandSettings(
     val fxPay: Boolean = true,
     /** Капсула вздрагивает при смене режима звука, колокольчик звонящего таймера качается */
     val fxShake: Boolean = true,
-    /** В режиме энергосбережения Android остров обходится без живых эффектов */
-    val ecoInSaver: Boolean = true,
+    /** В режиме энергосбережения Android остров обходится без живых эффектов. По умолчанию выключено */
+    val batterySaver: Boolean = false,
 
     // Жесты
     val tapAction: TapAction = TapAction.EXPAND,
@@ -183,7 +183,7 @@ data class IslandSettings(
     val msgInApp: Boolean = false,
 ) {
     /** С «Экономией заряда» в энергосбережении Android — как с «Уменьшить эффекты» */
-    fun forPowerSave(on: Boolean): IslandSettings = if (on && ecoInSaver && !reduceEffects) copy(reduceEffects = true) else this
+    fun forPowerSave(on: Boolean): IslandSettings = if (on && batterySaver && !reduceEffects) copy(reduceEffects = true) else this
 
     /** Пляшет ли эквалайзер */
     val liveEqualizer: Boolean get() = fxEqualizer && !reduceEffects
@@ -252,6 +252,6 @@ object SettingsRepo {
 
     fun resetEffects() = update {
         val d = IslandSettings()
-        copy(fxBlur = d.fxBlur, fxEqualizer = d.fxEqualizer, fxGlow = d.fxGlow, fxPay = d.fxPay, fxShake = d.fxShake, ecoInSaver = d.ecoInSaver)
+        copy(fxBlur = d.fxBlur, fxEqualizer = d.fxEqualizer, fxGlow = d.fxGlow, fxPay = d.fxPay, fxShake = d.fxShake, batterySaver = d.batterySaver)
     }
 }

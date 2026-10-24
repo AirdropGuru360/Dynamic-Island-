@@ -17,11 +17,8 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.OpenWith
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
-import androidx.compose.material.icons.rounded.Vibration
-import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material3.Text
@@ -53,23 +50,28 @@ import com.akira.island.ui.Tile
 import com.akira.island.ui.Ui
 
 /**
- * «Настройки Капсулы» — как раньше: живой пример, «Положение» и разделы с заголовками. Длинные
- * наборы ползунков вынесены в свои категории («Размер с активностью», «Анимации»), переключатели
- * остались на месте.
+ * «Оформление»: где стоит остров и как он выглядит — положение и размер, цвет и стекло, анимации и эффекты.
+ * Что остров показывает и как себя ведёт — во вкладке «Функции».
  */
 @Composable
 fun CapsuleScreen(open: (Screen) -> Unit) {
     val s by SettingsRepo.state.collectAsState()
-    Page("Настройки Капсулы") {
+    Page("Оформление") {
         IslandPreview()
-        GroupItem(Pos.Single, Icons.Rounded.OpenWith, "Положение", "Сдвинуть капсулу по горизонтали и вертикали",
-            color = Tile.Indigo, onClick = { open(Screen.SIZE) }) { Arrow() }
 
-        SectionHeader("Вид острова")
+        SectionHeader("Положение и размер")
         Group {
-            GroupItem(Pos.First, Icons.Rounded.SwapHoriz, "Размер с активностью",
+            GroupItem(Pos.First, Icons.Rounded.OpenWith, "Положение", "Сдвинуть капсулу точно над камерой",
+                color = Tile.Indigo, onClick = { open(Screen.SIZE) }) { Arrow() }
+            GroupItem(Pos.Last, Icons.Rounded.SwapHoriz, "Размер с активностью",
                 if (s.activeWidth == 0) "Толщина +${s.activeExtra} dp, ширина как без неё" else "Толщина +${s.activeExtra}, ширина +${s.activeWidth} dp",
                 color = Tile.Purple, onClick = { open(Screen.LOOK) }) { Arrow() }
+        }
+
+        SectionHeader("Цвет и стекло")
+        Group {
+            GroupItem(Pos.First, Icons.Rounded.FormatColorFill, "Цвет капсулы", "Цвет, контур и тень",
+                color = Tile.Orange, onClick = { open(Screen.COLORS) }) { Arrow() }
             GroupToggle(
                 if (s.liquidGlass) Pos.Middle else Pos.Last, Icons.Rounded.WaterDrop, "Liquid Glass",
                 "Стекло с бликами и сияющей кромкой, как в iOS. Блики двигаются при наклоне",
@@ -83,10 +85,6 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
             }
         }
 
-        SectionHeader("Цвета")
-        GroupItem(Pos.Single, Icons.Rounded.FormatColorFill, "Цвет капсулы", "Цвет, контур, тень и цвет кнопок в уведомлениях",
-            color = Tile.Orange, onClick = { open(Screen.COLORS) }) { Arrow() }
-
         SectionHeader("Анимации")
         Group {
             GroupItem(Pos.First, Icons.Rounded.Animation, "Раскрытие острова",
@@ -94,18 +92,6 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
                 color = Tile.Blue, onClick = { open(Screen.ANIM) }) { Arrow() }
             GroupItem(Pos.Last, Icons.Rounded.AutoAwesome, "Эффекты", effectsSummary(s),
                 color = Tile.Purple, onClick = { open(Screen.EFFECTS) }) { Arrow() }
-        }
-
-        SectionHeader("Виброотклик")
-        GroupToggle(Pos.Single, Icons.Rounded.Vibration, "Виброотклик", "Виброотклик при открытии, закрытии и нажатиях на капсулу",
-            s.haptics, color = Tile.Pink) { v -> SettingsRepo.update { copy(haptics = v) } }
-
-        SectionHeader("Другое")
-        Group {
-            GroupToggle(Pos.First, Icons.Rounded.VisibilityOff, "Скрывать пустую капсулу", "Показывать капсулу, только когда в ней что-то есть",
-                s.hideIdle, color = Tile.Gray) { v -> SettingsRepo.update { copy(hideIdle = v) } }
-            GroupToggle(Pos.Last, Icons.Rounded.ScreenRotation, "Скрывать в альбомной ориентации", "Не мешает играм и видео",
-                s.hideInLandscape, color = Tile.Gray) { v -> SettingsRepo.update { copy(hideInLandscape = v) } }
         }
     }
 }
@@ -134,14 +120,14 @@ fun LookScreen(onBack: () -> Unit) {
     }
 }
 
-/** «Анимации»: как остров раскрывается и насколько пружинит. */
+/** «Раскрытие острова»: как остров раскрывается, насколько пружинит и сколько видно события. */
 @Composable
 fun AnimScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     var styleDialog by remember { mutableStateOf(false) }
     var elasticDialog by remember { mutableStateOf(false) }
 
-    Page("Анимации", onBack, action = {
+    Page("Раскрытие острова", onBack, action = {
         Text("Сброс", color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetAnimations() })
     }) {
         Group {
@@ -227,6 +213,6 @@ fun EffectsScreen(onBack: () -> Unit) {
         SectionHeader("Батарея")
         GroupToggle(Pos.Single, Icons.Rounded.BatterySaver, "Экономия заряда",
             "В режиме энергосбережения Android остров сам обходится без живых эффектов",
-            s.ecoInSaver, color = Tile.Green) { v -> SettingsRepo.update { copy(ecoInSaver = v) } }
+            s.batterySaver, color = Tile.Green) { v -> SettingsRepo.update { copy(batterySaver = v) } }
     }
 }

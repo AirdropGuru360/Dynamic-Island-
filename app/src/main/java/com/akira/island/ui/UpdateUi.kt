@@ -164,19 +164,35 @@ fun WhatsNewDialog() {
         if (!show && seen != current) SettingsRepo.update { copy(lastSeenVersion = current) }
     }
     if (show && notes != null) {
-        val close = {
+        NotesDialog {
             SettingsRepo.update { copy(lastSeenVersion = current) }
             show = false
         }
-        AlertDialog(
-            onDismissRequest = close,
-            containerColor = Ui.Card,
-            titleContentColor = Ui.Text,
-            title = { Text("Что нового в $current") },
-            text = { ReleaseNotes(notes, Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) },
-            confirmButton = { TextButton(onClick = close) { Text("Понятно", color = Ui.Primary) } },
-        )
     }
+}
+
+/** Изменения текущей версии (assets/whatsnew.md): после обновления и по кнопке «Что нового» в «О приложении». */
+@Composable
+fun NotesDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val current = remember { UpdateChecker.currentVersion(context) }
+    val notes = remember {
+        runCatching { context.assets.open("whatsnew.md").bufferedReader().use { it.readText() } }.getOrNull()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Ui.Card,
+        titleContentColor = Ui.Text,
+        title = { Text("Что нового в $current") },
+        text = {
+            if (notes != null) {
+                ReleaseNotes(notes, Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()))
+            } else {
+                Text("Список изменений не найден", color = Ui.Sub, fontSize = 14.sp)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Понятно", color = Ui.Primary) } },
+    )
 }
 
 /** Список изменений: «### Раздел» — заголовок, «- пункт» — маркер, **жирное** выделяется. */

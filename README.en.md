@@ -87,12 +87,12 @@ Short notices in the capsule, each can be turned on separately:
 ## 📥 Installation
 
 1. Download **`DynamicIsland.apk`** from the [latest release](https://github.com/Akira9021/Dynamic-Island-/releases/latest) page and install it.
-2. Open the app → **Accessibility** («Спец. возможности») → turn on "Dynamic Island" («Динамический остров»).
+2. Open the app — on Home tap **Open accessibility** («Открыть спец. возможности») and turn on "Dynamic Island" («Динамический остров»).
    > On Android 13+ the switch may be grayed out: **App info → ⋮ → Allow restricted settings**, then repeat step 2.
-3. Turn on **Notification access** («Доступ к уведомлениям») — without it there's no music, downloads or Clock timers.
-4. Tap **Calls** («Звонки») and allow access to the phone, call log and contacts — then the island shows incoming calls with any dialer.
+3. Home → **Permissions** («Разрешения»): turn on **Notification access** («Доступ к уведомлениям») — without it there's no music, downloads or Clock timers.
+4. There, tap **Calls** («Звонки») and allow access to the phone, call log and contacts — then the island shows incoming calls with any dialer.
 5. On Android 12+ allow **Bluetooth** to see headphone names.
-6. **Capsule settings → Position** («Настройки Капсулы → Положение») — the island turns red: move it until the red sits exactly over the camera.
+6. **Appearance → Position** («Оформление → Положение») — the island turns red: move it until the red sits exactly over the camera.
 
 > [!TIP]
 > On Xiaomi, Huawei and Samsung allow autostart and remove battery restrictions, otherwise the firmware may kill the service.
@@ -112,21 +112,22 @@ New versions install over old ones; your settings are kept.
 
 ## ⚙️ Settings
 
-The Capsule settings tab («Настройки Капсулы»):
+Four tabs:
 
-- **Position** — horizontal offset and top offset; the capsule updates on screen right away.
-- **Size with activity** — how much thicker and wider the capsule with an activity is than the idle one, with a live preview.
-- **Liquid Glass** *(experimental)* — a glass island and cards, glass density.
-- **Capsule color** — color, outline (color, thickness, color from artwork), shadow and the notification button color: lavender, system, from the avatar or custom.
-- **Island expansion** — style ("Like a Fruit" with a jelly effect, "Spring", "Smooth", "No animation"), duration, elasticity, Reduce effects.
-- **Haptics**, hiding the empty capsule, hiding in landscape.
-
-Also:
-
-- **Dynamic cards** and **events** — each can be turned off.
-- **Lyrics** — in the expanded player.
-- **Updates** — an auto-check every 6 hours and a Check now button; the GitHub page button («Страница GitHub») leads here.
-- **System banners** («Общие → Системные плашки») — shortcuts to the Android settings where you turn off the pop-ups of the dialer, Clock and battery, so only the island shows these events.
+- **Home** («Главная») — the live preview, whether the island is on, **permissions** and **Try it** («Проверка»): every island demo on one screen.
+- **Features** («Функции») — what the island shows and how you handle it:
+  - **Dynamic cards**, **notifications** and **events** — each can be turned off; notifications also have reply buttons, the number of text lines and the button color: lavender, system, from the avatar or custom.
+  - **Lyrics** — in the expanded player.
+  - **Gestures** and **Behavior** — when to show and collapse the island, the second-activity circle, haptics, turning the screen on for a call.
+  - **System banners** — shortcuts to the Android settings where you turn off the pop-ups of the dialer, Clock and battery, so only the island shows these events.
+- **Appearance** («Оформление») — how the island looks:
+  - **Position** — horizontal offset and top offset; the capsule updates on screen right away.
+  - **Size with activity** — how much thicker and wider the capsule with an activity is than the idle one, with a live preview.
+  - **Capsule color** — color, outline (color, thickness, color from artwork) and shadow.
+  - **Liquid Glass** *(experimental)* — a glass island and cards, glass density.
+  - **Island expansion** — style ("Like a Fruit" with a jelly effect, "Spring", "Smooth", "No animation"), duration, elasticity, Reduce effects.
+  - **Effects** — blur, live equalizer, shake, payment waves, artwork glow and battery saving.
+- **About** («О приложении») — version and updates (an auto-check every 6 hours, Check now, What's new), instructions, navigation diagnostics and the GitHub page button («Страница GitHub») that leads here.
 
 ## 🧩 How it works
 

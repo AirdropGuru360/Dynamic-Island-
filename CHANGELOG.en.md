@@ -8,6 +8,15 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 ## [1.6.1] — 2026-10-23
 
+### 🗂️ The app, reorganized
+- **Four labeled tabs**: Home, Features, Appearance and About («Главная», «Функции», «Оформление», «О приложении»). Settings are separate from the version, help and links.
+- **Home** keeps just the essentials: the live preview, Island on («Остров включён»), **Permissions** («Разрешения») in one row (all granted or what's missing) and **Try it** («Проверка»). While the accessibility service is off, a "Turn on the island" card with a button and instructions sits at the top.
+- **Try it** shows every demo on one screen as tiles: event, ring mode, message, call, timer, alarm (a new demo), payment and navigation.
+- **Features** — what the island shows (cards, notifications, events, lyrics), controls (gestures, Behavior, system banners) and resetting settings.
+- **Appearance** — position and size, color and Liquid Glass, island expansion and effects.
+- **About** — the icon, version and whether an update is out, update checks, **What's new** at any time, instructions, navigation diagnostics, GitHub and About the island («Об острове»).
+- New screens: **Behavior** («Поведение»: when to show the island, collapsing, haptics, turning the screen on) and **Notifications** («Уведомления»: everything about messages in the island, including the button color). Dynamic cards and Events are now tidy sectioned lists without extra words.
+
 ### 🔔 Notification banner — sized like the system one
 - Width, margins and sizes now match an Android heads-up notification: 16 dp from the screen edges, a 40 dp avatar, 15 sp name, 14 sp text, 14 sp buttons, a smaller counter and reply field.
 - In iPhone island style: the app icon and name sit to the left of the camera and "now" with a bell to the right, and the notification itself starts below the status bar — at the same height as the system one, not right against the camera. The height follows the status bar and how far the island is lowered in Position.
@@ -59,13 +68,13 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - **Updates right in the island**: "Version available", what's new and Later / Update buttons — percent and a ring while it downloads; after installing — "Updated ✓".
 
 ### ✨ Effects — each one is a setting
-- A new **Capsule settings → Animations → Effects** section («Настройки Капсулы → Анимации → Эффекты»): **blur on change**, **live equalizer** (turn it off and the bars stand still, which saves power), **shake** of the ring-mode pill and the timer bell, **payment waves** (NFC waves and the Paid burst). Reduce effects («Уменьшить эффекты») still turns everything off at once, and the section has its own Reset.
+- A new **Appearance → Animations → Effects** section («Оформление → Анимации → Эффекты»): **blur on change**, **live equalizer** (turn it off and the bars stand still, which saves power), **shake** of the ring-mode pill and the timer bell, **payment waves** (NFC waves and the Paid burst). Reduce effects («Уменьшить эффекты») still turns everything off at once, and the section has its own Reset.
 - New **artwork glow**: a soft halo in the artwork's color around the island while music plays. You can see it on the island preview in settings too. Off by default.
-- **Battery saving** («Экономия заряда», on): when Android's battery saver is on, the island skips live effects by itself.
+- **Battery saving** («Экономия заряда», off by default): when Android's battery saver is on, the island skips live effects by itself.
 
 ### 🧭 Behavior
-- General → Behavior («Общие → Поведение»): **Collapse the expanded island** («Сворачивать раскрытый остров») — by itself after 5, 10, 20 or 30 seconds without a touch (by default only by tapping outside or swiping up); **Second activity alongside** («Вторая активность рядом») — the small circle with the second activity next to the capsule can be turned off.
-- General → **Notifications in the island** («Общие → Уведомления в острове»): **From the open app** («Из открытого приложения») — also show notifications from the app that's on screen; **Text lines** («Строк текста») in the banner — from 1 to 6 (it was always 3).
+- Features → Behavior («Функции → Поведение»): **Collapse the expanded island** («Сворачивать раскрытый остров») — by itself after 5, 10, 20 or 30 seconds without a touch (by default only by tapping outside or swiping up); **Second activity alongside** («Вторая активность рядом») — the small circle with the second activity next to the capsule can be turned off.
+- Features → **Notifications** («Функции → Уведомления»): **From the open app** («Из открытого приложения») — also show notifications from the app that's on screen; **Text lines** («Строк текста») in the banner — from 1 to 6 (it was always 3).
 
 ### 🔋 Battery
 - While the screen is off, the island doesn't wake up: the time in its timers and clocks, Clock screen reading and the lyrics search wait until the screen turns on.
@@ -80,18 +89,18 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - **Unlock** shows as soon as the lock screen goes away, not when the system message arrives.
 
 ### ⚙️ Everything follows the settings
-- **Event display** («Показ событий») moved to Capsule settings → Island expansion («Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
-- New switches: General → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
+- **Event display** («Показ событий») moved to Appearance → Island expansion («Оформление → Раскрытие острова»), next to duration and elasticity, and resets with them. It now sets the time of **all** banners: a message without buttons stays 2 s longer, with buttons 4.5 s, alarm and navigation 2 s, "Paid" 0.9 s, the update banner 3.5 s. A paused Clock timer or stopwatch leaves after the same time.
+- New switches: Features → Behavior → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
 
 ### 🔗 Small things
 - Added an easter egg.
 - The Single tap button is gone from Dynamic cards («Динамические карточки») — single tap is set in Gestures («Жесты»).
 - Every setting was checked: each toggle changes exactly what it shows and affects the island.
-- General → Help → **GitHub page** («Общие → Помощь → Страница GitHub») with the GitHub icon — opens the project's main page.
+- About → **GitHub page** («О приложении → Страница GitHub») with the GitHub icon — opens the project's main page.
 - The Liquid Glass label is now **«Экспериментальный»** ("Experimental").
 
 ### 🔕 System banners
-- A new **General → System banners** screen («Общие → Системные плашки»): the dialer, Clock, System UI (battery) and Android System (USB charging) — a tap opens their notification settings, right on the needed channel if the island has already seen it. Turn off "Pop on screen" there: the notification stays in the shade, and only the island shows the event on screen. Messenger notifications aren't affected.
+- A new **Features → System banners** screen («Функции → Системные плашки»): the dialer, Clock, System UI (battery) and Android System (USB charging) — a tap opens their notification settings, right on the needed channel if the island has already seen it. Turn off "Pop on screen" there: the notification stays in the shade, and only the island shows the event on screen. Messenger notifications aren't affected.
 - With the system banner off, **the island turns the screen on**: for an incoming call, a Clock alarm or timer and its own timer. While it rings the screen stays on; if you turn it off with the power button, the island won't wake the phone again until the next alert.
 
 ### 🔒 Lock screen

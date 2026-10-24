@@ -1,9 +1,9 @@
 package com.akira.island.ui.screens
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.AirplanemodeActive
 import androidx.compose.material.icons.rounded.AirplanemodeInactive
-import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BluetoothConnected
@@ -12,8 +12,8 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
-import androidx.compose.material.icons.rounded.Nfc
 import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Nfc
 import androidx.compose.material.icons.rounded.PowerOff
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.UsbOff
@@ -25,12 +25,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
+import com.akira.island.ui.Group
+import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
+import com.akira.island.ui.Pos
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.Tile
-import com.akira.island.ui.ToggleCard
 
-/** События — как на третьем скриншоте. */
+/** «События»: короткие плашки о том, что произошло, — по разделам. */
 @Composable
 fun EventsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
@@ -38,52 +40,55 @@ fun EventsScreen(onBack: () -> Unit) {
 
     Page("События", onBack) {
         SectionHeader("Батарея")
-        ToggleCard(Icons.Rounded.Bolt, "Зарядка началась", "Когда вы подключаете зарядное устройство", s.evChargeStart, color = Tile.Green) { set { copy(evChargeStart = it) } }
-        ToggleCard(Icons.Rounded.PowerOff, "Зарядка остановлена", "Когда вы отключаете зарядное устройство", s.evChargeStop, color = Tile.Gray) { set { copy(evChargeStop = it) } }
-        ToggleCard(Icons.Rounded.BatteryAlert, "Предупреждение о низком заряде батареи", "Когда заряд батареи падает до 5%", s.evLowBattery, color = Tile.Red) { set { copy(evLowBattery = it) } }
+        Group {
+            GroupToggle(Pos.First, Icons.Rounded.Bolt, "Зарядка началась", null, s.evChargeStart, color = Tile.Green) { set { copy(evChargeStart = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.PowerOff, "Зарядка остановлена", null, s.evChargeStop, color = Tile.Gray) { set { copy(evChargeStop = it) } }
+            GroupToggle(Pos.Last, Icons.Rounded.BatteryAlert, "Низкий заряд", "Когда заряд батареи падает до 5%",
+                s.evLowBattery, color = Tile.Red) { set { copy(evLowBattery = it) } }
+        }
 
-        SectionHeader("Wi-Fi")
-        ToggleCard(Icons.Rounded.Wifi, "Wi-Fi подключён", "Когда сеть Wi-Fi подключена", s.evWifiOn, color = Tile.Blue) { set { copy(evWifiOn = it) } }
-        ToggleCard(Icons.Rounded.WifiOff, "Wi-Fi отключён", "Когда сеть Wi-Fi отключена", s.evWifiOff, color = Tile.Gray) { set { copy(evWifiOff = it) } }
-
-        SectionHeader("Наушники")
-        ToggleCard(Icons.Rounded.BluetoothConnected, "Наушники подключены", "Когда вы подключаете их через Bluetooth", s.evHeadsetOn, color = Tile.Indigo) { set { copy(evHeadsetOn = it) } }
-        ToggleCard(Icons.Rounded.BluetoothDisabled, "Наушники отключены", "Когда вы отключаете их через Bluetooth", s.evHeadsetOff, color = Tile.Gray) { set { copy(evHeadsetOff = it) } }
-
-        SectionHeader("Режим полёта")
-        ToggleCard(Icons.Rounded.AirplanemodeActive, "Режим полёта включён", "Показывается, когда режим полёта включён", s.evAirplaneOn, color = Tile.Orange) { set { copy(evAirplaneOn = it) } }
-        ToggleCard(Icons.Rounded.AirplanemodeInactive, "Режим полёта выключен", "Показывается, когда режим полёта выключен", s.evAirplaneOff, color = Tile.Gray) { set { copy(evAirplaneOff = it) } }
-
-        SectionHeader("Громкость")
-        ToggleCard(Icons.Rounded.Vibration, "Режим громкости", "Когда изменяется режим громкости", s.evRinger, color = Tile.Pink) { set { copy(evRinger = it) } }
-
-        SectionHeader("Экран")
-        ToggleCard(Icons.Rounded.BrightnessAuto, "Режим яркости", "При включении или выключении адаптивной яркости", s.evBrightness, color = Tile.Yellow) { set { copy(evBrightness = it) } }
-
-        SectionHeader("USB-устройство")
-        ToggleCard(Icons.Rounded.Usb, "USB-устройство подключено", "Когда вы подключаете USB-устройство", s.evUsbOn, color = Tile.Teal) { set { copy(evUsbOn = it) } }
-        ToggleCard(Icons.Rounded.UsbOff, "USB-устройство отключено", "Когда вы отключаете USB-устройство", s.evUsbOff, color = Tile.Gray) { set { copy(evUsbOff = it) } }
-
-        SectionHeader("Оплата")
-        ToggleCard(Icons.Rounded.Nfc, "Приложите к терминалу",
-            "Когда на экране оплата телефоном — Mir Pay, T-Pay, SberPay, Яндекс Пэй и другие («Поднесите телефон к терминалу»): " +
-                "волны, как у Apple Pay. Держится, пока не заплатите или не выйдете из приложения",
-            s.evPayReady, color = Tile.Blue) { set { copy(evPayReady = it) } }
-        ToggleCard(Icons.Rounded.AccountBalance, "Подсказка при открытии банка",
-            "Показывать «К терминалу» сразу, как открыли банк или кошелёк, а не только на экране оплаты телефоном",
-            s.payHintOnOpen, color = Tile.Gray) { set { copy(payHintOnOpen = it) } }
-        ToggleCard(Icons.Rounded.CheckCircle, "Оплачено",
-            "Когда кошелёк показывает сумму у себя на экране или банк присылает уведомление или СМС — зелёная галочка и сумма",
-            s.evPaySuccess, color = Tile.Green) { set { copy(evPaySuccess = it) } }
-
-        SectionHeader("Будильник")
-        ToggleCard(Icons.Rounded.Alarm, "Будильник поставлен",
-            "Когда вы ставите будильник — время подъёма и сколько осталось спать", s.evAlarmSet, color = Tile.Orange) { set { copy(evAlarmSet = it) } }
+        SectionHeader("Подключения")
+        Group {
+            GroupToggle(Pos.First, Icons.Rounded.Wifi, "Wi-Fi подключён", null, s.evWifiOn, color = Tile.Blue) { set { copy(evWifiOn = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.WifiOff, "Wi-Fi отключён", null, s.evWifiOff, color = Tile.Gray) { set { copy(evWifiOff = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.BluetoothConnected, "Наушники подключены", "По Bluetooth, с зарядом, если он известен",
+                s.evHeadsetOn, color = Tile.Indigo) { set { copy(evHeadsetOn = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.BluetoothDisabled, "Наушники отключены", null, s.evHeadsetOff, color = Tile.Gray) { set { copy(evHeadsetOff = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.Usb, "USB-устройство подключено", null, s.evUsbOn, color = Tile.Teal) { set { copy(evUsbOn = it) } }
+            GroupToggle(Pos.Last, Icons.Rounded.UsbOff, "USB-устройство отключено", null, s.evUsbOff, color = Tile.Gray) { set { copy(evUsbOff = it) } }
+        }
 
         SectionHeader("Режимы")
-        ToggleCard(Icons.Rounded.DoNotDisturbOn, "Не беспокоить", "При включении и выключении режима «Не беспокоить»", s.evDnd, color = Tile.Indigo) { set { copy(evDnd = it) } }
+        Group {
+            GroupToggle(Pos.First, Icons.Rounded.AirplanemodeActive, "Режим полёта включён", null, s.evAirplaneOn, color = Tile.Orange) { set { copy(evAirplaneOn = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.AirplanemodeInactive, "Режим полёта выключен", null, s.evAirplaneOff, color = Tile.Gray) { set { copy(evAirplaneOff = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.DoNotDisturbOn, "Не беспокоить", "Луна и состояние при переключении",
+                s.evDnd, color = Tile.Indigo) { set { copy(evDnd = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.Vibration, "Режим громкости", "Звонок, вибрация или без звука",
+                s.evRinger, color = Tile.Pink) { set { copy(evRinger = it) } }
+            GroupToggle(Pos.Last, Icons.Rounded.BrightnessAuto, "Режим яркости", "Когда включают или выключают адаптивную яркость",
+                s.evBrightness, color = Tile.Yellow) { set { copy(evBrightness = it) } }
+        }
+
+        SectionHeader("Оплата")
+        Group {
+            GroupToggle(Pos.First, Icons.Rounded.Nfc, "Приложите к терминалу",
+                "Когда на экране оплата телефоном — Mir Pay, T-Pay, SberPay, Яндекс Пэй и другие. Держится, пока не заплатите или не выйдете из приложения",
+                s.evPayReady, color = Tile.Blue) { set { copy(evPayReady = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.AccountBalance, "Подсказка при открытии банка",
+                "«К терминалу» сразу, как открыли банк или кошелёк, а не только на экране оплаты",
+                s.payHintOnOpen, color = Tile.Gray) { set { copy(payHintOnOpen = it) } }
+            GroupToggle(Pos.Last, Icons.Rounded.CheckCircle, "Оплачено",
+                "Галочка и сумма — с экрана кошелька, из уведомления или СМС банка",
+                s.evPaySuccess, color = Tile.Green) { set { copy(evPaySuccess = it) } }
+        }
 
         SectionHeader("Другое")
-        ToggleCard(Icons.Rounded.LockOpen, "Разблокировка устройства", "После разблокировки устройства", s.evUnlock, color = Tile.Purple) { set { copy(evUnlock = it) } }
+        Group {
+            GroupToggle(Pos.First, Icons.Rounded.Alarm, "Будильник поставлен", "Время подъёма и сколько осталось спать",
+                s.evAlarmSet, color = Tile.Orange) { set { copy(evAlarmSet = it) } }
+            GroupToggle(Pos.Last, Icons.Rounded.LockOpen, "Разблокировка устройства", "Замок открывается, когда вы разблокируете телефон",
+                s.evUnlock, color = Tile.Purple) { set { copy(evUnlock = it) } }
+        }
     }
 }

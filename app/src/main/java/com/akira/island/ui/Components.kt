@@ -215,7 +215,7 @@ private fun Pos.shape(): Shape = when (this) {
     Pos.Last -> RoundedCornerShape(6.dp, 6.dp, 28.dp, 28.dp)
 }
 
-/** Склеенные строки настроек (экран «Настройки Капсулы»). */
+/** Склеенные строки настроек: одна карточка со скруглением сверху и снизу. */
 @Composable
 fun Group(content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp), content = content)
