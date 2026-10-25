@@ -88,13 +88,24 @@ jobs:
           ks="$RUNNER_TEMP/island.p12"
           trap 'rm -f "$ks"' EXIT
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$ks"
+          # Сначала — тот ли ключ лежит в секрете
+          info=$(keytool -list -v -keystore "$ks" -storetype PKCS12 -storepass:env KEYSTORE_PASSWORD -alias island)
+          key=$(awk -F'SHA256: *' 'NF > 1 {gsub(":", "", $2); print tolower($2); exit}' <<<"$info")
+          if [[ "$key" != "$SIGNING_CERT_SHA256" ]]; then
+            echo "::error::В секрете KEYSTORE_BASE64 другой ключ ($key) — ожидался $SIGNING_CERT_SHA256"
+            exit 1
+          fi
           bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "build-tools: $bt"
           mkdir -p out
           "$bt/zipalign" -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
           "$bt/apksigner" sign --ks "$ks" --ks-type PKCS12 --ks-key-alias island \
             --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
             --out out/DynamicIsland.apk "$RUNNER_TEMP/aligned.apk"
-          got=$("$bt/apksigner" verify --print-certs out/DynamicIsland.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          # Потом — что APK подписан именно им (сертификат не секрет, его видно в логе)
+          certs=$("$bt/apksigner" verify --verbose --print-certs out/DynamicIsland.apk)
+          echo "$certs"
+          got=$(awk 'tolower($0) ~ /certificate sha-256 digest:/ {print tolower($NF); exit}' <<<"$certs")
           if [[ "$got" != "$SIGNING_CERT_SHA256" ]]; then
             echo "::error::APK подписан не тем ключом ($got) — ожидался $SIGNING_CERT_SHA256"
             exit 1
