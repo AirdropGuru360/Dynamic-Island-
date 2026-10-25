@@ -99,6 +99,9 @@ Short notices in the capsule, each can be turned on separately:
 
 New versions install over old ones; your settings are kept.
 
+> [!IMPORTANT]
+> Since 1.6.1 the app has a new signing key. If you have 1.6.0 or older, uninstall it once and install the new version — after that updates install over the top again.
+
 ## 👆 Gestures
 
 | Action | Result |
@@ -159,7 +162,7 @@ Every push builds an APK in [GitHub Actions](https://github.com/Akira9021/Dynami
 
 Why two windows: if a window is resized during an animation, Android shows the old picture in the new place for a frame — and the island jitters. So the drawing window never changes its width, and the invisible touch window follows the island and forwards touches.
 
-Builds are signed with the key from `keystore/` — only so that new APKs install over old ones.
+The signing key isn't stored in the repository: Gradle builds an unsigned APK, CI signs it with the key from GitHub secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`) and checks the certificate fingerprint. A local debug build is signed with the usual debug key.
 
 </details>
 

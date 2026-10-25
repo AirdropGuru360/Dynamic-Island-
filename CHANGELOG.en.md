@@ -8,6 +8,8 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 ## [1.6.1] — 2026-10-23
 
+⚠️ **New signing key.** The old key became public, so since 1.6.1 the app is signed with a new one. If you have 1.6.0 or older, the update won't install over it: uninstall the old version once, install 1.6.1, then turn accessibility and notification access back on. After that, updates install over the top as before.
+
 ### 🌍 English
 - **The app and the island speak English**: every screen and island banner ("Charging", "Do Not Disturb", "Silent", "Paid", "Hold near reader"…), the alarm, player, navigation, calls and the update card. The wording matches the promo video; long English labels shrink a little instead of running into the camera.
 - **Features → General → Language** («Функции → Общие → Язык»): System default (Russian if the phone is in Russian, otherwise English), Русский or English. It switches right away, no restart needed.
@@ -104,6 +106,7 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - New switches: Features → Behavior → **Turn on the screen** («Включать экран») for a ringing timer, alarm or incoming call; Dynamic cards → **Clock buttons** («Кнопки для «Часов»», off — the island's buttons just open Clock) and **Timer from assistant** («Таймер от помощника», off — the island isn't offered when asked to set a timer).
 
 ### 🔒 Security
+- **A new signing key** is kept only in GitHub secrets, not in the code; the build checks that the APK is signed with exactly this key. This way nobody can pass off their own build as an island update.
 - The "Set a timer" command starts a timer in the island only from apps Android allows to set alarms and timers (the assistant, Clock, widgets) — not from any app.
 - The update installs only the island itself: if the downloaded file holds a different app, the installer won't open.
 - The service description and the Permissions screen say exactly what of the data the island reads goes online: only the song title and artist, to find lyrics.

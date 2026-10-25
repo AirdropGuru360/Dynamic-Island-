@@ -17,25 +17,14 @@ android {
         versionName = "1.6.1"
     }
 
-    // Один и тот же ключ для всех сборок, чтобы APK из CI ставился поверх предыдущего.
-    signingConfigs {
-        create("island") {
-            storeFile = rootProject.file("keystore/island.jks")
-            storePassword = "island123"
-            keyAlias = "island"
-            keyPassword = "island123"
-        }
-    }
-
+    // Ключ подписи в репозитории не хранится: релизный APK собирается без подписи,
+    // а подписывает его CI ключом из секретов GitHub (см. .github/workflows/android.yml).
+    // Отладочная сборка подписывается обычным отладочным ключом Android Studio.
     buildTypes {
-        debug {
-            signingConfig = signingConfigs.getByName("island")
-        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("island")
         }
     }
 
