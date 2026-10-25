@@ -100,6 +100,8 @@ object UpdateChecker {
             else -> UpdateState.Available(release)
         }
         val available = (state.value as? UpdateState.Available)?.release
+        // Ошибка прошлой попытки к новой проверке не относится — карточка снова предлагает «Обновить»
+        if (available != null && download.value is DownloadState.Failed) download.value = DownloadState.Idle
         if (announce && available != null && available.version != announced) {
             announced = available.version
             IslandBus.post(
@@ -151,6 +153,16 @@ object UpdateChecker {
         )
     }
 
+    /** Имя скачанного APK: по версии, без лишних символов из тега. */
+    private fun apkName(version: String) = "DynamicIsland-${version.filter { it.isLetterOrDigit() || it == '.' }}.apk"
+
+    /**
+     * Скачанный APK именно этой версии, если он ещё лежит в кэше: тогда «Установить» ставит его без новой
+     * загрузки. Файл другой версии или стёртый системой не подходит — нужно скачать заново.
+     */
+    fun readyFile(release: Release, state: DownloadState): File? =
+        (state as? DownloadState.Ready)?.file?.takeIf { it.name == apkName(release.version) && it.exists() }
+
     /** «Позже»: про эту версию больше не напоминаем, пока не выйдет следующая. */
     fun skip(version: String) {
         SettingsRepo.update { copy(skippedVersion = version) }
@@ -183,7 +195,7 @@ object UpdateChecker {
             withContext(Dispatchers.IO) {
                 val dir = File(context.cacheDir, "update").apply { mkdirs() }
                 dir.listFiles()?.forEach { it.delete() }
-                val file = File(dir, "DynamicIsland-${release.version.filter { it.isLetterOrDigit() || it == '.' }}.apk")
+                val file = File(dir, apkName(release.version))
                 val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 15_000
                     readTimeout = 30_000

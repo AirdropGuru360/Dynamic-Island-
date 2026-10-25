@@ -19,11 +19,11 @@ Notifications with reply · navigation · payments · music with lyrics · calls
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)
 ![No ads](https://img.shields.io/badge/ads-0-black?style=flat-square)
 
-<img src="docs/preview.en.svg" width="820" alt="Collapsed and expanded island views: music, charging, timer, call, player, incoming call, headphones">
+<img src="docs/preview.en.png" width="820" alt="Collapsed and expanded island views: idle, music, charging, timer, call, the player with lyrics, incoming call, headphones">
 
 ### [⬇️ Download the latest version](https://github.com/Akira9021/Dynamic-Island-/releases/latest)
 
-[What's new](#-whats-new-in-160) · [Features](#-features) · [Installation](#-installation) · [Gestures](#-gestures) · [Settings](#-settings) · [How it works](#-how-it-works)
+[What's new](#-whats-new-in-161) · [Features](#-features) · [Installation](#-installation) · [Gestures](#-gestures) · [Settings](#-settings) · [How it works](#-how-it-works)
 
 </div>
 
@@ -32,26 +32,33 @@ Notifications with reply · navigation · payments · music with lyrics · calls
 
 ---
 
-## ✨ What's new in 1.6.0
+## ✨ What's new in 1.6.1
 
 <div align="center">
-<img src="docs/preview-1.6.en.svg" width="820" alt="New in 1.6.0: navigation with a turn arrow and meters, payment, Paid, Do Not Disturb, Liquid Glass, a notification banner with Reply and Mark as read buttons, expanded navigation">
+<img src="docs/preview-1.6.1.en.png" width="820" alt="New in 1.6.1: Pay · Hold near reader, Paid with the amount, the alarm and the sleep dial, Sent, the new version card with Later and Update, downloading with percent and Updated to 1.6.1">
 </div>
 
 | | |
 | --- | --- |
-| 🔔 **Big notification banner** | Like the notification shade: an avatar with the app badge, the name, an unread counter, the text and the notification's own buttons — "Reply" (type right inside the island) and "Mark as read" |
-| 🧭 **Navigation, rides, deliveries** | A wide banner when navigation starts, then a capsule with the turn arrow and distance; expanded — where to turn and "Arrive 18:42 · 12 min · 4.2 km". 2GIS, Yandex Navigator and Maps, Google Maps, Yandex Go, Uber, Yandex Eats |
-| 💳 **Payments** | The contactless symbol when you open a bank or wallet app; when the bank confirms a payment — a green check and the amount |
-| 🫧 **Liquid Glass** · *experimental* | Glass that catches the light: highlights, a glowing rim, a colored fringe; the highlights shift as you tilt the phone. Off by default |
-| 🎨 **Button color** | Lavender, system (Material You), from the avatar or custom |
-| 🔄 **In-app updates** | A "Version is available" card with Update / Later buttons; after updating — what changed |
-| 🌙 **Do Not Disturb** | A moon and the state when the mode switches |
-| ⚙️ **Settings** | iOS-style colored icons; capsule width with an activity and animations in their own categories |
-| 🔋 **Battery** | With the screen off the tilt sensor and navigator screen reading sleep; the glass renders faster |
-| 🧹 **Removed** | Volume control, the lyrics line in the capsule, island width and height (position stays) |
+| 🌍 **English** | The app and the island in English or Russian: Features → General → Language. Switches right away, no restart; the default follows the system |
+| ⬇️ **Updates right in the island** | A new version is out — a card with Later and Update, percent and a ring while it downloads, and Updated with What's new after installing. There's a demo in Try it |
+| 🗂️ **The app, reorganized** | Four tabs: Home, Features, Appearance, About; Permissions in one row and Try it — every island demo on one screen |
+| 💳 **Pay with your phone** | "Pay · Hold near reader" only on a phone payment screen (T-Pay, SberPay, Mir Pay, Yandex Pay, Google Wallet), and it stays until you pay; "Paid" with the amount — from the wallet screen, a notification or a bank SMS |
+| ⏱️ **Clock timer** | Clock's timer and stopwatch in the island even with Clock's notifications off — with pause and reset |
+| 🌙 **Alarm** | 12 hours before an alarm — the wake-up time and a sleep dial, like on iPhone |
+| 🔔 **Notifications** | The banner is sized like the system one, Reply works right from the island, and after sending you see "Sent ✓" |
+| ✨ **Effects and behavior** | Blur, live equalizer, shake, payment waves and the artwork glow — each one separately; the island can collapse by itself |
+| 🔒 **Security** | A new signing key kept only in GitHub secrets; the build runs without write access; only apps allowed to set alarms can start a timer in the island |
+| 🔋 **Battery** | While the screen is off the island doesn't wake up, and animations are lighter on the processor |
 
-Full list of changes — [CHANGELOG.en.md](CHANGELOG.en.md).
+> [!IMPORTANT]
+> Since 1.6.1 the app has a new signing key. If you have 1.6.0 or older, uninstall it once and install the new version — after that updates install over the top again.
+
+<div align="center">
+<img src="docs/app.en.png" width="820" alt="The app: Home, Features with General → Language, the language picker, Try it with every demo, and About">
+</div>
+
+Full list of changes, including 1.6.0 — [CHANGELOG.en.md](CHANGELOG.en.md).
 
 ## 📱 Features
 
@@ -97,10 +104,7 @@ Short notices in the capsule, each can be turned on separately:
 > [!TIP]
 > On Xiaomi, Huawei and Samsung allow autostart and remove battery restrictions, otherwise the firmware may kill the service.
 
-New versions install over old ones; your settings are kept.
-
-> [!IMPORTANT]
-> Since 1.6.1 the app has a new signing key. If you have 1.6.0 or older, uninstall it once and install the new version — after that updates install over the top again.
+New versions install over old ones; your settings are kept (from 1.6.0 to 1.6.1 — reinstall once, see above).
 
 ## 👆 Gestures
 
@@ -143,7 +147,8 @@ Four tabs:
 Kotlin, Jetpack Compose, Material 3. Requires JDK 17 and Android SDK 35.
 
 ```bash
-./gradlew assembleRelease   # app/build/outputs/apk/release/app-release.apk
+./gradlew assembleDebug     # app/build/outputs/apk/debug/app-debug.apk — for your own phone
+./gradlew assembleRelease   # app-release-unsigned.apk — CI adds the release signature
 ```
 
 Every push builds an APK in [GitHub Actions](https://github.com/Akira9021/Dynamic-Island-/actions). To release a new version, bump `versionName` and `versionCode` in `app/build.gradle.kts` and the version badge at the top of both READMEs, and add a `## [x.y.z]` section to [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.en.md](CHANGELOG.en.md) — after a push to the default branch the release with the APK and bilingual notes is created automatically. A `v*` tag works too.

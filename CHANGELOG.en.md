@@ -6,7 +6,7 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 > Since 1.6.1 the app and the island speak English (Features → General → Language). Earlier versions were in Russian only, so older entries give the Russian label in brackets.
 
-## [1.6.1] — 2026-10-23
+## [1.6.1] — 2026-10-25
 
 ⚠️ **New signing key.** The old key became public, so since 1.6.1 the app is signed with a new one. If you have 1.6.0 or older, the update won't install over it: uninstall the old version once, install 1.6.1, then turn accessibility and notification access back on. After that, updates install over the top as before.
 
@@ -20,6 +20,7 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 - Like in the video: "Version is available" with Later and Update, percent and a ring while it downloads, and after installing — "Updated" with What's new and Done.
 - If the APK is already downloaded but the installer didn't open (a permission is needed), the button becomes **Install** and installs the downloaded file without downloading it again. A download error shows in full right on the card, and a long caption shrinks a little instead of being cut off.
 - Try it («Проверка») has an **Update** demo: the card, running percent and "Updated", nothing is downloaded.
+- An update download no longer stops when you leave the About screen, and Install installs only the downloaded file of that very version.
 
 ### 🗂️ The app, reorganized
 - **Four labeled tabs**: Home, Features, Appearance and About («Главная», «Функции», «Оформление», «О приложении»). Settings are separate from the version, help and links.

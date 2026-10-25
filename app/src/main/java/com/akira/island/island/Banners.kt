@@ -104,7 +104,7 @@ fun UpdateCard(n: Notice, s: IslandSettings, wideWidth: Dp) {
     val download by UpdateChecker.download.collectAsState()
     val progress = (download as? DownloadState.Running)?.progress?.takeIf { release != null }
     // Скачалось, но установка не открылась (нужно разрешение) — «Установить» ставит уже скачанный файл
-    val ready = (download as? DownloadState.Ready)?.file?.takeIf { release != null }
+    val ready = release?.let { UpdateChecker.readyFile(it, download) }
     val failed = (download as? DownloadState.Failed)?.message?.takeIf { release != null }
     val loading = progress != null
     // Пока качается, плашка не уходит по таймеру
@@ -119,12 +119,14 @@ fun UpdateCard(n: Notice, s: IslandSettings, wideWidth: Dp) {
             Column(Modifier.weight(1f)) {
                 Text(n.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
+                // Пока качается, справа кольцо — вместо длинной подписи коротко, что происходит
+                val caption = if (loading) tr("Скачивается…", "Downloading…") else n.caption
                 if (failed != null) {
                     // Ошибку — целиком, в две строки: по ней понятно, что делать
                     Text(failed, color = Tints.Orange, fontSize = 13.sp, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                } else if (n.caption != null) {
+                } else if (caption != null) {
                     // Длинная подпись чуть уменьшается, а не обрезается
-                    FitText(n.caption, Tints.Gray, 13.sp, 11.sp, FontWeight.Normal)
+                    FitText(caption, Tints.Gray, 13.sp, 11.sp, FontWeight.Normal)
                 }
             }
             when {

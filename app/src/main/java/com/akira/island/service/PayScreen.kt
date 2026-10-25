@@ -174,6 +174,11 @@ class PayScreenReader(private val service: AccessibilityService, private val sco
         if (done) return
         val now = SystemClock.elapsedRealtime()
         lastScan = now
+        // Оплату после экрана оплаты ждём не дольше трёх минут — дальше экран не разбираем
+        if (readyAt != 0L && now - readyAt > 180_000) {
+            done = true
+            return
+        }
         val root = rootFor(pkg) ?: return
         val texts = LinkedHashSet<String>()
         collect(root, texts, 0)
@@ -185,8 +190,6 @@ class PayScreenReader(private val service: AccessibilityService, private val sco
         }
         val all = texts.flatMap { PayScreenParser.charges(it) }.distinct()
         if (readyAt != 0L) {
-            // Оплата после экрана оплаты: ждём не дольше трёх минут
-            if (now - readyAt > 180_000) return
             val base = baseline ?: return
             // Экран оплаты ещё дорисовывается — всё на нём «как было», а не оплата
             if (now - readyAt < 500) {

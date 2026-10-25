@@ -32,7 +32,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akira.island.core.IslandBus
 import com.akira.island.core.Lang
 import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
@@ -65,7 +65,6 @@ fun UpdateSection() {
     val context = LocalContext.current
     val state by UpdateChecker.state.collectAsState()
     val download by UpdateChecker.download.collectAsState()
-    val scope = rememberCoroutineScope()
     val release = (state as? UpdateState.Available)?.release ?: return
     var notes by remember(release.version) { mutableStateOf(false) }
 
@@ -99,8 +98,10 @@ fun UpdateSection() {
             }
         }
         Spacer(Modifier.height(14.dp))
-        when (val d = download) {
-            is DownloadState.Running -> {
+        val d = download
+        val ready = UpdateChecker.readyFile(release, d)
+        when {
+            d is DownloadState.Running -> {
                 LinearProgressIndicator(
                     progress = { d.progress },
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
@@ -110,20 +111,23 @@ fun UpdateSection() {
                 Text(tr("Скачиваю… ${(d.progress * 100).toInt()}%", "Downloading… ${(d.progress * 100).toInt()}%"),
                     color = Ui.Sub, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
             }
-            is DownloadState.Ready -> {
+            ready != null -> {
                 Text(
                     tr("Если установка не открылась, разрешите острову устанавливать приложения и нажмите «Установить» ещё раз.",
                         "If the installer didn't open, allow the island to install apps and tap Install again."),
                     color = Ui.Sub, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 10.dp),
                 )
-                FilledPill(tr("Установить", "Install")) { UpdateChecker.install(context, d.file) }
+                FilledPill(tr("Установить", "Install")) { UpdateChecker.install(context, ready) }
             }
             else -> {
                 if (d is DownloadState.Failed) {
                     Text(d.message, color = Color(0xFFFF8A80), fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilledPill(tr("Обновить", "Update")) { scope.launch { UpdateChecker.downloadAndInstall(context, release) } }
+                    // Загрузка не обрывается, если уйти с экрана: она идёт в общей области приложения, как из острова
+                    FilledPill(tr("Обновить", "Update")) {
+                        IslandBus.scope.launch { UpdateChecker.downloadAndInstall(context.applicationContext, release) }
+                    }
                     Spacer(Modifier.width(10.dp))
                     Box(
                         Modifier.clip(CircleShape).clickable { UpdateChecker.skip(release.version) }.padding(horizontal = 16.dp, vertical = 12.dp),
