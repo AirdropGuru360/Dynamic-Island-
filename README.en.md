@@ -23,7 +23,7 @@ Notifications with reply · navigation · payments · music with lyrics · calls
 
 ### [⬇️ Download the latest version](https://github.com/Akira9021/Dynamic-Island-/releases/latest)
 
-[What's new](#-whats-new-in-161) · [Features](#-features) · [Installation](#-installation) · [Gestures](#-gestures) · [Settings](#-settings) · [How it works](#-how-it-works)
+[What's new](#-whats-new-in-162) · [Features](#-features) · [Installation](#-installation) · [Gestures](#-gestures) · [Settings](#-settings) · [How it works](#-how-it-works)
 
 </div>
 
@@ -32,38 +32,31 @@ Notifications with reply · navigation · payments · music with lyrics · calls
 
 ---
 
-## ✨ What's new in 1.6.1
+## ✨ What's new in 1.6.2
 
-> [!NOTE]
-> **1.6.2:** a smaller island by default, with width and height adjustable again; Like a notch mode for waterdrop cameras; softer animations; a lock on the lock screen; Like in the player (Yandex Music and others); more reliable "Paid"; install help and a Keep the island running screen. Details — in [CHANGELOG.en.md](CHANGELOG.en.md).
+- 📏 **A smaller island**, with width and height adjustable again — Appearance → Position and size
+- 💧 **Like a notch** for waterdrop cameras
+- 🎬 **Softer animations**, Elasticity right on the Appearance tab
+- 🔒 **A lock** on the lock screen
+- 🎵 **Like** in the player — Yandex Music and others
+- 💳 **More reliable "Paid"** and Payment diagnostics
+- 🛠️ **Keep the island running** — on Home
+- ⬇️ Updates are checked **every 3 hours**
 
 <div align="center">
-<img src="docs/preview-1.6.1.en.png" width="820" alt="New in 1.6.1: Pay · Hold near reader, Paid with the amount, the alarm and the sleep dial, Sent, the new version card with Later and Update, downloading with percent and Updated to 1.6.1">
+<img src="docs/app.en.png" width="820" alt="The app: Home with Keep the island running, Appearance with Elasticity, Position and size with width, height and Like a notch, Keep running and Try it">
 </div>
-
-| | |
-| --- | --- |
-| 🌍 **English** | The app and the island in English or Russian: Features → General → Language. Switches right away, no restart; the default follows the system |
-| ⬇️ **Updates right in the island** | A new version is out — a card with Later and Update, percent and a ring while it downloads, and Updated with What's new after installing. There's a demo in Try it |
-| 🗂️ **The app, reorganized** | Four tabs: Home, Features, Appearance, About; Permissions in one row and Try it — every island demo on one screen |
-| 💳 **Pay with your phone** | "Pay · Hold near reader" only on a phone payment screen (T-Pay, SberPay, Mir Pay, Yandex Pay, Google Wallet), and it stays until you pay; "Paid" with the amount — from the wallet screen, a notification or a bank SMS |
-| ⏱️ **Clock timer** | Clock's timer and stopwatch in the island even with Clock's notifications off — with pause and reset |
-| 🌙 **Alarm** | 12 hours before an alarm — the wake-up time and a sleep dial, like on iPhone |
-| 🔔 **Notifications** | The banner is sized like the system one, Reply works right from the island, and after sending you see "Sent ✓" |
-| ✨ **Effects and behavior** | Blur, live equalizer, shake, payment waves and the artwork glow — each one separately; the island can collapse by itself |
-| 🔒 **Security** | A new signing key kept only in GitHub secrets; the build runs without write access; only apps allowed to set alarms can start a timer in the island |
-| 🔋 **Battery** | While the screen is off the island doesn't wake up, and animations are lighter on the processor |
 
 > [!IMPORTANT]
-> Since 1.6.1 the app has a new signing key. If you have 1.6.0 or older, uninstall it once and install the new version — after that updates install over the top again.
+> Coming from 1.6.0 or older, uninstall the old version once: since 1.6.1 the app has a new signing key.
 
-<div align="center">
-<img src="docs/app.en.png" width="820" alt="The app: Home, Features with General → Language, the language picker, Try it with every demo, and About">
-</div>
-
-Full list of changes, including 1.6.0 — [CHANGELOG.en.md](CHANGELOG.en.md).
+All changes — in [CHANGELOG.en.md](CHANGELOG.en.md).
 
 ## 📱 Features
+
+<div align="center">
+<img src="docs/preview-1.6.1.en.png" width="820" alt="The island: Pay · Hold near reader, Paid with the amount, the alarm and sleep dial, Sent, the new version card, download with percent and Updated">
+</div>
 
 <table>
 <tr><th>Card</th><th>In the capsule</th><th>On tap</th></tr>
@@ -141,13 +134,13 @@ Four tabs:
   - **System banners** — shortcuts to the Android settings where you turn off the pop-ups of the dialer, Clock and battery, so only the island shows these events.
   - **Language** — English or Russian, for the app and the island at once (General → Language).
 - **Appearance** («Оформление») — how the island looks:
-  - **Position** — horizontal offset and top offset; the capsule updates on screen right away.
+  - **Position and size** — horizontal offset, top offset, width, height and Like a notch; the capsule updates on screen right away.
   - **Size with activity** — how much thicker and wider the capsule with an activity is than the idle one, with a live preview.
   - **Capsule color** — color, outline (color, thickness, color from artwork) and shadow.
   - **Liquid Glass** *(experimental)* — a glass island and cards, glass density.
   - **Island expansion** — style ("Like a Fruit" with a jelly effect, "Spring", "Smooth", "No animation"), duration, elasticity, Reduce effects.
   - **Effects** — blur, live equalizer, shake, payment waves, artwork glow and battery saving.
-- **About** («О приложении») — version and updates (an auto-check every 6 hours, Check now, What's new), instructions, navigation diagnostics and the GitHub page button («Страница GitHub») that leads here.
+- **About** («О приложении») — version and updates (an auto-check every 3 hours, Check now, What's new), instructions, navigation diagnostics and the GitHub page button («Страница GitHub») that leads here.
 
 ## 🧩 How it works
 

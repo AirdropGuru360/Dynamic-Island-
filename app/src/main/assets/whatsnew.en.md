@@ -16,5 +16,6 @@
 - Understands Google Wallet and Mir Pay notifications, the "Payment successful" screen and more banks. If it didn't show — About → **Payment diagnostics**.
 
 ### 🛠️ So the island doesn't disappear
-- Permissions → **Keep the island running**: battery, autostart and locking in recent apps for Xiaomi, Oppo, Samsung and others.
+- **Keep the island running** on Home: battery, autostart and locking in recent apps for Xiaomi, Oppo, Samsung and others.
 - Step-by-step help when Android says "Restricted setting".
+- New versions are checked every 3 hours.

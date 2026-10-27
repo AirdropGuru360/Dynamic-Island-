@@ -62,12 +62,12 @@ sealed interface DownloadState {
  */
 object UpdateChecker {
     const val REPO = "Akira9021/Dynamic-Island-"
-    private const val CHECK_EVERY_MS = 6 * 60 * 60 * 1000L
+    private const val CHECK_EVERY_MS = 3 * 60 * 60 * 1000L
 
     val state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val download = MutableStateFlow<DownloadState>(DownloadState.Idle)
 
-    /** О какой версии остров уже сообщил плашкой — чтобы не повторять каждые 6 часов */
+    /** О какой версии остров уже сообщил плашкой — чтобы не повторять каждые 3 часа */
     private var announced: String? = null
 
     fun currentVersion(context: Context): String = runCatching {
@@ -76,7 +76,7 @@ object UpdateChecker {
 
     /**
      * [force] — проверка по кнопке: показывает «последняя версия» и ошибки связи.
-     * Фоновая раз в 6 часов молчит, если сети нет или версия, от которой отказались, не изменилась.
+     * Фоновая раз в 3 часа молчит, если сети нет или версия, от которой отказались, не изменилась.
      * [announce] — проверка из службы острова: о новой версии сообщает плашка на острове
      * (нажатие открывает приложение с кнопкой «Обновить»).
      */
@@ -87,7 +87,7 @@ object UpdateChecker {
         if (state.value is UpdateState.Checking) return
         state.value = UpdateState.Checking
         val result = runCatching { withContext(Dispatchers.IO) { fetchLatest() } }
-        // Без связи проверка не считается: повторим при следующей возможности, а не через 6 часов
+        // Без связи проверка не считается: повторим при следующей возможности, а не через 3 часа
         if (result.isSuccess) SettingsRepo.update { copy(lastUpdateCheck = now) }
         val release = result.getOrNull()
         state.value = when {

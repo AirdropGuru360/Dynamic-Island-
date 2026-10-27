@@ -201,7 +201,7 @@ class IslandService : AccessibilityService() {
         // Телефон заблокировали — отвечать с экрана блокировки нельзя
         scope.launch { IslandBus.locked.collect { if (it) IslandBus.reply.value = null } }
 
-        // Новая версия на GitHub: проверка сама ограничена разом в 6 часов, здесь только будим её
+        // Новая версия на GitHub: проверка сама ограничена разом в 3 часа, здесь только будим её
         scope.launch {
             while (isActive) {
                 if (IslandBus.screenOn.value) UpdateChecker.check(this@IslandService, force = false, announce = true)

@@ -196,7 +196,7 @@ fun AppInfoScreen(open: (Screen) -> Unit) {
         SectionHeader(tr("Обновления", "Updates"))
         Group {
             GroupToggle(Pos.First, Icons.Rounded.SystemUpdate, tr("Искать обновления", "Check for updates"),
-                tr("Раз в 6 часов смотреть на GitHub, не вышла ли новая версия", "Look on GitHub every 6 hours for a new version"),
+                tr("Раз в 3 часа смотреть на GitHub, не вышла ли новая версия", "Look on GitHub every 3 hours for a new version"),
                 s.autoUpdateCheck, color = Tile.Green) { v ->
                 SettingsRepo.update { copy(autoUpdateCheck = v) }
             }

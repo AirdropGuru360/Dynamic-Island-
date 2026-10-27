@@ -121,7 +121,7 @@ private fun AppRoot() {
     }
     BackHandler(enabled = stack.isNotEmpty(), onBack = back)
 
-    // Раз в 6 часов спрашиваем GitHub, не вышла ли новая версия; после обновления — «Что нового»
+    // Раз в 3 часа спрашиваем GitHub, не вышла ли новая версия; после обновления — «Что нового»
     val context = LocalContext.current
     LaunchedEffect(Unit) { UpdateChecker.check(context.applicationContext, force = false) }
     // Сменили язык — экраны рисуются заново на нём, а открытая вкладка и экран остаются
