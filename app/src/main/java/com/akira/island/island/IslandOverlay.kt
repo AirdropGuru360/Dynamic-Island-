@@ -74,6 +74,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.akira.island.core.BatteryInfo
+import com.akira.island.core.ChronoInfo
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
 import com.akira.island.core.Lyrics
@@ -152,6 +153,20 @@ fun IslandOverlay(
         }
     }
 
+    // Обратный отсчёт из чужого уведомления, дошедший до нуля, уходит через 3 секунды, а не висит «00:00».
+    // Просыпаемся ровно к этому моменту; пока экран погашен, ожидание стоит — со включением пересчитываем
+    var chronoNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(chrono, screenOn) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            chronoNow = now
+            val next = chrono.values.filter { it.countDown && it.pausedMs == null }
+                .map { it.base + ChronoInfo.DONE_MS }.filter { it >= now }.minOrNull() ?: break
+            delay(next - now + 50)
+        }
+    }
+    val chronoActive = chrono.values.filterNot { it.finished(chronoNow) }
+
     // Пробная «живая активность» исчезает по времени, даже если таймер удаления не сработал (сон телефона)
     val hasExpiring = live.values.any { it.expiresAt > 0 }
     var wallNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -196,7 +211,7 @@ fun IslandOverlay(
         if (t != null && !t.ringing) persistent += Act.TimerA(t)
         if (s.cardLive) liveActive.maxByOrNull { it.postTime }?.let { persistent += Act.LiveA(it) }
         stopwatch?.let { persistent += Act.StopwatchA(it) }
-        if (s.cardTimer) chrono.values.maxByOrNull { it.postTime }?.let { persistent += Act.ChronoA(it) }
+        if (s.cardTimer) chronoActive.maxByOrNull { it.postTime }?.let { persistent += Act.ChronoA(it) }
         val m = media
         if (s.cardMedia && m != null && !(s.hideWhenPlayerOpen && foreground == m.pkg)) persistent += Act.MediaA(m)
         if (s.cardProgress) progress.values.maxByOrNull { it.postTime }?.let { persistent += Act.ProgressA(it) }

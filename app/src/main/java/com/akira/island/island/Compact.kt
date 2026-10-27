@@ -258,10 +258,10 @@ private fun TimeText(text: String, color: Color, size: Int = 16, weight: FontWei
 /** Мягко светящаяся точка — признак того, что фонарик горит. Свечение только перерисовывается. */
 @Composable
 private fun GlowDot(color: Color, size: Dp, animate: Boolean) {
-    val t = rememberInfiniteTransition(label = "glow")
-    val moving = if (animate) t.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "k") else null
+    // Фонарик и навигатор горят долго — свечение идёт около 30 кадров в секунду, а не с частотой экрана
+    val time = rememberFxClock(animate)
     Canvas(Modifier.size(size * 1.8f)) {
-        val k = moving?.value ?: 1f
+        val k = if (animate) 0.55f + 0.45f * pingPong(time.value, 1100) else 1f
         val r = this.size.minDimension / 2
         drawCircle(color.copy(alpha = 0.25f * k), radius = r * k)
         drawCircle(color, radius = r / 1.8f)

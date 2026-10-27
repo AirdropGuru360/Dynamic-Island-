@@ -92,6 +92,18 @@ data class ChronoInfo(
 ) {
     fun elapsed(nowWall: Long): Long = pausedMs ?: if (countDown) (base - nowWall).coerceAtLeast(0) else nowWall - base
 
+    /**
+     * Показывать уже нечего: обратный отсчёт дошёл до нуля больше 3 секунд назад, а приложение так и не убрало
+     * уведомление (иначе в острове навсегда «00:00»), или отсчёт «с начала» начинается в будущем.
+     */
+    fun finished(nowWall: Long): Boolean = pausedMs == null &&
+        (countDown && nowWall > base + DONE_MS || !countDown && base > nowWall + 60_000)
+
+    companion object {
+        /** Сколько закончившийся обратный отсчёт ещё виден в острове */
+        const val DONE_MS = 3_000L
+    }
+
     /** Запись экрана или звука — показывается красным. */
     val isRecording: Boolean
         get() = title.lowercase().let { t -> "record" in t || "запис" in t }

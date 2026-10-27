@@ -86,11 +86,13 @@ import com.akira.island.island.islandGlow
 import com.akira.island.island.islandShape
 import com.akira.island.island.rememberHaptic
 import com.akira.island.service.NotificationParser
+import com.akira.island.service.SystemBanners
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
 import com.akira.island.ui.ItemIcon
 import com.akira.island.ui.Page
 import com.akira.island.ui.Perms
+import com.akira.island.ui.PillAction
 import com.akira.island.ui.Pos
 import com.akira.island.ui.Screen
 import com.akira.island.ui.SectionHeader
@@ -156,6 +158,17 @@ fun HomeScreen(open: (Screen) -> Unit) {
         // Без службы спец. возможностей острова нет вовсе — это первый шаг
         if (!perms.accessibility) {
             StartCard(onOpen = { Perms.openAccessibility(context) }, onHelp = { open(Screen.INSTRUCTION) })
+        }
+
+        // Сообщение пришло и в остров, и своей плашкой мессенджера — подсказываем один раз, как убрать вторую
+        val popUp by SystemBanners.popUp.collectAsState()
+        val doubled = popUp.filterValues { it }.keys.firstOrNull()
+        if (doubled != null && !s.bannerHintHidden) {
+            DoubleBannerCard(
+                NotificationParser.appLabel(context, doubled),
+                onFix = { open(Screen.BANNERS) },
+                onHide = { SettingsRepo.update { copy(bannerHintHidden = true) } },
+            )
         }
 
         ToggleCard(
@@ -248,6 +261,31 @@ internal fun restrictedHelp(): String = tr(
         "2. Open App info → “⋮” in the top right → “Allow restricted settings”.\n" +
         "3. Go back to Accessibility and turn the island on.",
 )
+
+/** «Сообщения приходят дважды?» — когда у мессенджера ещё всплывает своя плашка поверх острова. */
+@Composable
+private fun DoubleBannerCard(app: String, onFix: () -> Unit, onHide: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Ui.Card).padding(20.dp),
+    ) {
+        Text(tr("Сообщения приходят дважды?", "Messages show up twice?"), color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            tr(
+                "Сообщение показывает и остров, и сам $app своей плашкой. Выключите у него «Всплывающие уведомления» — " +
+                    "останется только остров, а в шторке уведомление сохранится.",
+                "Both the island and $app itself show the message. Turn off its “Pop on screen” — only the island will " +
+                    "remain, and the notification stays in the shade.",
+            ),
+            color = Ui.Sub, fontSize = 14.sp, lineHeight = 20.sp,
+        )
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillAction(tr("Настроить", "Set up"), onClick = onFix)
+            PillAction(tr("Скрыть", "Hide"), onClick = onHide)
+        }
+    }
+}
 
 /** «Разрешения»: что острову нужно от системы и зачем. */
 @Composable

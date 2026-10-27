@@ -35,10 +35,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -134,6 +136,36 @@ fun rememberNow(periodMs: Long, active: Boolean = true): Long {
     return now
 }
 
+/** Сколько миллисекунд между кадрами живых украшений: около 30 кадров в секунду вместо частоты экрана (до 120) */
+private const val FX_FRAME_MS = 33L
+
+/**
+ * Время для живых украшений — эквалайзера, свечения: обновляется около 30 раз в секунду и только пока горит экран.
+ * Музыка играет часами, и с полной частотой экрана остров перерисовывался бы до 120 раз в секунду всё это время —
+ * телефон грелся и подтормаживал. Читать значение нужно при рисовании, тогда меняется только картинка.
+ */
+@Composable
+fun rememberFxClock(active: Boolean): State<Long> {
+    val time = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(active) {
+        while (active) {
+            if (!IslandBus.screenOn.value) IslandBus.screenOn.first { it }
+            withFrameMillis { time.longValue = it }
+            delay(FX_FRAME_MS - 8)
+        }
+    }
+    return time
+}
+
+/**
+ * Значение «туда-обратно» за [halfMs] в каждую сторону с плавным разгоном и торможением — как
+ * infiniteRepeatable(tween(halfMs, FastOutSlowInEasing), RepeatMode.Reverse), но от общего времени [t].
+ */
+fun pingPong(t: Long, halfMs: Int): Float {
+    val p = (t % (2L * halfMs)).toFloat() / halfMs
+    return FastOutSlowInEasing.transform(if (p < 1f) p else 2f - p)
+}
+
 /** То же для настенных часов (System.currentTimeMillis). */
 @Composable
 fun rememberWallNow(periodMs: Long): Long {
@@ -162,27 +194,17 @@ fun rememberHaptic(): () -> Unit {
  */
 @Composable
 fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifier = Modifier, bars: Int = 5) {
-    val transition = rememberInfiniteTransition(label = "eq")
-    val moving = (0 until bars).map { i ->
-        if (playing && animate) {
-            transition.animateFloat(
-                initialValue = 0.2f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    tween(320 + (i * 97) % 280, easing = FastOutSlowInEasing),
-                    RepeatMode.Reverse,
-                ),
-                label = "bar$i",
-            )
-        } else {
-            null
-        }
-    }
+    val moving = playing && animate
+    val time = rememberFxClock(moving)
     Canvas(modifier) {
-        // Полоска и промежуток одной ширины
+        // Полоска и промежуток одной ширины; у каждой своя скорость
         val w = size.width / (bars * 2 - 1)
         for (i in 0 until bars) {
-            val h = moving[i]?.value ?: if (playing) 0.3f + 0.45f * ((i * 37) % 10) / 10f else 0.15f
+            val h = when {
+                moving -> 0.2f + 0.8f * pingPong(time.value, 320 + (i * 97) % 280)
+                playing -> 0.3f + 0.45f * ((i * 37) % 10) / 10f
+                else -> 0.15f
+            }
             val bh = (size.height * h).coerceAtLeast(w)
             drawRoundRect(
                 color = color,

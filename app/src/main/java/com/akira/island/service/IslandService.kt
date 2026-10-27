@@ -46,6 +46,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import java.util.Calendar
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -112,6 +114,11 @@ class IslandService : AccessibilityService() {
     private var bubble = Rect.Zero
     /** Высокое окно рисования на время анимации; в покое — по нижнему краю острова. */
     private var tall = true
+    private var touchPending = false
+    private val touchUpdate = Runnable {
+        touchPending = false
+        updateTouchWindow()
+    }
     private val settle = Runnable {
         tall = false
         updateDisplayHeight()
@@ -217,8 +224,27 @@ class IslandService : AccessibilityService() {
         }
 
         scope.launch {
-            combine(SettingsRepo.state, IslandBus.landscape) { s, land -> s to land }
+            combine(SettingsRepo.state, IslandBus.landscape, IslandBus.offSchedule) { s, land, _ -> s to land }
                 .collect { (s, land) -> applySettings(s, land) }
+        }
+
+        // «По расписанию»: проверяем ровно на границах часов и со включением экрана (пока телефон спит, ожидание стоит)
+        scope.launch {
+            combine(SettingsRepo.state.map { Triple(it.scheduleOn, it.scheduleFrom, it.scheduleTo) }.distinctUntilChanged(), IslandBus.screenOn) { sch, _ -> sch }
+                .collectLatest { (on) ->
+                    while (true) {
+                        val now = Calendar.getInstance()
+                        IslandBus.offSchedule.value = !SettingsRepo.current.inSchedule(now.get(Calendar.HOUR_OF_DAY))
+                        if (!on) break
+                        val next = (now.clone() as Calendar).apply {
+                            add(Calendar.HOUR_OF_DAY, 1)
+                            set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        delay(next.timeInMillis - now.timeInMillis + 500)
+                    }
+                }
         }
 
         // Обновились — один раз карточка «Обновлено», как в ролике (первая установка молчит)
@@ -310,7 +336,7 @@ class IslandService : AccessibilityService() {
     }.getOrDefault(true)
 
     private fun applySettings(s: IslandSettings, landscape: Boolean) {
-        visible = s.enabled && !(s.hideInLandscape && landscape)
+        visible = s.enabled && !(s.hideInLandscape && landscape) && !IslandBus.offSchedule.value
         display?.visibility = if (visible) View.VISIBLE else View.GONE
         if (!visible) Controls.collapse()
         val y = dp(s.topOffset - ISLAND_PAD_DP)
@@ -330,7 +356,12 @@ class IslandService : AccessibilityService() {
     }
 
     private fun onBoundsChanged() {
-        updateTouchWindow()
+        // Во время анимации границы меняются каждый кадр, а перекладка окна касаний — вызов системы:
+        // двигаем его не чаще раза в 50 мс, последнее положение всё равно применится
+        if (!touchPending) {
+            touchPending = true
+            handler.postDelayed(touchUpdate, TOUCH_UPDATE_MS)
+        }
         val bottom = islandBottom()
         if (!tall && bottom > displayParams.height) {
             tall = true
@@ -549,6 +580,7 @@ class IslandService : AccessibilityService() {
     override fun onDestroy() {
         handler.removeCallbacks(settle)
         handler.removeCallbacks(fxSettle)
+        handler.removeCallbacks(touchUpdate)
         IslandBus.egg.value = false
         setTiltEnabled(false)
         IslandBus.serviceRunning.value = false
@@ -606,3 +638,4 @@ class TouchRoot(
 
 /** Сколько ждать после последнего изменения формы, прежде чем опустить высоту окна рисования. */
 private const val SETTLE_MS = 700L
+private const val TOUCH_UPDATE_MS = 50L

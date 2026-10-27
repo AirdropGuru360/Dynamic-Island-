@@ -209,6 +209,10 @@ data class IslandSettings(
     val hideIdle: Boolean = false,
     val hideInLandscape: Boolean = true,
     val hideWhenPlayerOpen: Boolean = true,
+    /** «По расписанию»: остров виден только с [scheduleFrom] до [scheduleTo] часов (можно через полночь) */
+    val scheduleOn: Boolean = false,
+    val scheduleFrom: Int = 10,
+    val scheduleTo: Int = 23,
     val noticeDurationMs: Int = 2500,
     val timerMinutes: Int = 5,
     /** Через сколько секунд без касаний раскрытый остров сворачивается сам; 0 — не сворачивается */
@@ -219,9 +223,20 @@ data class IslandSettings(
     val msgLines: Int = 3,
     /** Уведомления приложения, которое сейчас открыто, тоже приходят в остров */
     val msgInApp: Boolean = false,
+    /** Мессенджеры, чьи сообщения уже были в острове, и канал их уведомлений — для «Системных плашек» */
+    val msgChannels: Map<String, String> = emptyMap(),
+    /** Подсказку «Уведомления приходят дважды?» на главной убрали */
+    val bannerHintHidden: Boolean = false,
 ) {
     /** С «Экономией заряда» в энергосбережении Android — как с «Уменьшить эффекты» */
     fun forPowerSave(on: Boolean): IslandSettings = if (on && batterySaver && !reduceEffects) copy(reduceEffects = true) else this
+
+    /** Сейчас часы работы острова: расписание выключено или час [hour] внутри него (22–7 — через полночь) */
+    fun inSchedule(hour: Int): Boolean = when {
+        !scheduleOn || scheduleFrom == scheduleTo -> true
+        scheduleFrom < scheduleTo -> hour in scheduleFrom until scheduleTo
+        else -> hour >= scheduleFrom || hour < scheduleTo
+    }
 
     /** Отступ острова сверху: у «Как вырез» остров начинается от самого края экрана */
     val topOffset: Int get() = if (notch) 0 else offsetY

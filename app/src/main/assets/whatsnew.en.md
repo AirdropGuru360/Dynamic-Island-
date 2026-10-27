@@ -1,21 +1,9 @@
-### 📏 A smaller island you can resize
-- The island is smaller by default — to fit Android cameras — and its **width and height** are adjustable again: Appearance → **Position and size**.
-- Camera on the side? Move the island to it: notification banners still stay on the screen.
-- **Like a notch** — for a waterdrop camera: the island sits against the top of the screen and covers the notch.
+### ⏰ On a schedule
+- The island can work only in the hours you need — for example, from 10:00 to 23:00: Features → Behavior → **On a schedule**.
 
-### 🎬 Softer animations
-- The island bounces less: light bounce by default. **Elasticity** is right on the Appearance tab.
+### 💬 No more double messages
+- Features → **System banners** → Messengers: see which messenger still pops up its own banner over the island, and turn it off in one tap.
 
-### 🔒 A lock on the lock screen
-- While the phone is locked, the capsule shows a lock. Turn it off in Events.
-
-### 🎵 Like in the player
-- A heart and Dislike in the expanded player — for Yandex Music and other players that offer them.
-
-### 💳 "Paid" is more reliable
-- Understands Google Wallet and Mir Pay notifications, the "Payment successful" screen and more banks. If it didn't show — About → **Payment diagnostics**.
-
-### 🛠️ So the island doesn't disappear
-- **Keep the island running** on Home: battery, autostart and locking in recent apps for Xiaomi, Oppo, Samsung and others.
-- Step-by-step help when Android says "Restricted setting".
-- New versions are checked every 3 hours.
+### 🐞 Fixes
+- A "00:00" timer no longer gets stuck in the island when another app's countdown ends.
+- The island is lighter on the phone while music plays or the flashlight is on.

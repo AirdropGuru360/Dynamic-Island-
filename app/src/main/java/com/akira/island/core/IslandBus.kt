@@ -53,6 +53,8 @@ object IslandBus {
     val battery = MutableStateFlow(BatteryInfo())
     val foregroundPackage = MutableStateFlow<String?>(null)
     val landscape = MutableStateFlow(false)
+    /** Вне часов «По расписанию» остров не показывается */
+    val offSchedule = MutableStateFlow(false)
     /** Экран включён. Пока он погашен, датчик наклона и чтение экрана навигатора не работают — бережём батарею */
     val screenOn = MutableStateFlow(true)
     /** Включено энергосбережение Android — с «Экономией заряда» остров без живых эффектов */

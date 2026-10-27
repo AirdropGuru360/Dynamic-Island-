@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.service.notification.StatusBarNotification
 import android.telecom.TelecomManager
 import com.akira.island.core.tr
+import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -23,6 +24,9 @@ object SystemBanners {
 
     val seen = MutableStateFlow<Map<String, Seen>>(emptyMap())
 
+    /** Всплывает ли у мессенджера своя плашка — по последнему сообщению (важность канала «высокая») */
+    val popUp = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+
     const val SYSTEM_UI = "com.android.systemui"
     const val ANDROID = "android"
 
@@ -32,6 +36,17 @@ object SystemBanners {
         val channel = n.channelId ?: return
         val item = Seen(channel, incomingCall)
         if (seen.value[sbn.packageName] != item) seen.value = seen.value + (sbn.packageName to item)
+    }
+
+    /**
+     * Сообщение мессенджера показано в острове. Его канал запоминается в настройках — после перезапуска
+     * список в «Системных плашках» не пустой; запись — только когда канал новый.
+     */
+    fun onMessage(pkg: String, channel: String?, popsUp: Boolean) {
+        if (popUp.value[pkg] != popsUp) popUp.value = popUp.value + (pkg to popsUp)
+        if (channel != null && SettingsRepo.current.msgChannels[pkg] != channel) {
+            SettingsRepo.update { copy(msgChannels = msgChannels + (pkg to channel)) }
+        }
     }
 
     /** Звонилка по умолчанию и приложения, от которых уже приходили входящие. */
@@ -57,7 +72,7 @@ object SystemBanners {
 
     /** Настройки уведомлений приложения [pkg] — сразу нужного канала, если он уже известен. */
     fun openSettings(context: Context, pkg: String) {
-        val channel = seen.value[pkg]?.channel
+        val channel = seen.value[pkg]?.channel ?: SettingsRepo.current.msgChannels[pkg]
         val intent = if (channel != null) {
             Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_CHANNEL_ID, channel)
         } else {

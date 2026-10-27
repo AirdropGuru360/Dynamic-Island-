@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.tr
+import com.akira.island.data.SettingsRepo
 import com.akira.island.service.SystemBanners
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
@@ -36,7 +38,7 @@ import com.akira.island.ui.posOf
 /**
  * Системные плашки, которые дублируют остров. Убрать чужую всплывающую плашку приложение не может,
  * поэтому здесь — быстрый переход к нужной настройке уведомлений: уведомление остаётся в шторке,
- * а на экране событие показывает только остров. Уведомления мессенджеров сюда не входят.
+ * а на экране событие показывает только остров. Мессенджеры — те, чьи сообщения уже были в острове.
  */
 @Composable
 fun BannersScreen(onBack: () -> Unit) {
@@ -44,6 +46,9 @@ fun BannersScreen(onBack: () -> Unit) {
     val seen by SystemBanners.seen.collectAsState()
     val calls = remember(seen) { SystemBanners.callApps(context, seen) }
     val clocks = remember(seen) { SystemBanners.clockApps(context, seen) }
+    val s by SettingsRepo.state.collectAsState()
+    val popUp by SystemBanners.popUp.collectAsState()
+    val messengers = remember(s.msgChannels) { s.msgChannels.keys.sortedBy { SystemBanners.label(context, it).lowercase() } }
 
     Page(tr("Системные плашки", "System banners"), onBack) {
         Box(
@@ -62,6 +67,36 @@ fun BannersScreen(onBack: () -> Unit) {
                 color = Ui.Sub, fontSize = 15.sp, lineHeight = 20.sp,
             )
         }
+
+        // Сообщения приходят и плашкой острова, и своей всплывающей — две сразу
+        SectionHeader(tr("Мессенджеры", "Messengers"))
+        if (messengers.isEmpty()) {
+            GroupItem(Pos.Single, Icons.Rounded.ChatBubble, tr("Пока ни одно сообщение не пришло в остров", "No message has reached the island yet"),
+                color = Tile.Gray)
+        } else {
+            Group {
+                messengers.forEachIndexed { i, pkg ->
+                    GroupItem(
+                        posOf(i, messengers.size), Icons.Rounded.ChatBubble, SystemBanners.label(context, pkg),
+                        when (popUp[pkg]) {
+                            true -> tr("Всплывает поверх острова — нажмите и выключите «Всплывающие»",
+                                "Pops up over the island — tap and turn off “Pop on screen”")
+                            false -> tr("Своя плашка не всплывает ✓", "Its own banner doesn't pop up ✓")
+                            null -> tr("Нажмите и выключите «Всплывающие уведомления»", "Tap and turn off “Pop on screen”")
+                        },
+                        color = if (popUp[pkg] == false) Tile.Green else Tile.Blue,
+                        onClick = { SystemBanners.openSettings(context, pkg) },
+                    ) { Arrow() }
+                }
+            }
+        }
+        Text(
+            tr(
+                "Если выключить всплывающие у мессенджера, а остров потом выключить или скрыть, сообщения будут только в шторке.",
+                "If you turn off a messenger's pop-ups and then turn the island off or hide it, messages will only be in the shade.",
+            ),
+            color = Ui.Sub, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+        )
 
         SectionHeader(tr("Звонки", "Calls"))
         AppList(calls, Icons.Rounded.Call, Tile.Green,
