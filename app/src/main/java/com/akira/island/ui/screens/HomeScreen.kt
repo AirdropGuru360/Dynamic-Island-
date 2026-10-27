@@ -176,6 +176,8 @@ fun HomeScreen(open: (Screen) -> Unit) {
                 color = if (missing.isEmpty()) Tile.Green else Tile.Orange,
                 onClick = { open(Screen.PERMISSIONS) },
             ) { if (missing.isEmpty()) Arrow() else CountBadge(missing.size) }
+            // На виду: на Xiaomi, Oppo, Samsung остров иначе пропадает, и люди не знают почему
+            KeepAliveItem(Pos.Middle, open)
             GroupItem(
                 Pos.Last, Icons.Rounded.Science, tr("Проверка", "Try it"),
                 tr("Событие, сообщение, звонок, оплата — прямо в острове", "An event, message, call, payment — right in the island"),

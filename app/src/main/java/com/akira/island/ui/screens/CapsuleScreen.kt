@@ -94,7 +94,7 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
         SectionHeader(tr("Анимации", "Animations"))
         Group {
             GroupItem(Pos.First, Icons.Rounded.Animation, tr("Раскрытие острова", "Island expansion"),
-                "${s.expandStyle.title} · ${s.durationPercent}% · ${s.elasticity.title.lowercase()}",
+                "${s.expandStyle.title} · ${s.durationPercent}%",
                 color = Tile.Blue, onClick = { open(Screen.ANIM) }) { Arrow() }
             // Упругость — на виду: «слишком прыгает» правится одним нажатием
             ElasticityItem(Pos.Middle, s, Tile.Teal)
@@ -104,7 +104,7 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
     }
 }
 
-/** Пункт «Упругость» с выбором — в «Оформлении» и в «Раскрытии острова». */
+/** Пункт «Упругость» с выбором — прямо в «Оформлении», рядом с «Раскрытием острова». */
 @Composable
 private fun ElasticityItem(pos: Pos, s: IslandSettings, color: Color) {
     var dialog by remember { mutableStateOf(false) }
@@ -163,7 +163,6 @@ fun AnimScreen(onBack: () -> Unit) {
                 Pos.Middle, Icons.Rounded.Speed, tr("Длительность", "Duration"),
                 value = s.durationPercent.toFloat(), range = 0f..100f, label = "${s.durationPercent}%", color = Tile.Indigo,
             ) { v -> SettingsRepo.update { copy(durationPercent = v.toInt()) } }
-            ElasticityItem(Pos.Middle, s, Tile.Blue)
             // Сколько видно событие; плашки, которым нужно больше времени (сообщение с кнопками, оплата), — от него же
             GroupSlider(
                 Pos.Middle, Icons.Rounded.Schedule, tr("Показ событий", "Event display"),
