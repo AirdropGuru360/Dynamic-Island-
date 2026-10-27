@@ -115,6 +115,8 @@ data class IslandSettings(
     val evUsbOn: Boolean = true,
     val evUsbOff: Boolean = true,
     val evUnlock: Boolean = false,
+    /** На экране блокировки в капсуле замок; после разблокировки он уходит */
+    val evLock: Boolean = true,
     val evDnd: Boolean = true,
     /** Экран оплаты телефоном (T-Pay, SberPay, Mir Pay, Google Кошелёк…) — «Оплата · К терминалу» */
     val evPayReady: Boolean = true,
@@ -125,17 +127,23 @@ data class IslandSettings(
     /** Поставили будильник — плашка со временем подъёма */
     val evAlarmSet: Boolean = true,
 
-    // Размер и положение, dp — как у iPhone: капсула 126×37, отступ сверху 11
-    val width: Int = 126,
-    val height: Int = 37,
+    // Размер и положение, dp. Камера Android меньше, чем у iPhone (там капсула 126×37), поэтому и остров
+    // по умолчанию меньше; ширина и высота настраиваются в «Положении и размере»
+    val width: Int = 104,
+    val height: Int = 31,
     val offsetX: Int = 0,
     val offsetY: Int = 11,
+    /**
+     * «Как вырез»: остров прилегает к верхнему краю экрана, верх у него прямой — для телефонов с каплей
+     * (waterdrop): капсула закрывает вырез и растёт из него вниз. Отступ сверху тогда не нужен.
+     */
+    val notch: Boolean = false,
     /** Свободное место над камерой посередине капсулы, куда не заходит содержимое */
     val cameraGap: Int = 34,
     /** Насколько капсула с активностью (музыка, таймер, зарядка) толще пустой */
     val activeExtra: Int = 6,
     /** На сколько свёрнутая капсула с активностью (навигатор, фонарик, музыка) шире спокойной; 0 — такая же */
-    val activeWidth: Int = 48,
+    val activeWidth: Int = 40,
     // Нет в старых настройках → 1, тогда размеры переносятся на новые
     val layoutVersion: Int = 1,
 
@@ -168,7 +176,8 @@ data class IslandSettings(
     // Анимации
     val expandStyle: ExpandStyle = ExpandStyle.FRUIT,
     val durationPercent: Int = 35,
-    val elasticity: Elasticity = Elasticity.HIGH,
+    /** Слабая упругость: с сильной остров, как писали в комментариях, слишком «прыгает» */
+    val elasticity: Elasticity = Elasticity.LOW,
     val reduceEffects: Boolean = false,
     val haptics: Boolean = true,
 
@@ -214,6 +223,9 @@ data class IslandSettings(
     /** С «Экономией заряда» в энергосбережении Android — как с «Уменьшить эффекты» */
     fun forPowerSave(on: Boolean): IslandSettings = if (on && batterySaver && !reduceEffects) copy(reduceEffects = true) else this
 
+    /** Отступ острова сверху: у «Как вырез» остров начинается от самого края экрана */
+    val topOffset: Int get() = if (notch) 0 else offsetY
+
     /** Пляшет ли эквалайзер */
     val liveEqualizer: Boolean get() = fxEqualizer && !reduceEffects
 }
@@ -254,6 +266,21 @@ object SettingsRepo {
                     height = if (height == 34) 37 else height,
                     offsetY = if (offsetY == 8) 11 else offsetY,
                     layoutVersion = 3,
+                )
+            }
+        }
+        // 1.6.2: прежний размер iPhone 126×37 на Android велик — если его не меняли, ставим новый, поменьше
+        if (current.layoutVersion < 4) {
+            val d = IslandSettings()
+            update {
+                val old = width == 126 && height == 37
+                copy(
+                    width = if (old) d.width else width,
+                    height = if (old) d.height else height,
+                    activeWidth = if (old && activeWidth == 48) d.activeWidth else activeWidth,
+                    // Сильная упругость была по умолчанию — переходим на новую, мягче
+                    elasticity = if (elasticity == Elasticity.HIGH) d.elasticity else elasticity,
+                    layoutVersion = 4,
                 )
             }
         }

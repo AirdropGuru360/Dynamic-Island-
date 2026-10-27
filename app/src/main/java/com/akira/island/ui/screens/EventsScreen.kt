@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Nfc
 import androidx.compose.material.icons.rounded.PowerOff
@@ -106,6 +107,9 @@ fun EventsScreen(onBack: () -> Unit) {
             GroupToggle(Pos.First, Icons.Rounded.Alarm, tr("Будильник поставлен", "Alarm set"),
                 tr("Время подъёма и сколько осталось спать", "Wake-up time and how long you can sleep"),
                 s.evAlarmSet, color = Tile.Orange) { set { copy(evAlarmSet = it) } }
+            GroupToggle(Pos.Middle, Icons.Rounded.Lock, tr("Замок на экране блокировки", "Lock on the lock screen"),
+                tr("Пока телефон заблокирован, в капсуле замок", "While the phone is locked, the capsule shows a lock"),
+                s.evLock, color = Tile.Indigo) { set { copy(evLock = it) } }
             GroupToggle(Pos.Last, Icons.Rounded.LockOpen, tr("Разблокировка устройства", "Device unlock"),
                 tr("Замок открывается, когда вы разблокируете телефон", "A lock opens when you unlock the phone"),
                 s.evUnlock, color = Tile.Purple) { set { copy(evUnlock = it) } }

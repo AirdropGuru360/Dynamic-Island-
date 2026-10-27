@@ -133,6 +133,7 @@ class SystemEvents(private val context: Context) {
         IslandBus.screenOn.value = power?.isInteractive ?: true
         IslandBus.powerSave.value = power?.isPowerSaveMode == true
         IslandBus.locked.value = isLocked()
+        IslandBus.keyguard.value = isKeyguard()
         brightnessMode = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
         context.contentResolver.registerContentObserver(
             Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE), false, brightnessObserver,
@@ -191,6 +192,7 @@ class SystemEvents(private val context: Context) {
             Intent.ACTION_SCREEN_ON -> {
                 IslandBus.screenOn.value = true
                 IslandBus.locked.value = isLocked()
+                IslandBus.keyguard.value = isKeyguard()
             }
 
             PowerManager.ACTION_POWER_SAVE_MODE_CHANGED ->
@@ -295,6 +297,7 @@ class SystemEvents(private val context: Context) {
      */
     fun onUnlocked() {
         IslandBus.locked.value = false
+        IslandBus.keyguard.value = false
         val now = SystemClock.elapsedRealtime()
         if (now - lastUnlock < 3_000) return
         lastUnlock = now
@@ -303,6 +306,9 @@ class SystemEvents(private val context: Context) {
 
     /** Заблокирован ли телефон так, что для входа нужен PIN-код, ключ или пароль. */
     private fun isLocked(): Boolean = keyguard?.isDeviceLocked == true
+
+    /** На экране экран блокировки — с PIN-кодом или просто «проведите, чтобы разблокировать». */
+    private fun isKeyguard(): Boolean = keyguard?.isKeyguardLocked == true
 
     private fun isDnd(): Boolean {
         val filter = notifications?.currentInterruptionFilter ?: return false

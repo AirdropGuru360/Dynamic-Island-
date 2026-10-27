@@ -55,6 +55,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.HeartBroken
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,6 +95,7 @@ import com.akira.island.core.LiveInfo
 import com.akira.island.core.Lyrics
 import com.akira.island.core.LyricsStatus
 import com.akira.island.core.MediaInfo
+import com.akira.island.core.PlayerAction
 import com.akira.island.core.ProgressInfo
 import com.akira.island.core.StopwatchState
 import com.akira.island.core.Tints
@@ -191,19 +196,41 @@ private fun MediaExpanded(m: MediaInfo, s: IslandSettings, lyrics: Lyrics?) {
                 modifier = Modifier.width(38.dp),
             )
         }
-        Spacer(Modifier.height(6.dp))
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            // Значки 28, 32 и 28 с промежутком 46 между ними, как в ролике; кнопки больше значков — под палец
-            Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
-                RoundButton(Ios.back, size = 48.dp, bg = Color.Transparent, iconScale = 0.583f) { Controls.prev() }
-                RoundButton(if (m.playing) Ios.pause else Ios.play, size = 52.dp, bg = Color.Transparent, iconScale = 0.615f) {
-                    Controls.playPause()
-                }
-                RoundButton(Ios.forward, size = 48.dp, bg = Color.Transparent, iconScale = 0.583f) { Controls.next() }
+        MediaControls(m.like, m.dislike, m.playing)
+    }
+}
+
+/**
+ * Кнопки плеера сразу под полосой. Отдельно от полосы и времени: те обновляются 10 раз в секунду,
+ * а кнопки при этом не перерисовываются.
+ */
+@Composable
+private fun MediaControls(like: PlayerAction?, dislike: PlayerAction?, playing: Boolean) {
+    val context = LocalContext.current
+    // Значки 28, 32 и 28, кнопки чуть больше значков — под палец
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // «Нравится» и «Не нравится», если плеер их даёт (Яндекс Музыка и др.)
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            like?.let { a ->
+                RoundButton(if (a.on) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, size = 30.dp, bg = Color.Transparent,
+                    fg = if (a.on) Tints.Red else Dim, iconScale = 0.66f) { Controls.playerAction(a.action) }
             }
-            // Вывод звука — как кнопка AirPlay
-            RoundButton(Ios.airplay, Modifier.align(Alignment.CenterEnd), size = 40.dp, bg = Color.Transparent,
-                fg = Dim, iconScale = 0.55f) { Controls.openOutput(context) }
+            dislike?.let { a ->
+                RoundButton(Icons.Rounded.HeartBroken, size = 30.dp, bg = Color.Transparent, fg = Dim, iconScale = 0.62f) {
+                    Controls.playerAction(a.action)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundButton(Ios.back, size = 44.dp, bg = Color.Transparent, iconScale = 0.636f) { Controls.prev() }
+            RoundButton(if (playing) Ios.pause else Ios.play, size = 48.dp, bg = Color.Transparent, iconScale = 0.667f) {
+                Controls.playPause()
+            }
+            RoundButton(Ios.forward, size = 44.dp, bg = Color.Transparent, iconScale = 0.636f) { Controls.next() }
+        }
+        // Вывод звука — как кнопка AirPlay
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            RoundButton(Ios.airplay, size = 36.dp, bg = Color.Transparent, fg = Dim, iconScale = 0.6f) { Controls.openOutput(context) }
         }
     }
 }

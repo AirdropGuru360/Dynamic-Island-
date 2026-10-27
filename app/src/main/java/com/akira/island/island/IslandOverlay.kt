@@ -32,7 +32,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,6 +69,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -80,6 +80,7 @@ import com.akira.island.core.Lyrics
 import com.akira.island.core.NoticeStyle
 import com.akira.island.core.Tints
 import com.akira.island.core.tr
+import com.akira.island.data.Elasticity
 import com.akira.island.data.ExpandStyle
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
@@ -319,7 +320,15 @@ private fun IslandRow(
 ) {
     Row(
         Modifier
-            .offset(x = s.offsetX.dp)
+            // Сдвиг вбок — для камеры не по центру. Широкие плашки и раскрытый остров при этом не уезжают
+            // за край экрана: сдвиг не больше, чем позволяет их ширина, — аватар и текст остаются видны
+            .layout { measurable, constraints ->
+                val p = measurable.measure(constraints)
+                layout(p.width, p.height) {
+                    val room = ((constraints.maxWidth - p.width) / 2).coerceAtLeast(0)
+                    p.place(s.offsetX.dp.roundToPx().coerceIn(-room, room), 0)
+                }
+            }
             .wrapContentSize(Alignment.TopCenter, unbounded = true)
             .padding(ISLAND_PAD_DP.dp),
         verticalAlignment = Alignment.Top,
@@ -378,7 +387,7 @@ private fun IslandBody(
         else -> activeHeight(s) / 2
     }
     val corner by animateDpAsState(cornerTarget, islandSpec(s), label = "corner")
-    val shape = RoundedCornerShape(corner)
+    val shape = islandShape(corner, s)
     val accent = (primary as? Act.MediaA)?.m?.accent
     val outlineColor = if (s.outlineFromArt && accent != null) accent else Color(s.outlineColor)
 
@@ -399,16 +408,18 @@ private fun IslandBody(
             firstRun = false
             return@LaunchedEffect
         }
-        if (s.expandStyle != ExpandStyle.FRUIT || s.reduceEffects) return@LaunchedEffect
+        if (s.expandStyle != ExpandStyle.FRUIT || s.reduceEffects || s.elasticity == Elasticity.NONE) return@LaunchedEffect
         val amp = 0.07f * (1.25f - s.elasticity.damping)
+        // Отскок затухает по «Упругости»: сильная — как раньше, слабая — почти без колебаний
+        val rebound = spring<Float>(dampingRatio = (s.elasticity.damping * 0.62f).coerceAtLeast(0.3f), stiffness = 260f)
         val dir = if (expanded) 1f else -1f
         launch {
             jellyX.animateTo(1f - amp * dir, tween(110))
-            jellyX.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 260f))
+            jellyX.animateTo(1f, rebound)
         }
         launch {
             jellyY.animateTo(1f + amp * dir, tween(110))
-            jellyY.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = 260f))
+            jellyY.animateTo(1f, rebound)
         }
     }
     // Оттягивание вниз пальцем
@@ -729,3 +740,7 @@ fun DrawScope.islandGlow(color: Color, alpha: Float, corner: Float) {
         )
     }
 }
+
+/** Форма острова: капсула со скруглениями или, у «Как вырез», прямой верх у края экрана. */
+fun islandShape(corner: Dp, s: IslandSettings): RoundedCornerShape =
+    if (s.notch) RoundedCornerShape(0.dp, 0.dp, corner, corner) else RoundedCornerShape(corner)

@@ -1,5 +1,6 @@
 package com.akira.island.ui.screens
 
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -29,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akira.island.core.IslandBus
@@ -62,8 +64,8 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
 
         SectionHeader(tr("Положение и размер", "Position and size"))
         Group {
-            GroupItem(Pos.First, Icons.Rounded.OpenWith, tr("Положение", "Position"),
-                tr("Сдвинуть капсулу точно над камерой", "Move the capsule exactly over the camera"),
+            GroupItem(Pos.First, Icons.Rounded.OpenWith, tr("Положение и размер", "Position and size"),
+                tr("Капсула ${s.width}×${s.height} dp — подогнать под камеру", "Capsule ${s.width}×${s.height} dp — fit it to the camera"),
                 color = Tile.Indigo, onClick = { open(Screen.SIZE) }) { Arrow() }
             GroupItem(Pos.Last, Icons.Rounded.SwapHoriz, tr("Размер с активностью", "Size with activity"),
                 if (s.activeWidth == 0) tr("Толщина +${s.activeExtra} dp, ширина как без неё", "Thickness +${s.activeExtra} dp, width as without it")
@@ -94,10 +96,28 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
             GroupItem(Pos.First, Icons.Rounded.Animation, tr("Раскрытие острова", "Island expansion"),
                 "${s.expandStyle.title} · ${s.durationPercent}% · ${s.elasticity.title.lowercase()}",
                 color = Tile.Blue, onClick = { open(Screen.ANIM) }) { Arrow() }
+            // Упругость — на виду: «слишком прыгает» правится одним нажатием
+            ElasticityItem(Pos.Middle, s, Tile.Teal)
             GroupItem(Pos.Last, Icons.Rounded.AutoAwesome, tr("Эффекты", "Effects"), effectsSummary(s),
                 color = Tile.Purple, onClick = { open(Screen.EFFECTS) }) { Arrow() }
         }
     }
+}
+
+/** Пункт «Упругость» с выбором — в «Оформлении» и в «Раскрытии острова». */
+@Composable
+private fun ElasticityItem(pos: Pos, s: IslandSettings, color: Color) {
+    var dialog by remember { mutableStateOf(false) }
+    GroupItem(pos, Icons.Rounded.Waves, tr("Упругость", "Elasticity"), s.elasticity.title, color = color, onClick = { dialog = true })
+    if (dialog) {
+        ChoiceDialog(tr("Упругость анимации", "Animation elasticity"), Elasticity.entries, s.elasticity, { it.title },
+            { v -> SettingsRepo.update { copy(elasticity = v) } }) { dialog = false }
+    }
+}
+
+/** Пока двигают ползунок размера, на острове пример активности — сразу видно, какой она будет. */
+private fun previewActivity() {
+    IslandBus.widthPreviewUntil.value = SystemClock.elapsedRealtime() + 2_500
 }
 
 /** «Размер с активностью»: насколько капсула с навигатором, фонариком или музыкой толще и шире спокойной. */
@@ -110,14 +130,17 @@ fun LookScreen(onBack: () -> Unit) {
             GroupSlider(
                 Pos.First, Icons.Rounded.LineWeight, tr("Толщина", "Thickness"),
                 value = s.activeExtra.toFloat(), range = 0f..14f, label = "+${s.activeExtra} dp", steps = 13, color = Tile.Purple,
-            ) { v -> SettingsRepo.update { copy(activeExtra = v.toInt()) } }
+            ) { v ->
+                previewActivity()
+                SettingsRepo.update { copy(activeExtra = v.toInt()) }
+            }
             GroupSlider(
                 Pos.Last, Icons.Rounded.SwapHoriz, tr("Ширина", "Width"),
                 value = s.activeWidth.toFloat(), range = 0f..120f, steps = 23,
                 label = if (s.activeWidth == 0) tr("Как без неё", "As without it") else "+${s.activeWidth} dp", color = Tile.Blue,
             ) { v ->
-                // Пока двигают ползунок, на острове пример активности — сразу видно, не налезает ли он на значки
-                IslandBus.widthPreviewUntil.value = android.os.SystemClock.elapsedRealtime() + 2500
+                // Сразу видно, не налезает ли капсула на значки строки состояния
+                previewActivity()
                 SettingsRepo.update { copy(activeWidth = (v / 5).toInt() * 5) }
             }
         }
@@ -129,7 +152,6 @@ fun LookScreen(onBack: () -> Unit) {
 fun AnimScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
     var styleDialog by remember { mutableStateOf(false) }
-    var elasticDialog by remember { mutableStateOf(false) }
 
     Page(tr("Раскрытие острова", "Island expansion"), onBack, action = {
         Text(tr("Сброс", "Reset"), color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetAnimations() })
@@ -141,8 +163,7 @@ fun AnimScreen(onBack: () -> Unit) {
                 Pos.Middle, Icons.Rounded.Speed, tr("Длительность", "Duration"),
                 value = s.durationPercent.toFloat(), range = 0f..100f, label = "${s.durationPercent}%", color = Tile.Indigo,
             ) { v -> SettingsRepo.update { copy(durationPercent = v.toInt()) } }
-            GroupItem(Pos.Middle, Icons.Rounded.Waves, tr("Упругость", "Elasticity"), s.elasticity.title, color = Tile.Blue,
-                onClick = { elasticDialog = true })
+            ElasticityItem(Pos.Middle, s, Tile.Blue)
             // Сколько видно событие; плашки, которым нужно больше времени (сообщение с кнопками, оплата), — от него же
             GroupSlider(
                 Pos.Middle, Icons.Rounded.Schedule, tr("Показ событий", "Event display"),
@@ -157,10 +178,6 @@ fun AnimScreen(onBack: () -> Unit) {
     if (styleDialog) {
         ChoiceDialog(tr("Стиль раскрытия", "Expansion style"), ExpandStyle.entries, s.expandStyle, { it.title },
             { v -> SettingsRepo.update { copy(expandStyle = v) } }) { styleDialog = false }
-    }
-    if (elasticDialog) {
-        ChoiceDialog(tr("Упругость анимации", "Animation elasticity"), Elasticity.entries, s.elasticity, { it.title },
-            { v -> SettingsRepo.update { copy(elasticity = v) } }) { elasticDialog = false }
     }
 }
 

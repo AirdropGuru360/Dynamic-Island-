@@ -6,6 +6,34 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 > Since 1.6.1 the app and the island speak English (Features → General → Language). Earlier versions were in Russian only, so older entries give the Russian label in brackets.
 
+## [1.6.2] — 2026-10-27
+
+### 📏 Island size
+- **The island is smaller by default**: 104×31 dp instead of iPhone's 126×37 — Android cameras are smaller. If you haven't changed the size, it updates by itself.
+- **Width and height are adjustable again**: Appearance → Position and size («Оформление → Положение и размер»). While the screen is open, the island is red, so you can see how it sits on the camera.
+- **Size with activity** shows right away: while you drag thickness or width, the island shows an example activity. With an activity the capsule is now 40 dp wider than idle by default (was 48).
+- **Camera on the side**: move the island horizontally to the camera — wide banners and the expanded island no longer slide off the screen, and the avatar in a notification stays visible.
+- **Like a notch** («Как вырез») — for phones with a waterdrop camera: the island sits against the top edge of the screen, covers the notch and grows down from it.
+
+### 🎬 Animations
+- **Softer by default**: light bounce instead of strong — the island bounces less. If you haven't changed elasticity, it updates by itself.
+- **Elasticity** («Упругость») is now right on the Appearance tab.
+
+### 🔒 Lock screen
+- **A lock in the capsule** while the phone is locked; it goes away when you unlock. Turn it off in Events → Lock on the lock screen («События → Замок на экране блокировки»).
+
+### 🎵 Player
+- **Like and Dislike** in the expanded player if the player offers them (Yandex Music, YouTube Music and others). The heart turns red when the track is already liked.
+- The player buttons sit closer to the bar.
+
+### 💳 Payments
+- **"Paid" shows up more reliably**: from Google Wallet, Samsung Wallet and Mir Pay notifications with just the store and amount; from the amount in a bank notification right after the phone payment screen; from a result screen without a minus ("Payment successful · 350 ₽"). More banks and currencies (₸, ₴, ₹, Rp, RM…).
+- **About → Payment diagnostics** («О приложении → Диагностика оплаты»): what the island saw when you paid and how it understood it — if "Paid" didn't show. Entries stay only in the phone's memory.
+
+### 🛠️ Installing and running in the background
+- **"Restricted setting"** on Android 13+: Home shows step-by-step help and an Open App info button.
+- New **Keep the island running** screen («Чтобы остров не закрывался», in Permissions and About): unrestricted battery, autostart (Xiaomi and HyperOS, Oppo, realme, OnePlus, vivo, Huawei, Honor, Infinix, Tecno, Asus) and how to lock the island in recent apps.
+
 ## [1.6.1] — 2026-10-25
 
 ⚠️ **New signing key.** The old key became public, so since 1.6.1 the app is signed with a new one. If you have 1.6.0 or older, the update won't install over it: uninstall the old version once, install 1.6.1, then turn accessibility and notification access back on. After that, updates install over the top as before.

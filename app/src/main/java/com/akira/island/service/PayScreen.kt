@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -17,13 +18,23 @@ import kotlinx.coroutines.launch
 object PayScreenParser {
     private val spaces = Regex("[\\u00A0\\u202F\\u2007\\u2009]")
 
-    /** Сумма с разрядами и копейками: «89,99», «1 250», «12500.5» */
-    private const val NUMBER = """\d{1,3}(?:[ ]?\d{3})*(?:[.,]\d{1,2})?"""
-    private const val CURRENCY = """₽|руб\.?|р\.?(?!\p{L})|RUB|\$|USD|€|EUR|£|₸|₴|BYN"""
+    /** Сумма с разрядами и копейками: «89,99», «1 250», «50.000», «12500.5» */
+    private const val NUMBER = """\d{1,3}(?:[ .,]?\d{3})*(?:[.,]\d{1,2})?"""
+    /** Валюта после суммы: «350 ₽», «12.50 USD», «500р» */
+    private const val CURRENCY = """₽|руб\.?|р\.?(?!\p{L})|RUB|RUR|USD|EUR|GBP|KZT|UAH|BYN|CNY|TRY|INR|IDR|PHP|MYR|THB|VND|BRL|""" +
+        """AMD|GEL|UZS|AZN|KGS|€|£|₸|₴|₹|₱|₩|¥|฿|₫|₺|\$"""
+    /** Валюта перед суммой: «$12.50», «Rp 50.000», «₹500» */
+    private const val PREFIX = """[$€£₹₱₩¥฿₫₺₸]|R\$|Rp|RM|RUB|USD|EUR|INR|IDR|PHP|MYR|THB|KZT"""
 
     /** Списание на экране: «−89,99 ₽», «- 1 250 ₽», «–$12.50». Нужна валюта или копейки — иначе это не деньги. */
     private val charge = Regex(
-        """(?<![\p{L}\p{N}])[−–-]\s?(?:($NUMBER)\s?($CURRENCY)?|([$€£])\s?($NUMBER))""",
+        """(?<![\p{L}\p{N}])[−–-]\s?(?:($NUMBER)\s?($CURRENCY)?|($PREFIX)\s?($NUMBER))""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Сумма с валютой где угодно в тексте. Перед ней не цифра и не звёздочка — «*1234» это номер карты. */
+    private val amount = Regex(
+        """(?<![\d*])$NUMBER\s?(?:$CURRENCY)|(?<!\p{L})(?:$PREFIX)\s?$NUMBER""",
         RegexOption.IGNORE_CASE,
     )
 
@@ -40,8 +51,9 @@ object PayScreenParser {
 
     /** Оплата прошла — так её подписывают на экране результата. */
     private val paidWords = Regex(
-        "оплачено|оплата прошла|оплата выполнена|оплата совершена|покупка совершена|покупка прошла|платёж выполнен|" +
-            "платеж выполнен|платёж прошёл|платеж прошел|payment successful|payment complete|\\bpaid\\b",
+        "оплачено|оплачена|оплата прошла|оплата выполнена|оплата совершена|оплата успешна|успешная оплата|покупка совершена|" +
+            "покупка прошла|платёж выполнен|платеж выполнен|платёж прошёл|платеж прошел|payment successful|payment complete|" +
+            "payment approved|\\bpaid\\b|pembayaran berhasil|pago realizado|pagamento aprovado",
         RegexOption.IGNORE_CASE,
     )
 
@@ -52,7 +64,7 @@ object PayScreenParser {
 
     /** Все списания в строке — как их показать: «89,99 ₽», «$12.50». */
     fun charges(text: String): List<String> {
-        val t = text.replace(spaces, " ")
+        val t = normalize(text)
         return charge.findAll(t).mapNotNull { m ->
             val (num, cur, preCur, preNum) = m.destructured
             when {
@@ -64,8 +76,14 @@ object PayScreenParser {
         }.toList()
     }
 
+    /** Пробелы внутри чисел (неразрывные, узкие) — обычные, чтобы суммы находились одинаково. */
+    fun normalize(text: String) = text.replace(spaces, " ")
+
+    /** Первая сумма с валютой в тексте: «89,99 ₽», «1 250 руб.», «$12.50», «Rp 50.000». */
+    fun amount(text: String): String? = amount.find(normalize(text))?.value?.trim()
+
     /** Экран оплаты телефоном. */
-    fun ready(text: String) = readyWords.containsMatchIn(text.replace(spaces, " "))
+    fun ready(text: String) = readyWords.containsMatchIn(normalize(text))
 
     /** «Оплачено», «Оплата прошла» — и не «Оплата не прошла». */
     fun paid(text: String) = paidWords.containsMatchIn(text) && !failureWords.containsMatchIn(text)
@@ -91,6 +109,8 @@ class PayScreenReader(private val service: AccessibilityService, private val sco
     private var readyAt = 0L
     private var baseline: MutableSet<String>? = null
     private var done = false
+    /** Новые надписи прошлого разбора — тот же экран второй раз не разбираем */
+    private var lastFresh: List<String>? = null
     private var lastScan = 0L
     private var scanJob: Job? = null
     private var stopJob: Job? = null
@@ -144,6 +164,7 @@ class PayScreenReader(private val service: AccessibilityService, private val sco
         since = SystemClock.elapsedRealtime()
         readyAt = 0L
         baseline = null
+        lastFresh = null
         done = false
         schedule(300)
     }
@@ -175,7 +196,7 @@ class PayScreenReader(private val service: AccessibilityService, private val sco
         val now = SystemClock.elapsedRealtime()
         lastScan = now
         // Оплату после экрана оплаты ждём не дольше трёх минут — дальше экран не разбираем
-        if (readyAt != 0L && now - readyAt > 180_000) {
+        if (readyAt != 0L && now - readyAt > PayMonitor.PAY_WINDOW_MS) {
             done = true
             return
         }
@@ -197,13 +218,24 @@ class PayScreenReader(private val service: AccessibilityService, private val sco
                 return
             }
             val fresh = texts.filter { it !in base }
+            // Экран не изменился с прошлого раза — разбирать нечего (пока ждём оплату, он меняется часто)
+            if (fresh == lastFresh) return
+            lastFresh = fresh
+            if (fresh.any { PayScreenParser.failure(it) }) return
             val freshCharges = fresh.flatMap { PayScreenParser.charges(it) }.distinct()
-            if (all.size != 1 || freshCharges.size != 1 || fresh.any { PayScreenParser.failure(it) }) return
             // У кошелька сумма на экране — это и есть оплата. У банка в нём бывает и история операций,
             // поэтому нужно ещё «Оплачено» или чтобы экран оплаты был на виду
-            val sure = PayMonitor.isWallet(pkg) ||
-                texts.any { PayScreenParser.paid(it) } || texts.any { PayScreenParser.ready(it) }
-            if (sure) paid(pkg, freshCharges[0])
+            if (all.size == 1 && freshCharges.size == 1 &&
+                (PayMonitor.isWallet(pkg) || texts.any { PayScreenParser.paid(it) || PayScreenParser.ready(it) })
+            ) {
+                return paid(pkg, freshCharges[0])
+            }
+            // Экран результата часто без минуса: «Оплата прошла» и одна новая сумма с валютой — «350 ₽»
+            if (fresh.any { PayScreenParser.paid(it) }) {
+                val sums = fresh.mapNotNull { PayScreenParser.amount(it) }.distinct()
+                if (sums.size == 1) return paid(pkg, sums[0])
+                PayDebug.add(tr("«Оплачено» на экране, но сумм: ${sums.size}", "“Paid” on screen, but amounts: ${sums.size}"), pkg, fresh.joinToString(" | "))
+            }
         } else if (now - since < 4_000 && all.size == 1 && texts.any { PayScreenParser.paid(it) } && texts.none { PayScreenParser.failure(it) }) {
             // Приложение открылось само уже с результатом: заплатили, не открывая его
             paid(pkg, all[0])

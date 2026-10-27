@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.PersistableBundle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -20,12 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +52,7 @@ import com.akira.island.core.Tints
 import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.service.LiveDebug
+import com.akira.island.service.PayDebug
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
 import com.akira.island.ui.GroupToggle
@@ -80,13 +82,7 @@ fun InstructionScreen(onBack: () -> Unit) {
                 "Open Settings → Accessibility → Installed apps → Dynamic Island and turn the service on. Only such a " +
                     "service can draw over the status bar, next to the camera.",
             ))
-        Step(2, tr("Если переключатель серый (Android 13+)", "If the switch is grayed out (Android 13+)"),
-            tr(
-                "Система блокирует спец. возможности для приложений, установленных не из магазина. Откройте «О приложении», " +
-                    "нажмите «⋮» в правом верхнем углу → «Разрешить ограниченные настройки», затем вернитесь к шагу 1.",
-                "The system blocks accessibility for apps installed outside the store. Open App info, tap “⋮” in the top " +
-                    "right corner → “Allow restricted settings”, then go back to step 1.",
-            ))
+        Step(2, tr("Если переключатель серый (Android 13+)", "If the switch is grayed out (Android 13+)"), restrictedHelp())
         Row { PillAction(tr("Открыть «О приложении»", "Open App info")) { Perms.openAppDetails(context) } }
         Step(3, tr("Доступ к уведомлениям", "Notification access"),
             tr(
@@ -107,10 +103,10 @@ fun InstructionScreen(onBack: () -> Unit) {
             ))
         Step(5, tr("Поставьте капсулу над камерой", "Place the capsule over the camera"),
             tr(
-                "Вкладка «Оформление» → «Положение». Пока экран открыт, остров красный: " +
-                    "сдвиньте его, пока красное не окажется ровно над камерой, и нажмите «Сохранить».",
-                "Appearance tab → Position. While the screen is open, the island is red: move it until the red sits " +
-                    "exactly over the camera and tap “Save”.",
+                "Вкладка «Оформление» → «Положение и размер». Пока экран открыт, остров красный: " +
+                    "сдвиньте его, пока красное не окажется ровно над камерой, подберите ширину и высоту и нажмите «Сохранить».",
+                "Appearance tab → Position and size. While the screen is open, the island is red: move it until the red sits " +
+                    "exactly over the camera, pick the width and height and tap “Save”.",
             ))
         Step(6, tr("Батарея (Xiaomi, Huawei, Samsung…)", "Battery (Xiaomi, Huawei, Samsung…)"),
             tr(
@@ -119,6 +115,13 @@ fun InstructionScreen(onBack: () -> Unit) {
                 "If the island disappears, allow the app to autostart and remove battery restrictions — otherwise the " +
                     "firmware kills the service.",
             ))
+        Row {
+            PillAction(tr("Батарея", "Battery")) { Perms.openBattery(context) }
+            if (Perms.hasAutostart()) {
+                Spacer(Modifier.width(8.dp))
+                PillAction(tr("Автозапуск", "Autostart")) { Perms.openAutostart(context) }
+            }
+        }
         Step(7, tr("Ответ на сообщения и оплата", "Replies and payments"),
             tr(
                 "Под уведомлением от мессенджера стоят кнопки из самого уведомления. «Ответить» открывает строку ввода прямо в острове. " +
@@ -208,13 +211,15 @@ fun AppInfoScreen(open: (Screen) -> Unit) {
             GroupItem(Pos.First, Icons.Rounded.Lightbulb, tr("Инструкция", "Instructions"),
                 tr("Как включить остров на Android 13+", "How to turn the island on with Android 13+"),
                 onClick = { open(Screen.INSTRUCTION) }, color = Tile.Yellow) { Arrow() }
+            KeepAliveItem(Pos.Middle, open)
             GroupItem(Pos.Middle, Icons.Rounded.Navigation, tr("Диагностика навигации", "Navigation diagnostics"),
                 tr("Что присылает навигатор, такси или доставка — если не видно расстояния",
                     "What a navigation, taxi or delivery app sends — if the distance doesn't show"),
                 onClick = { open(Screen.DIAG) }, color = Tile.Teal) { Arrow() }
-            GroupItem(Pos.Last, Icons.Rounded.Security, tr("О приложении в системе", "App info in Android"),
-                tr("Разрешения, ограниченные настройки, батарея", "Permissions, restricted settings, battery"),
-                onClick = { Perms.openAppDetails(context) }, color = Tile.Gray)
+            GroupItem(Pos.Middle, Icons.Rounded.CreditCard, tr("Диагностика оплаты", "Payment diagnostics"),
+                tr("Что остров увидел при оплате — если «Оплачено» не появилось", "What the island saw when you paid — if “Paid” didn't show"),
+                onClick = { open(Screen.PAYDIAG) }, color = Tile.Green) { Arrow() }
+            AppDetailsItem(Pos.Last)
         }
 
         SectionHeader(tr("Проект", "Project"))
@@ -305,7 +310,7 @@ fun IdeaScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun InfoText(text: String) {
+internal fun InfoText(text: String) {
     Text(
         text, color = Ui.Sub, fontSize = 14.sp, lineHeight = 20.sp,
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Ui.Card).padding(20.dp),
@@ -318,35 +323,62 @@ private fun InfoText(text: String) {
  */
 @Composable
 fun DiagScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
     val dumps by LiveDebug.dumps.collectAsState()
-    Page(tr("Диагностика навигации", "Navigation diagnostics"), onBack) {
-        Text(
-            tr(
-                "Включите навигатор, такси или доставку и вернитесь сюда: ниже то, что приложение присылает в уведомлении. " +
-                    "Если расстояние или стрелка поворота не показываются в острове, нажмите «Скопировать» и пришлите этот текст.",
-                "Start a navigation, taxi or delivery app and come back here: below is what the app sends in its " +
-                    "notification. If the distance or the turn arrow doesn't show in the island, tap “Copy all” and send this " +
-                    "text.",
-            ),
-            color = Ui.Sub, fontSize = 14.sp, lineHeight = 20.sp,
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Ui.Card).padding(20.dp),
-        )
-        if (dumps.isEmpty()) {
-            Text(
-                tr("Пока ничего нет: ни одного уведомления навигатора, такси или доставки не пришло.",
-                    "Nothing yet: no navigation, taxi or delivery notification has arrived."),
-                color = Ui.Sub, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 8.dp),
-            )
+    DumpScreen(
+        tr("Диагностика навигации", "Navigation diagnostics"),
+        tr(
+            "Включите навигатор, такси или доставку и вернитесь сюда: ниже то, что приложение присылает в уведомлении. " +
+                "Если расстояние или стрелка поворота не показываются в острове, нажмите «Скопировать» и пришлите этот текст.",
+            "Start a navigation, taxi or delivery app and come back here: below is what the app sends in its " +
+                "notification. If the distance or the turn arrow doesn't show in the island, tap “Copy all” and send this " +
+                "text.",
+        ),
+        tr("Пока ничего нет: ни одного уведомления навигатора, такси или доставки не пришло.",
+            "Nothing yet: no navigation, taxi or delivery notification has arrived."),
+        dumps.values.toList(), onBack,
+    )
+}
+
+/**
+ * Что остров увидел при оплате: экран оплаты, уведомления и СМС банков и как он их понял. Если «Оплачено»
+ * не появилось, здесь видно почему.
+ */
+@Composable
+fun PayDiagScreen(onBack: () -> Unit) {
+    val log by PayDebug.log.collectAsState()
+    DumpScreen(
+        tr("Диагностика оплаты", "Payment diagnostics"),
+        tr(
+            "Заплатите телефоном и вернитесь сюда: ниже — что остров увидел (экран оплаты, уведомление или СМС банка) " +
+                "и как понял. Если «Оплачено» не появилось, нажмите «Скопировать» и пришлите текст. Записи хранятся " +
+                "только в памяти телефона и пропадают после перезапуска.",
+            "Pay with your phone and come back here: below is what the island saw (the payment screen, a bank " +
+                "notification or SMS) and how it understood it. If “Paid” didn't show, tap “Copy all” and send the text. " +
+                "Entries stay only in the phone's memory and are gone after a restart.",
+        ),
+        tr("Пока ничего нет: остров не видел ни экрана оплаты, ни уведомлений банков.",
+            "Nothing yet: the island hasn't seen a payment screen or a bank notification."),
+        log, onBack,
+    )
+}
+
+@Composable
+private fun DumpScreen(title: String, intro: String, empty: String, items: List<String>, onBack: () -> Unit) {
+    val context = LocalContext.current
+    Page(title, onBack) {
+        InfoText(intro)
+        if (items.isEmpty()) {
+            Text(empty, color = Ui.Sub, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 8.dp))
         } else {
             Row {
                 PillAction(tr("Скопировать всё", "Copy all")) {
-                    val text = dumps.values.joinToString("\n\n")
-                    context.getSystemService(ClipboardManager::class.java)
-                        ?.setPrimaryClip(ClipData.newPlainText(tr("Диагностика навигации", "Navigation diagnostics"), text))
+                    // Суммы и тексты банков: Android 13+ не показывает такой буфер обмена во всплывающем превью
+                    val clip = ClipData.newPlainText(title, items.joinToString("\n\n"))
+                    clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+                    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
                 }
             }
-            dumps.values.forEach { dump ->
+            items.forEach { dump ->
                 Text(
                     dump, color = Ui.Text, fontSize = 12.sp, lineHeight = 17.sp, fontFamily = FontFamily.Monospace,
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Ui.Card).padding(16.dp),

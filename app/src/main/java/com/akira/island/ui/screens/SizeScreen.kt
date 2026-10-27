@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,9 +15,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Height
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,15 +43,16 @@ import com.akira.island.data.SettingsRepo
 import com.akira.island.island.rememberHaptic
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupStepSlider
+import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
 import com.akira.island.ui.Pos
 import com.akira.island.ui.Tile
 import com.akira.island.ui.Ui
 
 /**
- * Положение острова: только сдвиг по горизонтали и отступ сверху. Пока экран открыт, остров
- * на телефоне красный с белым ободком — так видно, где он стоит относительно камеры.
- * «Сохранить» оставляет новые значения, «назад» возвращает прежние.
+ * Положение и размер острова: сдвиг по горизонтали, отступ сверху, ширина и высота пустой капсулы.
+ * Пока экран открыт, остров на телефоне красный с белым ободком — так видно, где он стоит
+ * относительно камеры. «Сохранить» оставляет новые значения, «назад» возвращает прежние.
  */
 @Composable
 fun SizeScreen(onBack: () -> Unit) {
@@ -62,7 +67,7 @@ fun SizeScreen(onBack: () -> Unit) {
 
     val cancel = {
         SettingsRepo.update {
-            copy(offsetX = original.offsetX, offsetY = original.offsetY)
+            withPlacement(original)
         }
         onBack()
     }
@@ -72,13 +77,13 @@ fun SizeScreen(onBack: () -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
         Page(
-            tr("Положение", "Position"),
+            tr("Положение и размер", "Position and size"),
             onBack = cancel,
             action = {
                 Box(
                     Modifier.size(48.dp).clip(CircleShape).background(Ui.Card).clickable {
                         val d = IslandSettings()
-                        set { copy(offsetX = d.offsetX, offsetY = d.offsetY) }
+                        set { withPlacement(IslandSettings()) }
                     },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -87,12 +92,30 @@ fun SizeScreen(onBack: () -> Unit) {
             },
         ) {
             Group {
+                // Камера слева или справа — сдвиньте капсулу к ней; широкие плашки всё равно остаются на экране
                 GroupStepSlider(
                     Pos.First, Icons.Rounded.SwapHoriz, tr("По горизонтали", "Horizontal"), s.offsetX, -200..200,
                     action = tr("Центр", "Center") to { set { copy(offsetX = 0) } }, color = Tile.Blue,
                 ) { v -> set { copy(offsetX = v) } }
-                GroupStepSlider(Pos.Last, Icons.Rounded.SwapVert, tr("Отступ сверху", "Top offset"), s.offsetY, -10..120, color = Tile.Indigo) { v ->
-                    set { copy(offsetY = v) }
+                if (!s.notch) {
+                    GroupStepSlider(Pos.Middle, Icons.Rounded.SwapVert, tr("Отступ сверху", "Top offset"), s.offsetY, -10..120, color = Tile.Indigo) { v ->
+                        set { copy(offsetY = v) }
+                    }
+                }
+                GroupToggle(
+                    Pos.Last, Icons.Rounded.WaterDrop, tr("Как вырез", "Like a notch"),
+                    tr("Для камеры-капли: остров прилегает к верху экрана и закрывает вырез",
+                        "For a waterdrop camera: the island sits against the top of the screen and covers the notch"),
+                    s.notch, color = Tile.Teal,
+                ) { v -> set { copy(notch = v) } }
+            }
+            Spacer(Modifier.height(16.dp))
+            Group {
+                GroupStepSlider(Pos.First, Icons.Rounded.Straighten, tr("Ширина", "Width"), s.width, 70..170, color = Tile.Purple) { v ->
+                    set { copy(width = v) }
+                }
+                GroupStepSlider(Pos.Last, Icons.Rounded.Height, tr("Высота", "Height"), s.height, 22..46, color = Tile.Pink) { v ->
+                    set { copy(height = v) }
                 }
             }
         }
@@ -115,3 +138,7 @@ fun SizeScreen(onBack: () -> Unit) {
         }
     }
 }
+
+/** Всё, что настраивается на этом экране, — из [from]: для «назад» и «Сбросить». */
+private fun IslandSettings.withPlacement(from: IslandSettings) =
+    copy(offsetX = from.offsetX, offsetY = from.offsetY, width = from.width, height = from.height, notch = from.notch)

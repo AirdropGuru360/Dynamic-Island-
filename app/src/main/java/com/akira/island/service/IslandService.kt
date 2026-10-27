@@ -313,7 +313,7 @@ class IslandService : AccessibilityService() {
         visible = s.enabled && !(s.hideInLandscape && landscape)
         display?.visibility = if (visible) View.VISIBLE else View.GONE
         if (!visible) Controls.collapse()
-        val y = dp(s.offsetY - ISLAND_PAD_DP)
+        val y = dp(s.topOffset - ISLAND_PAD_DP)
         if (displayParams.y != y) {
             displayParams.y = y
             display?.let { v -> runCatching { wm?.updateViewLayout(v, displayParams) } }

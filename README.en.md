@@ -10,7 +10,7 @@
 
 Notifications with reply · navigation · payments · music with lyrics · calls · timers · downloads · charging · flashlight · system events
 
-[![Version 1.6.1](https://img.shields.io/badge/version-1.6.1-C6C3F7?style=for-the-badge&labelColor=1C1B22)](https://github.com/Akira9021/Dynamic-Island-/releases/latest)
+[![Version 1.6.2](https://img.shields.io/badge/version-1.6.2-C6C3F7?style=for-the-badge&labelColor=1C1B22)](https://github.com/Akira9021/Dynamic-Island-/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Akira9021/Dynamic-Island-/total?style=for-the-badge&label=downloads&color=34C759&labelColor=1C1B22)](https://github.com/Akira9021/Dynamic-Island-/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/Akira9021/Dynamic-Island-/android.yml?style=for-the-badge&label=build&labelColor=1C1B22)](https://github.com/Akira9021/Dynamic-Island-/actions)
 <br>
@@ -33,6 +33,9 @@ Notifications with reply · navigation · payments · music with lyrics · calls
 ---
 
 ## ✨ What's new in 1.6.1
+
+> [!NOTE]
+> **1.6.2:** a smaller island by default, with width and height adjustable again; Like a notch mode for waterdrop cameras; softer animations; a lock on the lock screen; Like in the player (Yandex Music and others); more reliable "Paid"; install help and a Keep the island running screen. Details — in [CHANGELOG.en.md](CHANGELOG.en.md).
 
 <div align="center">
 <img src="docs/preview-1.6.1.en.png" width="820" alt="New in 1.6.1: Pay · Hold near reader, Paid with the amount, the alarm and the sleep dial, Sent, the new version card with Later and Update, downloading with percent and Updated to 1.6.1">
@@ -95,16 +98,25 @@ Short notices in the capsule, each can be turned on separately:
 
 1. Download **`DynamicIsland.apk`** from the [latest release](https://github.com/Akira9021/Dynamic-Island-/releases/latest) page and install it.
 2. Open the app — on Home tap **Open accessibility** («Открыть спец. возможности») and turn on "Dynamic Island" («Динамический остров»).
-   > On Android 13+ the switch may be grayed out: **App info → ⋮ → Allow restricted settings**, then repeat step 2.
+   > On Android 13+ you'll see "Restricted setting": close it, open **App info → ⋮ → Allow restricted settings** and repeat step 2. The "⋮" menu item only appears after the first attempt.
 3. Home → **Permissions** («Разрешения»): turn on **Notification access** («Доступ к уведомлениям») — without it there's no music, downloads or Clock timers.
 4. There, tap **Calls** («Звонки») and allow access to the phone, call log and contacts — then the island shows incoming calls with any dialer.
 5. On Android 12+ allow **Bluetooth** to see headphone names.
-6. **Appearance → Position** («Оформление → Положение») — the island turns red: move it until the red sits exactly over the camera.
+6. **Appearance → Position and size** («Оформление → Положение и размер») — the island turns red: move it until the red sits exactly over the camera and pick the width and height. Waterdrop camera — turn on **Like a notch** («Как вырез»).
 
 > [!TIP]
-> On Xiaomi, Huawei and Samsung allow autostart and remove battery restrictions, otherwise the firmware may kill the service.
+> If the island disappears (Xiaomi and HyperOS, Oppo, realme, Samsung, Infinix…): **Permissions → Keep the island running** («Чтобы остров не закрывался») — unrestricted battery, autostart and locking in recent apps.
 
-New versions install over old ones; your settings are kept (from 1.6.0 to 1.6.1 — reinstall once, see above).
+### If it won't install
+
+| What the phone says | What to do |
+| --- | --- |
+| **"App blocked to protect your device"** / "Potentially harmful app" (Play Protect) | That's how Google treats any app not from Google Play that asks for accessibility. The code is open — you can check it. Play Store → profile icon → **Play Protect** → ⚙️ → temporarily turn off "Scan apps", install the island and turn it back on |
+| **"There was a problem parsing the package"** | The file didn't download fully or was opened by the wrong app. Download `DynamicIsland.apk` from the release page in **Chrome** and open it from Chrome's downloads or **Files by Google**, not from TikTok, Telegram or video downloaders |
+| **"App not installed"** over an old version | From 1.6.0 or older — uninstall the old version once: 1.6.1+ has a new signing key |
+| **"Restricted setting"** / "App was denied access" when turning on the service | See step 2: **App info → ⋮ → Allow restricted settings** |
+
+New versions install over old ones; your settings are kept (from 1.6.0 or older — reinstall once, see above).
 
 ## 👆 Gestures
 

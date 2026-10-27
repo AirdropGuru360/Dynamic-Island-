@@ -19,6 +19,7 @@ import com.akira.island.core.IslandBus
 import com.akira.island.core.Lyrics
 import com.akira.island.core.LyricsStatus
 import com.akira.island.core.MediaInfo
+import com.akira.island.core.PlayerAction
 import com.akira.island.core.Tints
 import com.akira.island.data.SettingsRepo
 import com.akira.island.lyrics.LyricsRepo
@@ -130,6 +131,7 @@ class MediaMonitor(private val context: Context) {
         val prev = IslandBus.media.value
         val sameTrack = prev?.key == key
 
+        val (like, dislike) = rates(state)
         val info = MediaInfo(
             key = key,
             pkg = chosen.packageName,
@@ -144,6 +146,8 @@ class MediaMonitor(private val context: Context) {
             speed = state?.playbackSpeed?.takeIf { it > 0f } ?: 1f,
             playing = playing,
             canSeek = (state?.actions ?: 0L) and PlaybackState.ACTION_SEEK_TO != 0L,
+            like = like,
+            dislike = dislike,
         )
 
         // На паузе карточка держится ещё немного и уходит, как на iPhone
@@ -179,6 +183,23 @@ class MediaMonitor(private val context: Context) {
             lyricsKey = key
             loadLyrics(info)
         }
+    }
+
+    /**
+     * «Нравится» или «Не нравится» среди своих кнопок плеера: Яндекс Музыка, YouTube Music, Spotify кладут их
+     * в медиасессию рядом с паузой. Уже лайкнутый трек плеер подписывает «Убрать…», «Remove…», «Unlike».
+     */
+    private fun rates(state: PlaybackState?): Pair<PlayerAction?, PlayerAction?> {
+        var like: PlayerAction? = null
+        var dislike: PlayerAction? = null
+        for (a in state?.customActions.orEmpty()) {
+            val t = "${a.action} ${a.name}".lowercase()
+            when {
+                DislikeWords.containsMatchIn(t) -> if (dislike == null) dislike = PlayerAction(a.action, UndoWords.containsMatchIn(t))
+                LikeWords.containsMatchIn(t) -> if (like == null) like = PlayerAction(a.action, UndoWords.containsMatchIn(t))
+            }
+        }
+        return like to dislike
     }
 
     private fun publish(info: MediaInfo?) {
@@ -228,5 +249,8 @@ class MediaMonitor(private val context: Context) {
 
     private companion object {
         const val PAUSE_KEEP_MS = 45_000L
+        val DislikeWords = Regex("dislike|не нрав|thumbs?.?down|ban|block")
+        val LikeWords = Regex("like|нрав|favou?rite|heart|thumbs?.?up|любим|избран")
+        val UndoWords = Regex("unlike|un_like|undo|remove|убрать|удалить|отмен")
     }
 }

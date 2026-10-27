@@ -22,12 +22,18 @@ data class MediaInfo(
     val speed: Float,
     val playing: Boolean,
     val canSeek: Boolean,
+    /** «Нравится» и «Не нравится» из самого плеера (Яндекс Музыка, YouTube Music и др.), если он их даёт */
+    val like: PlayerAction? = null,
+    val dislike: PlayerAction? = null,
 ) {
     fun positionAt(now: Long): Long {
         val p = if (playing) positionMs + ((now - positionTime) * speed).toLong() else positionMs
         return if (durationMs > 0) p.coerceIn(0, durationMs) else p.coerceAtLeast(0)
     }
 }
+
+/** Своя кнопка плеера: что отправить ему и включена ли она уже (трек уже нравится). */
+data class PlayerAction(val action: String, val on: Boolean)
 
 data class LyricLine(val timeMs: Long, val text: String)
 

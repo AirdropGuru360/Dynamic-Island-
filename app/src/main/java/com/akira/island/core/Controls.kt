@@ -35,6 +35,11 @@ object Controls {
 
     // Плеер
 
+    /** Своя кнопка плеера — «Нравится» или «Не нравится». */
+    fun playerAction(action: String) {
+        mediaController?.transportControls?.sendCustomAction(action, null)
+    }
+
     fun playPause() {
         val c = mediaController ?: return
         if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause()

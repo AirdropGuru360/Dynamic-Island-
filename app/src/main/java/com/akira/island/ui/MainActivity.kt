@@ -79,9 +79,11 @@ import com.akira.island.ui.screens.GesturesScreen
 import com.akira.island.ui.screens.HomeScreen
 import com.akira.island.ui.screens.IdeaScreen
 import com.akira.island.ui.screens.InstructionScreen
+import com.akira.island.ui.screens.KeepAliveScreen
 import com.akira.island.ui.screens.LookScreen
 import com.akira.island.ui.screens.LyricsScreen
 import com.akira.island.ui.screens.NotificationsScreen
+import com.akira.island.ui.screens.PayDiagScreen
 import com.akira.island.ui.screens.PermissionsScreen
 import com.akira.island.ui.screens.SizeScreen
 import com.akira.island.ui.screens.TestsScreen
@@ -89,7 +91,7 @@ import com.akira.island.update.UpdateChecker
 
 enum class Screen {
     CARDS, EVENTS, GESTURES, LYRICS, SIZE, COLORS, INSTRUCTION, ABOUT, DIAG, LOOK, ANIM, EFFECTS, BANNERS,
-    PERMISSIONS, TESTS, NOTIFICATIONS, BEHAVIOR,
+    PERMISSIONS, TESTS, NOTIFICATIONS, BEHAVIOR, PAYDIAG, KEEPALIVE,
 }
 
 class MainActivity : ComponentActivity() {
@@ -155,6 +157,8 @@ private fun AppRoot() {
                     Screen.INSTRUCTION.name -> InstructionScreen(back)
                     Screen.ABOUT.name -> IdeaScreen(back)
                     Screen.DIAG.name -> DiagScreen(back)
+                    Screen.PAYDIAG.name -> PayDiagScreen(back)
+                    Screen.KEEPALIVE.name -> KeepAliveScreen(back)
                     Screen.LOOK.name -> LookScreen(back)
                     Screen.ANIM.name -> AnimScreen(back)
                     Screen.EFFECTS.name -> EffectsScreen(back)

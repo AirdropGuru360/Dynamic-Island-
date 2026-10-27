@@ -12,7 +12,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -131,7 +136,13 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
     val side = sideMax(s)
     val icon = h * 0.5f
     when (act) {
-        is Act.Idle -> Box(Modifier.size(s.width.dp, s.height.dp))
+        // Пустая капсула; на экране блокировки слева от камеры — замок
+        is Act.Idle -> Box(Modifier.size(s.width.dp, s.height.dp), contentAlignment = Alignment.CenterStart) {
+            val keyguard by IslandBus.keyguard.collectAsState()
+            AnimatedVisibility(s.evLock && keyguard, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+                Icon(Ios.lock, null, tint = Color.White, modifier = Modifier.padding(start = s.height.dp * 0.38f).size(s.height.dp * 0.46f))
+            }
+        }
 
         is Act.MediaA -> MediaCompact(act.m, s)
 
@@ -235,6 +246,7 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
         is Act.NoticeA -> NoticeCompact(act.n, s, wideWidth)
 
         is Act.PayA -> PayReady(tr("Оплата", "Pay"), tr("К терминалу", "Hold near reader"), act.p.icon, s, wideWidth)
+
     }
 }
 
@@ -573,7 +585,7 @@ fun messageWidth(): Dp = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).c
 @Composable
 fun messageTop(s: IslandSettings): Dp {
     val status = statusBarHeight()
-    return maxOf(s.height.dp + 6.dp, status + 24.dp - s.offsetY.dp)
+    return maxOf(s.height.dp + 6.dp, status + 24.dp - s.topOffset.dp)
 }
 
 /** Высота строки состояния — из ресурсов системы: окну острова отступы строки состояния не приходят. */

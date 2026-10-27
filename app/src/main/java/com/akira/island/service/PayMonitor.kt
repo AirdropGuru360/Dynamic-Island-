@@ -16,7 +16,11 @@ import com.akira.island.R
 import com.akira.island.core.tr
 import com.akira.island.data.SettingsRepo
 import com.akira.island.island.Ios
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -52,6 +56,12 @@ object PayMonitor {
         "ru.nspk.mirpay",
     )
 
+    /**
+     * Три минуты: столько держится «К терминалу», столько ждём оплату после экрана оплаты
+     * и столько одна и та же сумма не показывается второй раз.
+     */
+    const val PAY_WINDOW_MS = 180_000L
+
     /** Само окно «Оплата» из сервисов Google: появляется, когда телефон поднесли к терминалу. */
     const val GMS = "com.google.android.gms"
 
@@ -60,8 +70,9 @@ object PayMonitor {
 
     /** Уведомления этих приложений тоже разбираются как оплата: банки, которых нет в списке выше. */
     private val bankish = Regex(
-        "bank|banking|sber|tinkoff|vtb|alfa|raiff|sovcom|halva|gazprom|psbank|otkritie|pochta|rshb|uralsib|" +
-            "rosbank|akbars|mkb|yoomoney|qiwi|wallet|\\.pay|pay\\.|mirpay|spay",
+        "bank|banking|sber|tinkoff|tbank|vtb|alfa|raiff|sovcom|halva|gazprom|psbank|otkritie|pochta|rshb|uralsib|" +
+            "rosbank|akbars|mkb|yoomoney|qiwi|wallet|\\.pay|pay\\.|mirpay|spay|fintech|" +
+            "kaspi|halyk|revolut|paypal|gopay|paytm|phonepe|gcash",
         RegexOption.IGNORE_CASE,
     )
 
@@ -74,6 +85,12 @@ object PayMonitor {
     )
 
     private var readyPkg: String? = null
+    /**
+     * Когда и в каком приложении в последний раз показали «К терминалу»: сумма в уведомлении этого приложения,
+     * кошелька или СМС банка сразу после этого — та самая оплата. После «Оплачено» окно закрывается.
+     */
+    private var readyShownAt = 0L
+    private var readyShownPkg: String? = null
     private var readyTimeout: Job? = null
     private var paidKey: String? = null
     private var paidAt = 0L
@@ -112,10 +129,13 @@ object PayMonitor {
         val s = SettingsRepo.current
         if (!s.enabled || !s.evPayReady || IslandBus.payReady.value?.pkg == pkg) return
         readyPkg = pkg
+        readyShownAt = SystemClock.elapsedRealtime()
+        readyShownPkg = appFor(pkg)
+        PayDebug.add(tr("Экран оплаты", "Payment screen"), pkg)
         IslandBus.payReady.value = PayReady(pkg, NotificationParser.icon(context, appFor(pkg)))
         readyTimeout?.cancel()
         readyTimeout = IslandBus.scope.launch {
-            delay(180_000)
+            delay(PAY_WINDOW_MS)
             clearReady()
         }
     }
@@ -143,12 +163,11 @@ object PayMonitor {
         IslandBus.payReady.value = null
     }
 
-    /** Сумма с разрядами и копейками и валютой: «89,99 ₽», «1 250 руб.», «12.50 USD», «$12.50». */
-    private val amount = Regex(
-        """(?<![\d*])(?:\d{1,3}(?:[ ]?\d{3})*(?:[.,]\d{1,2})?\s?(?:₽|руб\.?|р\.?(?!\p{L})|RUB|USD|EUR|€|£|₸|₴|BYN|\$)|[$€£]\s?\d{1,3}(?:[ ,]?\d{3})*(?:[.,]\d{1,2})?)""",
+    private val success = Regex(
+        "покупк|оплат|списан|списал|paid|payment|purchase|charged|spent|" +
+            "pembayaran|transaksi|pago|compra|pagamento|zahlung|achat|paiement|ödeme|satın",
         RegexOption.IGNORE_CASE,
     )
-    private val success = Regex("покупк|оплат|списан|списал|paid|payment|purchase|charged|spent", RegexOption.IGNORE_CASE)
     /**
      * Не оплата: пополнения, переводы, возвраты, неудачные платежи, а также напоминания и счета
      * («К оплате», «Не забудьте оплатить», «будет списано», «Payment due»).
@@ -160,21 +179,16 @@ object PayMonitor {
         RegexOption.IGNORE_CASE,
     )
 
-    /** Первая сумма с валютой в тексте уведомления. */
-    internal fun amountIn(text: String): String? = amount.find(text)?.value?.trim()
-
-    /** Похоже ли уведомление на оплату: есть слово об оплате и нет слов о переводе, возврате, ошибке. */
-    internal fun looksPaid(text: String): Boolean = success.containsMatchIn(text) && !skip.containsMatchIn(text)
-
     /** Цифры суммы — чтобы одна оплата с экрана и из уведомления не показалась дважды. */
     private fun key(sum: String) = sum.filter { it.isDigit() }.trimEnd('0')
 
     /** Эта сумма уже показана как «Оплачено» за последние три минуты. */
-    private fun alreadyShown(sum: String) = key(sum) == paidKey && SystemClock.elapsedRealtime() - paidAt < 180_000
+    private fun alreadyShown(sum: String) = key(sum) == paidKey && SystemClock.elapsedRealtime() - paidAt < PAY_WINDOW_MS
 
     private fun showPaid(context: Context, sum: String, caption: String, pkg: String) {
         paidKey = key(sum)
         paidAt = SystemClock.elapsedRealtime()
+        readyShownAt = 0L
         clearReady()
         IslandBus.post(
             Notice(
@@ -193,6 +207,7 @@ object PayMonitor {
     /** Приложение оплаты показало у себя галочку и сумму. */
     fun onScreenPaid(context: Context, pkg: String, sum: String) {
         val s = SettingsRepo.current
+        PayDebug.add(tr("С экрана: оплачено $sum", "From the screen: paid $sum"), pkg)
         if (!s.enabled || !s.evPaySuccess || alreadyShown(sum)) return
         val app = appFor(pkg)
         showPaid(context, sum, NotificationParser.appLabel(context, app), app)
@@ -217,10 +232,20 @@ object PayMonitor {
             return false
         }
         val text = (ex.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: ex.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
-        val all = "$title $text".replace(' ', ' ').replace(' ', ' ')
-        if (!looksPaid(all)) return false
+        val all = PayScreenParser.normalize("$title $text")
         // У настоящей оплаты всегда есть сумма; без неё это скорее реклама или новость банка
-        val sum = amountIn(all) ?: return false
+        val sum = PayScreenParser.amount(all)
+        if (sum == null) {
+            PayDebug.add(tr("Без суммы — не оплата", "No amount — not a payment"), pkg, all)
+            return false
+        }
+        // Кошельки (Google Кошелёк, Samsung Wallet, Mir Pay) пишут только магазин и сумму с картой, без слова «оплата»;
+        // сумма сразу после экрана оплаты телефоном — от того же приложения, платёжного или СМС банка — та самая оплата
+        val recent = readyShownAt != 0L && SystemClock.elapsedRealtime() - readyShownAt < PAY_WINDOW_MS &&
+            (pkg == readyShownPkg || sms || isPayApp(context, pkg))
+        val paid = !skip.containsMatchIn(all) && (success.containsMatchIn(all) || pkg in wallets || recent)
+        PayDebug.add(if (paid) tr("Оплачено $sum", "Paid $sum") else tr("Не похоже на оплату", "Doesn't look like a payment"), pkg, all)
+        if (!paid) return false
         if (alreadyShown(sum)) return true
         showPaid(context, sum, if (sms) title else NotificationParser.appLabel(context, pkg), pkg)
         return true
@@ -237,5 +262,28 @@ object PayMonitor {
             smsPkg = runCatching { Telephony.Sms.getDefaultSmsPackage(context) }.getOrNull()
         }
         return smsPkg
+    }
+}
+
+/**
+ * «Диагностика оплаты»: что остров увидел — экран оплаты, уведомления банков и кошельков, СМС банков —
+ * и как это понял. Последние 15 записей, только в памяти: после перезапуска пусто, никуда не отправляется.
+ */
+object PayDebug {
+    val log = MutableStateFlow<List<String>>(emptyList())
+
+    private val clock = SimpleDateFormat("HH:mm:ss", Locale.ROOT)
+
+    private var last = ""
+
+    fun add(result: String, pkg: String, text: String = "") {
+        // Экран оплаты разбирается много раз подряд — одно и то же записываем один раз
+        val what = buildString {
+            append(result).append('\n').append(pkg)
+            if (text.isNotBlank()) append('\n').append(text.trim().take(200))
+        }
+        if (what == last) return
+        last = what
+        log.value = (listOf("${clock.format(Date())} · $what") + log.value).take(15)
     }
 }

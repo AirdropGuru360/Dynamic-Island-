@@ -59,6 +59,8 @@ object IslandBus {
     val powerSave = MutableStateFlow(false)
     /** Телефон заблокирован PIN-кодом, графическим ключом или паролем: тексты сообщений и кнопки скрыты */
     val locked = MutableStateFlow(false)
+    /** На экране — экран блокировки (с PIN-кодом или без): в капсуле замок, если он включён в «Событиях» */
+    val keyguard = MutableStateFlow(false)
     /** Открыт экран «Размер и положение»: остров красный, чтобы подогнать его под камеру */
     val calibrating = MutableStateFlow(false)
     /** Играет та самая песня — остров празднует (пасхалка, Egg.kt) */

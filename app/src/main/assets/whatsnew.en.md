@@ -1,36 +1,20 @@
-### 🌍 The app and the island speak English
-- Every screen and island banner is in English or Russian: Features → General → **Language**. It switches right away, no restart needed.
+### 📏 A smaller island you can resize
+- The island is smaller by default — to fit Android cameras — and its **width and height** are adjustable again: Appearance → **Position and size**.
+- Camera on the side? Move the island to it: notification banners still stay on the screen.
+- **Like a notch** — for a waterdrop camera: the island sits against the top of the screen and covers the notch.
 
-### ⬇️ Updates right in the island
-- When a new version is out, the island shows a card: **Later** or **Update**, percent and a ring while it downloads, and after installing — **Updated** with What's new.
-- See how it looks: Home → Try it → **Update**.
+### 🎬 Softer animations
+- The island bounces less: light bounce by default. **Elasticity** is right on the Appearance tab.
 
-### 🗂️ The app, reorganized
-- **Four tabs**: Home, Features, Appearance and About — settings are separate from the version, help and links.
-- Home has **Permissions** in one row and **Try it**: every island demo on one screen.
+### 🔒 A lock on the lock screen
+- While the phone is locked, the capsule shows a lock. Turn it off in Events.
 
-### 💳 Pay with your phone
-- **"Pay · Hold near reader"** shows only on a phone payment screen (T-Pay, SberPay, Mir Pay, Yandex Pay, Google Wallet) and stays until you pay or leave the app.
-- **"Paid" with the amount** — right from the wallet screen, a bank notification or a bank SMS.
+### 🎵 Like in the player
+- A heart and Dislike in the expanded player — for Yandex Music and other players that offer them.
 
-### ⏱️ Timer and alarm
-- Clock's timer and stopwatch show up in the island even with Clock's notifications off — with pause and reset buttons.
-- 12 hours before an alarm — the wake-up time and a **sleep dial**, like on iPhone.
+### 💳 "Paid" is more reliable
+- Understands Google Wallet and Mir Pay notifications, the "Payment successful" screen and more banks. If it didn't show — About → **Payment diagnostics**.
 
-### 🔔 Notifications
-- The banner is sized like a system notification, **Reply** works right from the island, and after sending you see "Sent ✓".
-- Features → **Notifications**: notifications from the open app, 1 to 6 lines of text and the button color.
-
-### ✨ Effects and behavior
-- Appearance → Animations → **Effects**: blur, live equalizer, shake, payment waves and the **artwork glow**.
-- Features → **Behavior**: the expanded island can collapse by itself, and the second-activity circle can be turned off.
-
-### 🔒 Security
-- The app has a **new signing key**: the old one became public. Updates install over the top again, and nobody can pass off their own build as the island.
-- Only apps allowed to set alarms can start a timer in the island, and the updater installs only the island itself.
-
-### 🔋 Battery
-- While the screen is off the island doesn't wake up, and animations are lighter on the processor.
-
-### 🔗 Small things
-- Added an easter egg.
+### 🛠️ So the island doesn't disappear
+- Permissions → **Keep the island running**: battery, autostart and locking in recent apps for Xiaomi, Oppo, Samsung and others.
+- Step-by-step help when Android says "Restricted setting".

@@ -42,7 +42,6 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Science
-import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material3.Icon
@@ -84,6 +83,7 @@ import com.akira.island.island.Ios
 import com.akira.island.island.activeHeight
 import com.akira.island.island.glassSurface
 import com.akira.island.island.islandGlow
+import com.akira.island.island.islandShape
 import com.akira.island.island.rememberHaptic
 import com.akira.island.service.NotificationParser
 import com.akira.island.ui.Group
@@ -114,19 +114,27 @@ private class PermState(val accessibility: Boolean, val notifications: Boolean, 
         )
 }
 
-/** Разрешения и функция «проверить ещё раз» — после ответа на системный запрос. */
+/**
+ * Значение, которое читается заново каждый раз, когда возвращаемся на экран (например, из настроек системы),
+ * и функция «прочитать ещё раз».
+ */
 @Composable
-private fun rememberPermState(): Pair<PermState, () -> Unit> {
-    val context = LocalContext.current
+internal fun <T> rememberOnResume(read: () -> T): Pair<T, () -> Unit> {
     var tick by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         tick++
         onPauseOrDispose { }
     }
-    val state = remember(tick) {
+    return remember(tick) { read() } to { tick++ }
+}
+
+/** Разрешения и функция «проверить ещё раз» — после ответа на системный запрос. */
+@Composable
+private fun rememberPermState(): Pair<PermState, () -> Unit> {
+    val context = LocalContext.current
+    return rememberOnResume {
         PermState(Perms.accessibility(context), Perms.notifications(context), Perms.calls(context), Perms.bluetooth(context))
     }
-    return state to { tick++ }
 }
 
 /**
@@ -180,6 +188,7 @@ fun HomeScreen(open: (Screen) -> Unit) {
 /** Первый шаг на главной: пока служба спец. возможностей выключена. */
 @Composable
 private fun StartCard(onOpen: () -> Unit, onHelp: () -> Unit) {
+    val context = LocalContext.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -204,6 +213,19 @@ private fun StartCard(onOpen: () -> Unit, onHelp: () -> Unit) {
             Modifier.fillMaxWidth().clip(CircleShape).background(Ui.Primary).clickable(onClick = onOpen).padding(vertical = 14.dp),
             contentAlignment = Alignment.Center,
         ) { Text(tr("Открыть спец. возможности", "Open Accessibility"), color = Ui.OnPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+        // Android 13+ не даёт включить службу приложению не из Play Маркета, пока не разрешишь «ограниченные настройки»
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Spacer(Modifier.height(16.dp))
+            Text(restrictedHelp(), color = Ui.Sub, fontSize = 14.sp, lineHeight = 20.sp)
+            Spacer(Modifier.height(12.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(CircleShape).border(1.dp, Ui.Primary, CircleShape)
+                    .clickable { Perms.openAppDetails(context) }.padding(vertical = 13.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(tr("Открыть «О приложении»", "Open App info"), color = Ui.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
         Box(
             Modifier.fillMaxWidth().padding(top = 4.dp).clip(CircleShape).clickable(onClick = onHelp).padding(vertical = 10.dp),
             contentAlignment = Alignment.Center,
@@ -212,6 +234,18 @@ private fun StartCard(onOpen: () -> Unit, onHelp: () -> Unit) {
         }
     }
 }
+
+/** Android 13+ не даёт включить службу приложению не из Play Маркета, пока не разрешишь «ограниченные настройки». */
+internal fun restrictedHelp(): String = tr(
+    "Android пишет «Ограниченная настройка» или «Доступ запрещён»? Так он защищает приложения не из Play Маркета:\n" +
+        "1. Попробуйте включить службу один раз — появится это окно, закройте его.\n" +
+        "2. Откройте «О приложении» → «⋮» справа вверху → «Разрешить ограниченные настройки».\n" +
+        "3. Вернитесь в «Спец. возможности» и включите остров.",
+    "Android says “Restricted setting” or “App was denied access”? That's how it protects apps not from Google Play:\n" +
+        "1. Try to turn the service on once — that window shows up, close it.\n" +
+        "2. Open App info → “⋮” in the top right → “Allow restricted settings”.\n" +
+        "3. Go back to Accessibility and turn the island on.",
+)
 
 /** «Разрешения»: что острову нужно от системы и зачем. */
 @Composable
@@ -265,9 +299,8 @@ fun PermissionsScreen(onBack: () -> Unit, open: (Screen) -> Unit) {
             GroupItem(Pos.First, Icons.Rounded.Lightbulb, tr("Инструкция", "Instructions"),
                 tr("Серый переключатель на Android 13+, батарея и автозапуск", "Grayed-out switch on Android 13+, battery and autostart"),
                 onClick = { open(Screen.INSTRUCTION) }, color = Tile.Yellow) { Arrow() }
-            GroupItem(Pos.Last, Icons.Rounded.Security, tr("О приложении в системе", "App info in Android"),
-                tr("Ограниченные настройки, разрешения, батарея", "Restricted settings, permissions, battery"),
-                onClick = { Perms.openAppDetails(context) }, color = Tile.Gray)
+            KeepAliveItem(Pos.Middle, open)
+            AppDetailsItem(Pos.Last)
         }
     }
 }
@@ -383,7 +416,7 @@ private fun demos(context: Context): List<Demo> = listOf(
 )
 
 @Composable
-private fun Status(ok: Boolean) {
+internal fun Status(ok: Boolean) {
     Box(
         Modifier
             .clip(RoundedCornerShape(50))
@@ -428,10 +461,11 @@ fun IslandPreview(expanded: Boolean = false) {
     ) {
         val act = if (expanded) Act.Idle else Act.MediaA(demo)
         val corner = (if (expanded) s.height.dp else activeHeight(s)) / 2
-        val shape = RoundedCornerShape(corner)
+        val shape = islandShape(corner, s)
         Box(
             Modifier
-                .padding(top = 18.dp)
+                // «Как вырез» — капсула от самого верха, как на экране
+                .padding(top = if (s.notch) 0.dp else 18.dp)
                 // «Свечение обложки» видно и на примере
                 .then(if (!expanded && s.fxGlow && !s.reduceEffects) Modifier.drawBehind { islandGlow(demo.accent, 1f, corner.toPx()) } else Modifier)
                 .clip(shape)
