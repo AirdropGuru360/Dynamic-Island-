@@ -29,10 +29,19 @@ class OverlayLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModel
         registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 
+    /**
+     * Остров спрятан — жизненный цикл опускается до CREATED, и Compose в окне острова останавливает кадры:
+     * ни анимаций, ни перерисовки, ни пробуждений ради них. Показался — снова RESUMED, и всё, что поменялось,
+     * рисуется одним кадром.
+     */
+    fun setActive(on: Boolean) {
+        val state = registry.currentState
+        if (state == Lifecycle.State.INITIALIZED || state == Lifecycle.State.DESTROYED) return
+        registry.currentState = if (on) Lifecycle.State.RESUMED else Lifecycle.State.CREATED
+    }
+
     fun destroy() {
-        registry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-        registry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        if (registry.currentState != Lifecycle.State.INITIALIZED) registry.currentState = Lifecycle.State.DESTROYED
         viewModelStore.clear()
     }
 

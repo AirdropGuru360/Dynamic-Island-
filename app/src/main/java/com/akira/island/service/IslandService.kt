@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.hardware.Sensor
@@ -114,9 +115,10 @@ class IslandService : AccessibilityService() {
     private var bubble = Rect.Zero
     /** Высокое окно рисования на время анимации; в покое — по нижнему краю острова. */
     private var tall = true
-    private var touchPending = false
+    /** С какого момента (uptimeMillis) окно касаний ждёт перекладки; 0 — не ждёт */
+    private var touchSince = 0L
     private val touchUpdate = Runnable {
-        touchPending = false
+        touchSince = 0L
         updateTouchWindow()
     }
     private val settle = Runnable {
@@ -171,6 +173,7 @@ class IslandService : AccessibilityService() {
         IslandBus.landscape.value = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
         createWindows()
+        KeepAliveService.sync(this)
         events = SystemEvents(this).also { it.start() }
         keyguardShown = keyguard?.isKeyguardLocked == true
         torch = TorchController(this).also { it.start() }
@@ -287,8 +290,9 @@ class IslandService : AccessibilityService() {
                     LangScope {
                         IslandOverlay(
                             onTransition = ::onTransition,
-                            onBodyBounds = { r -> if (r != body) { body = r; onBoundsChanged() } },
-                            onBubbleBounds = { r -> if (r != bubble) { bubble = r; onBoundsChanged() } },
+                            // До целых пикселей: доли пикселя в конце пружины не двигают окна
+                            onBodyBounds = { r -> val q = r.snapped(); if (q != body) { body = q; onBoundsChanged() } },
+                            onBubbleBounds = { r -> val q = r.snapped(); if (q != bubble) { bubble = q; onBoundsChanged() } },
                         )
                     }
                 }
@@ -338,6 +342,11 @@ class IslandService : AccessibilityService() {
     private fun applySettings(s: IslandSettings, landscape: Boolean) {
         visible = s.enabled && !(s.hideInLandscape && landscape) && !IslandBus.offSchedule.value
         display?.visibility = if (visible) View.VISIBLE else View.GONE
+        // Остров спрятан — выключен, вне расписания или в повороте (скажем, смотрят видео): Compose в его окне
+        // не рисует и не просыпается ради анимаций и эквалайзера, пока остров снова не покажется. С погашенным
+        // экраном так не делаем: включили экран — остров сразу показывает то, что есть сейчас, а украшения
+        // и без того ждут экрана
+        owner.setActive(visible)
         if (!visible) Controls.collapse()
         val y = dp(s.topOffset - ISLAND_PAD_DP)
         if (displayParams.y != y) {
@@ -356,12 +365,13 @@ class IslandService : AccessibilityService() {
     }
 
     private fun onBoundsChanged() {
-        // Во время анимации границы меняются каждый кадр, а перекладка окна касаний — вызов системы:
-        // двигаем его не чаще раза в 50 мс, последнее положение всё равно применится
-        if (!touchPending) {
-            touchPending = true
-            handler.postDelayed(touchUpdate, TOUCH_UPDATE_MS)
-        }
+        // Во время анимации границы меняются каждый кадр, а перекладка окна касаний — вызов системы посреди кадра,
+        // от которого анимация может дёрнуться. Поэтому окно касаний перекладывается, когда остров замер
+        // (48 мс без изменений), а если он движется долго (пасхалка) — не реже раза в 250 мс
+        val now = SystemClock.uptimeMillis()
+        if (touchSince == 0L) touchSince = now
+        handler.removeCallbacks(touchUpdate)
+        handler.postAtTime(touchUpdate, minOf(now + TOUCH_QUIET_MS, touchSince + TOUCH_MAX_WAIT_MS))
         val bottom = islandBottom()
         if (!tall && bottom > displayParams.height) {
             tall = true
@@ -578,6 +588,8 @@ class IslandService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        // Остров выключили в спец. возможностях — держать его процесс больше незачем
+        stopService(Intent(this, KeepAliveService::class.java))
         handler.removeCallbacks(settle)
         handler.removeCallbacks(fxSettle)
         handler.removeCallbacks(touchUpdate)
@@ -638,4 +650,8 @@ class TouchRoot(
 
 /** Сколько ждать после последнего изменения формы, прежде чем опустить высоту окна рисования. */
 private const val SETTLE_MS = 700L
-private const val TOUCH_UPDATE_MS = 50L
+private const val TOUCH_QUIET_MS = 48L
+private const val TOUCH_MAX_WAIT_MS = 250L
+
+/** Границы до целых пикселей наружу */
+private fun Rect.snapped() = Rect(floor(left), floor(top), ceil(right), ceil(bottom))

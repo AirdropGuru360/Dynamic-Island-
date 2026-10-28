@@ -4,9 +4,29 @@ import android.content.Context
 import android.os.Build
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Transition
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawStyle
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.zIndex
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
@@ -35,7 +55,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -56,7 +75,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -92,6 +110,7 @@ import com.akira.island.service.PayMonitor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 /** Пример активности для подбора ширины: стрелка направо и «300 м». */
 private val WidthDemo = com.akira.island.core.LiveInfo(
@@ -105,7 +124,9 @@ val CalibrationRed = Color(0xFFFF6B6B)
 /** Запас вокруг острова в окне: под тень, «желе» и пузырь. */
 const val ISLAND_PAD_DP = 12
 
-private data class Frame(val act: Act, val expanded: Boolean)
+private data class Frame(val act: Act, val expanded: Boolean) {
+    val key: String get() = "${act.id}|$expanded"
+}
 
 @Composable
 fun IslandOverlay(
@@ -256,7 +277,8 @@ fun IslandOverlay(
     val lastSecondary = remember { arrayOfNulls<Act>(1) }
     if (secondary != null) lastSecondary[0] = secondary
     val bubbleVisible = secondary != null && !showExpanded
-    val slot by animateDpAsState(if (bubbleVisible) activeHeight(s) + 6.dp else 0.dp, islandSpec(s), label = "slot")
+    // Место под пузырь читается при измерении: кадр анимации не пересобирает остров
+    val slot = animateDpAsState(if (bubbleVisible) activeHeight(s) + 6.dp else 0.dp, islandSpec(s), label = "slot")
 
     // Раскрытая активность пропала (музыку закрыли, таймер отменили) — сворачиваемся, а не показываем часы
     val focusGone = expanded && focus != null && focus != Act.Idle.id && acts.none { it.id == focus }
@@ -287,22 +309,24 @@ fun IslandOverlay(
         }
     }
 
+    // Спрятанный остров не ловит касания, даже пока уходит
     if (hidden) {
         SideEffect {
             onBodyBounds(Rect.Zero)
             onBubbleBounds(Rect.Zero)
         }
-        return
     }
+    val hiddenNow = rememberUpdatedState(hidden)
 
     // Где остров в окне — вокруг него рисуются эффекты пасхалки
     val body = remember { mutableStateOf(Rect.Zero) }
     val onBody = remember(onBodyBounds) {
         { r: Rect ->
             body.value = r
-            onBodyBounds(r)
+            onBodyBounds(if (hiddenNow.value) Rect.Zero else r)
         }
     }
+    val onBubble = remember(onBubbleBounds) { { r: Rect -> onBubbleBounds(if (hiddenNow.value) Rect.Zero else r) } }
     val eggOn = egg && !calibrating
 
     // Остров меряется по своему размеру, а не по окну, и стоит сверху по центру окна
@@ -311,7 +335,15 @@ fun IslandOverlay(
         if (!calibrating) PayEffects(primary, { body.value }, s)
         // Пасхалка: свечение за островом, вспышки и звёзды поверх
         if (eggOn) EggGlow { body.value }
-        IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBody, onBubbleBounds)
+        // «Скрывать пустой остров»: он не пропадает рывком, а уходит в камеру и выходит из неё
+        val top = TransformOrigin(0.5f, 0f)
+        AnimatedVisibility(
+            !hidden,
+            enter = if (s.reduceEffects) fadeIn() else scaleIn(islandSpec(s), initialScale = 0.3f, transformOrigin = top) + fadeIn(tween(120)),
+            exit = if (s.reduceEffects) fadeOut() else scaleOut(islandSpec(s), targetScale = 0.3f, transformOrigin = top) + fadeOut(tween(160)),
+        ) {
+            IslandRow(slot, s, primary, showExpanded, lyrics, battery, bubbleVisible, lastSecondary[0], calibrating, onBody, onBubble)
+        }
         if (eggOn) {
             EggSparks { body.value }
             EggDriver({ body.value }, s)
@@ -321,7 +353,7 @@ fun IslandOverlay(
 
 @Composable
 private fun IslandRow(
-    slot: Dp,
+    slot: State<Dp>,
     s: IslandSettings,
     primary: Act,
     showExpanded: Boolean,
@@ -349,20 +381,42 @@ private fun IslandRow(
         verticalAlignment = Alignment.Top,
     ) {
         // Пустое место слева уравновешивает пузырь, чтобы остров стоял над камерой
-        Spacer(Modifier.width(slot))
+        Spacer(Modifier.animatedWidth(slot))
         IslandBody(primary, showExpanded, s, lyrics, battery, calibrating, onBodyBounds)
         BubbleSlot(slot, bubbleVisible, bubbleAct, s, onBubbleBounds)
     }
 }
 
-/** Отдельная функция: внутри Row подставился бы RowScope.AnimatedVisibility. */
+/** Ширина из анимации — читается при измерении, а не при сборке, поэтому кадр анимации не пересобирает остров. */
+private fun Modifier.animatedWidth(width: State<Dp>) = layout { measurable, constraints ->
+    val w = width.value.roundToPx().coerceAtLeast(0)
+    val p = measurable.measure(constraints.copy(minWidth = w, maxWidth = w))
+    layout(w, p.height) { p.place(0, 0) }
+}
+
+/**
+ * Пузырь второй активности. Он лежит под островом и отделяется от него каплей: пока место под него растёт,
+ * пузырь выходит из-под края острова и вырастает, при уходе — прячется обратно.
+ * Отдельная функция: внутри Row подставился бы RowScope.AnimatedVisibility.
+ */
 @Composable
-private fun BubbleSlot(slot: Dp, visible: Boolean, act: Act?, s: IslandSettings, onBounds: (Rect) -> Unit) {
+private fun BubbleSlot(slot: State<Dp>, visible: Boolean, act: Act?, s: IslandSettings, onBounds: (Rect) -> Unit) {
     Box(
-        Modifier.width(slot).onGloballyPositioned { onBounds(it.boundsInWindow()) },
-        contentAlignment = Alignment.CenterEnd,
+        Modifier
+            .zIndex(-1f)
+            .layout { measurable, constraints ->
+                val w = slot.value.roundToPx().coerceAtLeast(0)
+                val p = measurable.measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
+                layout(w, p.height) { p.place(w - p.width, 0) }
+            }
+            .onGloballyPositioned { onBounds(it.boundsInWindow()) },
     ) {
-        AnimatedVisibility(visible && act != null, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
+        val drop = TransformOrigin(0f, 0.5f)
+        AnimatedVisibility(
+            visible && act != null,
+            enter = if (s.reduceEffects) fadeIn() else scaleIn(islandSpec(s), initialScale = 0.4f, transformOrigin = drop) + fadeIn(tween(90)),
+            exit = if (s.reduceEffects) fadeOut() else scaleOut(islandSpec(s), targetScale = 0.4f, transformOrigin = drop) + fadeOut(tween(120, delayMillis = 60)),
+        ) {
             if (act != null) Bubble(act, s)
         }
     }
@@ -401,8 +455,9 @@ private fun IslandBody(
         primary is Act.Idle -> h / 2
         else -> activeHeight(s) / 2
     }
-    val corner by animateDpAsState(cornerTarget, islandSpec(s), label = "corner")
-    val shape = islandShape(corner, s)
+    // Скругление читается при рисовании: кадр раскрытия перерисовывает рамку и стекло, а не пересобирает остров
+    val corner = animateDpAsState(cornerTarget, islandSpec(s), label = "corner")
+    val shape = remember(corner, s.notch) { AnimatedIslandShape(corner, s.notch) }
     val accent = (primary as? Act.MediaA)?.m?.accent
     val outlineColor = if (s.outlineFromArt && accent != null) accent else Color(s.outlineColor)
 
@@ -474,16 +529,20 @@ private fun IslandBody(
                 translationX = shake.value.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
-            .then(if (glowAlpha > 0f) Modifier.drawBehind { islandGlow(glowTint, glowAlpha, corner.toPx()) } else Modifier)
-            .then(
+            .then(if (glowAlpha > 0f) Modifier.drawBehind { islandGlow(glowTint, glowAlpha, corner.value.toPx(), s.notch) } else Modifier)
+            // Тень и обрезка по форме — одним слоем; форма на каждом кадре берётся из анимации скругления
+            .graphicsLayer {
+                this.shape = islandShape(corner.value, s.notch)
+                clip = true
                 when {
-                    s.liquidGlass && !calibrating && !s.reduceEffects ->
-                        Modifier.shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.6f))
-                    s.shadow && !s.reduceEffects -> Modifier.shadow(10.dp, shape)
-                    else -> Modifier
-                },
-            )
-            .clip(shape)
+                    s.liquidGlass && !calibrating && !s.reduceEffects -> {
+                        shadowElevation = 10.dp.toPx()
+                        ambientShadowColor = Color.Black.copy(alpha = 0.5f)
+                        spotShadowColor = Color.Black.copy(alpha = 0.6f)
+                    }
+                    s.shadow && !s.reduceEffects -> shadowElevation = 10.dp.toPx()
+                }
+            }
             .then(
                 if (s.liquidGlass && !calibrating) {
                     Modifier.glassSurface(shape, Color(s.color), s.glassOpacity / 100f, tilt = { tilt.value }) { sheen.value }
@@ -502,7 +561,7 @@ private fun IslandBody(
                 if (egg && !calibrating) {
                     Modifier.drawWithContent {
                         drawContent()
-                        eggRim(corner.toPx())
+                        eggRim(corner.value.toPx(), s.notch)
                     }
                 } else {
                     Modifier
@@ -590,55 +649,19 @@ private fun IslandBody(
                 )
             },
     ) {
-        AnimatedContent(
-            targetState = Frame(primary, expanded),
-            contentKey = { "${it.act.id}|${it.expanded}" },
+        // Смена содержимого: с «Жидким раскрытием» новое вырастает из прежнего вместе с формой острова,
+        // без него — прежнее перетекание. Форма в обоих случаях меняется пружиной из «Раскрытия острова»
+        val widths = remember { HashMap<String, Int>() }
+        val frames = updateTransition(Frame(primary, expanded), label = "island")
+        frames.AnimatedContent(
             contentAlignment = Alignment.TopCenter,
+            contentKey = { it.key },
             transitionSpec = {
-                // Как в ролике: старое тает за 1/6 с, уменьшаясь и размываясь, новое проявляется чуть позже
-                // из 90% размера и из размытия. Скорость — от «Длительности» (по умолчанию как в ролике)
-                val m = motionScale(s)
-                val origin = TransformOrigin(0.5f, 0.3f)
-                val inSpec = tween<Float>((300 * m).toInt(), delayMillis = (100 * m).toInt(), easing = ExpoOut)
-                val outSpec = tween<Float>((167 * m).toInt(), easing = LinearEasing)
-                val enter = if (s.reduceEffects) {
-                    fadeIn(tween(150))
-                } else {
-                    fadeIn(inSpec) + scaleIn(inSpec, initialScale = 0.9f, transformOrigin = origin)
-                }
-                val exit = if (s.reduceEffects) {
-                    fadeOut(tween(90))
-                } else {
-                    fadeOut(outSpec) + scaleOut(outSpec, targetScale = 0.95f, transformOrigin = origin)
-                }
-                (enter togetherWith exit).using(SizeTransform(clip = true) { _, _ -> islandSpec(s) })
+                val change = if (s.liquidExpand) EnterTransition.None togetherWith ExitTransition.None else classicChange(s)
+                change.using(SizeTransform(clip = true) { _, _ -> islandSpec(s) })
             },
-            label = "island",
         ) { f ->
-            // Содержимое «перетекает» с размытием, как в ролике и в острове iPhone (Android 12+):
-            // новое — из 7 dp, уходящее — в 5 dp
-            val m = motionScale(s)
-            val blur by transition.animateFloat(
-                transitionSpec = {
-                    if (targetState == EnterExitState.Visible) tween((300 * m).toInt(), delayMillis = (100 * m).toInt(), easing = ExpoOut)
-                    else tween((167 * m).toInt())
-                },
-                label = "blur",
-            ) { state ->
-                when {
-                    s.reduceEffects || !s.fxBlur -> 0f
-                    state == EnterExitState.PreEnter -> 7f
-                    state == EnterExitState.PostExit -> 5f
-                    else -> 0f
-                }
-            }
-            Box(
-                Modifier.graphicsLayer {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blur > 0.3f) {
-                        renderEffect = BlurEffect(blur.dp.toPx(), blur.dp.toPx(), TileMode.Decal)
-                    }
-                },
-            ) {
+            Box(if (s.liquidExpand) liquidFlow(f.key, frames, widths, s) else classicFlow(s)) {
                 if (f.expanded) {
                     ExpandedContent(f.act, s, lyrics, battery, expandedWidth)
                 } else {
@@ -646,6 +669,98 @@ private fun IslandBody(
                 }
             }
         }
+    }
+}
+
+/**
+ * Прежнее перетекание, как в ролике: старое тает за 1/6 с, уменьшаясь, новое проявляется чуть позже
+ * из 90% размера. Скорость — от «Длительности» (по умолчанию как в ролике).
+ */
+private fun classicChange(s: IslandSettings): ContentTransform {
+    val m = motionScale(s)
+    val origin = TransformOrigin(0.5f, 0.3f)
+    val inSpec = tween<Float>((300 * m).toInt(), delayMillis = (100 * m).toInt(), easing = ExpoOut)
+    val outSpec = tween<Float>((167 * m).toInt(), easing = LinearEasing)
+    val enter = if (s.reduceEffects) {
+        fadeIn(tween(150))
+    } else {
+        fadeIn(inSpec) + scaleIn(inSpec, initialScale = 0.9f, transformOrigin = origin)
+    }
+    val exit = if (s.reduceEffects) {
+        fadeOut(tween(90))
+    } else {
+        fadeOut(outSpec) + scaleOut(outSpec, targetScale = 0.95f, transformOrigin = origin)
+    }
+    return enter togetherWith exit
+}
+
+/** Размытие к прежнему перетеканию (Android 12+): новое проявляется из 7 dp, уходящее размывается до 5 dp. */
+@Composable
+private fun AnimatedVisibilityScope.classicFlow(s: IslandSettings): Modifier {
+    val m = motionScale(s)
+    val blur = transition.animateFloat(
+        transitionSpec = {
+            if (targetState == EnterExitState.Visible) tween((300 * m).toInt(), delayMillis = (100 * m).toInt(), easing = ExpoOut)
+            else tween((167 * m).toInt())
+        },
+        label = "blur",
+    ) { state ->
+        when {
+            s.reduceEffects || !s.fxBlur -> 0f
+            state == EnterExitState.PreEnter -> 7f
+            state == EnterExitState.PostExit -> 5f
+            else -> 0f
+        }
+    }
+    return Modifier.graphicsLayer { blurLayer(blur.value) }
+}
+
+/**
+ * «Жидкое раскрытие», как в образце: новое содержимое вырастает из прежнего вместе с формой острова и проявляется
+ * из размытия, прежнее растягивается или сжимается к размеру нового и тает. Ход — та же пружина, что у формы,
+ * поэтому содержимое не обгоняет форму и не отстаёт. [widths] — ширина каждого содержимого, запомненная при измерении.
+ */
+@Composable
+private fun AnimatedVisibilityScope.liquidFlow(key: String, frames: Transition<Frame>, widths: HashMap<String, Int>, s: IslandSettings): Modifier {
+    // «Другое» содержимое: для нового — прежнее, для уходящего — новое. Если на полпути направление
+    // сменилось (раскрыли и тут же свернули), «другое» остаётся прежним — масштаб идёт дальше без скачка
+    val target = frames.targetState.key
+    val other = if (key == target) frames.currentState.key else target
+    val from = remember { arrayOfNulls<String>(1) }
+    if (other != key) from[0] = other
+    // 0 — содержимого ещё (или уже) нет, 1 — оно на месте; читается только при рисовании
+    val presence = transition.animateFloat({ islandSpec(s) }, label = "presence") { if (it == EnterExitState.Visible) 1f else 0f }
+    // Проявление и таяние — своя пружина, быстрее и без отскока: новое видно уже в начале хода
+    val fade = transition.animateFloat({ fadeSpec(s) }, label = "fade") { if (it == EnterExitState.Visible) 1f else 0f }
+    DisposableEffect(key) { onDispose { widths.remove(key) } }
+    val zoom = !s.reduceEffects
+    val blurDp = if (s.reduceEffects || !s.fxBlur) 0f else 14f
+    return Modifier.layout { measurable, constraints ->
+        val content = measurable.measure(constraints)
+        widths[key] = content.width
+        layout(content.width, content.height) {
+            content.placeWithLayer(0, 0) {
+                val p = presence.value
+                alpha = fade.value.coerceIn(0f, 1f)
+                val ow = from[0]?.let { widths[it] }
+                if (zoom && ow != null && content.width > 0) {
+                    val k = (ow.toFloat() / content.width).coerceIn(0.25f, 3f)
+                    scaleX = k + (1f - k) * p
+                    scaleY = scaleX
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                }
+                // Размытие сильное в начале и сходит к концу хода, а не тянется до последнего кадра
+                val rest = (1f - p).coerceAtLeast(0f)
+                blurLayer(blurDp * rest * sqrt(rest))
+            }
+        }
+    }
+}
+
+/** Размытие слоя на [dp] — на Android 12+, где оно есть, и только когда заметно. */
+private fun GraphicsLayerScope.blurLayer(dp: Float) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && dp > 0.3f) {
+        renderEffect = BlurEffect(dp.dp.toPx(), dp.dp.toPx(), TileMode.Decal)
     }
 }
 
@@ -741,21 +856,53 @@ private fun Bubble(act: Act, s: IslandSettings) {
     }
 }
 
-/** Свечение вокруг острова: десять колец, всё прозрачнее наружу, — мягкий ореол без размытия, в запасе окна. */
-fun DrawScope.islandGlow(color: Color, alpha: Float, corner: Float) {
+/**
+ * Свечение вокруг острова: десять колец, всё прозрачнее наружу, — мягкий ореол без размытия, в запасе окна.
+ * У «Как вырез» верх прямой, как у самого острова.
+ */
+fun DrawScope.islandGlow(color: Color, alpha: Float, corner: Float, notch: Boolean = false) {
     val spread = 10.dp.toPx()
     for (i in 1..10) {
         val d = spread * i / 10f
-        drawRoundRect(
-            color,
-            topLeft = Offset(-d, -d),
-            size = Size(size.width + 2 * d, size.height + 2 * d),
-            cornerRadius = CornerRadius(corner + d),
-            alpha = 0.06f * alpha,
-        )
+        drawIslandRect(color, Offset(-d, -d), Size(size.width + 2 * d, size.height + 2 * d), corner + d, notch, alpha = 0.06f * alpha)
     }
 }
 
+/** Контур формы острова со скруглением [corner] в [topLeft] — для свечения, волн и кромки вокруг него. */
+private fun DrawScope.islandOutline(topLeft: Offset, size: Size, corner: Float, notch: Boolean, draw: DrawScope.(Outline) -> Unit) {
+    val outline = islandShape(corner.coerceAtLeast(0f).toDp(), notch).createOutline(size, layoutDirection, this)
+    translate(topLeft.x, topLeft.y) { draw(outline) }
+}
+
+/** Прямоугольник той же формы, что остров: у «Как вырез» верхние углы прямые. */
+fun DrawScope.drawIslandRect(
+    color: Color,
+    topLeft: Offset,
+    size: Size,
+    corner: Float,
+    notch: Boolean,
+    style: DrawStyle = Fill,
+    alpha: Float = 1f,
+) = islandOutline(topLeft, size, corner, notch) { drawOutline(it, color, alpha, style) }
+
+fun DrawScope.drawIslandRect(
+    brush: Brush,
+    topLeft: Offset,
+    size: Size,
+    corner: Float,
+    notch: Boolean,
+    style: DrawStyle = Fill,
+    alpha: Float = 1f,
+) = islandOutline(topLeft, size, corner, notch) { drawOutline(it, brush, alpha, style) }
+
 /** Форма острова: капсула со скруглениями или, у «Как вырез», прямой верх у края экрана. */
-fun islandShape(corner: Dp, s: IslandSettings): RoundedCornerShape =
-    if (s.notch) RoundedCornerShape(0.dp, 0.dp, corner, corner) else RoundedCornerShape(corner)
+fun islandShape(corner: Dp, s: IslandSettings): RoundedCornerShape = islandShape(corner, s.notch)
+
+fun islandShape(corner: Dp, notch: Boolean): RoundedCornerShape =
+    if (notch) RoundedCornerShape(0.dp, 0.dp, corner, corner) else RoundedCornerShape(corner)
+
+/** Форма острова со скруглением из анимации: рамка и стекло читают его при рисовании и обновляются без пересборки. */
+private class AnimatedIslandShape(private val corner: State<Dp>, private val notch: Boolean) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        islandShape(corner.value, notch).createOutline(size, layoutDirection, density)
+}

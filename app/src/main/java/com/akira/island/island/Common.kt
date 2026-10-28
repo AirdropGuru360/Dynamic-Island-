@@ -98,8 +98,18 @@ fun <T> islandSpec(s: IslandSettings): FiniteAnimationSpec<T> {
     }
 }
 
+/** Проявление и таяние содержимого острова: та же скорость, что у формы, но быстрее и без отскока. */
+fun <T> fadeSpec(s: IslandSettings): FiniteAnimationSpec<T> = when (s.expandStyle) {
+    ExpandStyle.INSTANT -> snap()
+    ExpandStyle.SMOOTH -> tween(animDurationMs(s) / 2)
+    else -> spring(stiffness = animStiffness(s) * 6f)
+}
+
 /** Жёсткость пружины в ролике (damping 12, stiffness 190, mass 0.85): остров перетекает за полсекунды с перелётом. */
 private const val VIDEO_STIFFNESS = 223f
+
+/** «Жидкое раскрытие» быстрее: при «Длительности» по умолчанию остров дорастает за 0,17 с, как в образце. */
+private const val LIQUID_SPEED = 2.6f
 
 /**
  * «Длительность»: 0% — быстрее всего, 100% — медленнее всего. По умолчанию (35%) — ровно как в ролике;
@@ -107,11 +117,12 @@ private const val VIDEO_STIFFNESS = 223f
  */
 fun animStiffness(s: IslandSettings): Float {
     val t = s.durationPercent.coerceIn(0, 100) / 100f
-    return if (t <= 0.35f) {
+    val k = if (t <= 0.35f) {
         1200f * (VIDEO_STIFFNESS / 1200f).pow(t / 0.35f)
     } else {
         VIDEO_STIFFNESS * (60f / VIDEO_STIFFNESS).pow((t - 0.35f) / 0.65f)
     }
+    return if (s.liquidExpand) k * LIQUID_SPEED else k
 }
 
 /** Во сколько раз всё медленнее, чем в ролике: по ней же идут проявление содержимого и размытие. */
@@ -120,7 +131,10 @@ fun motionScale(s: IslandSettings): Float = if (s.expandStyle == ExpandStyle.INS
 /** Плавность из ролика: быстро в начале и долго мягко дотягивает (cubic-bezier 0.16, 1, 0.3, 1). */
 val ExpoOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
-fun animDurationMs(s: IslandSettings): Int = 160 + s.durationPercent.coerceIn(0, 100) * 6
+fun animDurationMs(s: IslandSettings): Int {
+    val ms = 160 + s.durationPercent.coerceIn(0, 100) * 6
+    return if (s.liquidExpand) (ms / sqrt(LIQUID_SPEED)).toInt() else ms
+}
 
 /** Текущее время (elapsedRealtime) с обновлением раз в [periodMs]; пока экран погашен — не обновляется. */
 @Composable
@@ -136,22 +150,30 @@ fun rememberNow(periodMs: Long, active: Boolean = true): Long {
     return now
 }
 
-/** Сколько миллисекунд между кадрами живых украшений: около 30 кадров в секунду вместо частоты экрана (до 120) */
-private const val FX_FRAME_MS = 33L
-
 /**
- * Время для живых украшений — эквалайзера, свечения: обновляется около 30 раз в секунду и только пока горит экран.
- * Музыка играет часами, и с полной частотой экрана остров перерисовывался бы до 120 раз в секунду всё это время —
- * телефон грелся и подтормаживал. Читать значение нужно при рисовании, тогда меняется только картинка.
+ * Время для живых украшений — эквалайзера, свечения: обновляется с частотой из «Эффектов» (по умолчанию 60 раз
+ * в секунду) и только пока горит экран. Музыка играет часами, и с полной частотой экрана остров перерисовывался бы
+ * до 120 раз в секунду всё это время — телефон грелся. 60 кадров на глаз так же плавно, а работы вдвое меньше.
+ * Между кадрами корутина спит почти до следующего нужного, а не просыпается на каждом кадре экрана.
+ * Читать значение нужно при рисовании, тогда меняется только картинка.
  */
 @Composable
 fun rememberFxClock(active: Boolean): State<Long> {
     val time = remember { mutableLongStateOf(0L) }
     LaunchedEffect(active) {
+        var last = 0L
         while (active) {
             if (!IslandBus.screenOn.value) IslandBus.screenOn.first { it }
-            withFrameMillis { time.longValue = it }
-            delay(FX_FRAME_MS - 8)
+            val fps = SettingsRepo.current.fxRate.fps
+            val step = if (fps > 0) 1000L / fps else 0L
+            // Кадр экрана раньше срока пропускаем: на 120 Гц при 60 кадрах рисуется каждый второй
+            withFrameMillis { t ->
+                if (t - last >= step - 3) {
+                    time.longValue = t
+                    last = t
+                }
+            }
+            if (step > 0) delay(step - 6)
         }
     }
     return time

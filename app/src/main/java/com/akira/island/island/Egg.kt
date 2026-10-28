@@ -29,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -367,11 +366,12 @@ fun EggGlow(body: () -> Rect) {
         for (k in 1..10) {
             val grow = k * gap
             val fade = 1f - k / 11f
-            drawRoundRect(
+            drawIslandRect(
                 rainbow(hue + k * 10f).copy(alpha = (i * (0.08f + 0.3f * e) * fade * fade).coerceIn(0f, 1f)),
                 topLeft = Offset(b.left - grow, b.top - grow),
                 size = Size(b.width + grow * 2, b.height + grow * 2),
-                cornerRadius = CornerRadius(corner + grow),
+                corner = corner + grow,
+                notch = SettingsRepo.current.notch,
                 style = Stroke(width),
             )
         }
@@ -395,13 +395,14 @@ fun EggSparks(body: () -> Rect) {
             val wave = Brush.sweepGradient(List(7) { rainbow(Egg.hue.floatValue + 180f + it * 60f) }, b.center)
             for (k in 0..2) {
                 val grow = f * 46.dp.toPx() + k * width
-                drawRoundRect(
+                drawIslandRect(
                     wave,
                     topLeft = Offset(b.left - grow, b.top - grow),
                     size = Size(b.width + grow * 2, b.height + grow * 2),
-                    cornerRadius = CornerRadius(corner + grow),
-                    alpha = ((1f - f) * 0.9f * i / (k + 1)).coerceIn(0f, 1f),
+                    corner = corner + grow,
+                    notch = SettingsRepo.current.notch,
                     style = Stroke(width),
+                    alpha = ((1f - f) * 0.9f * i / (k + 1)).coerceIn(0f, 1f),
                 )
             }
         }
@@ -416,19 +417,20 @@ fun EggSparks(body: () -> Rect) {
  * Радужная кромка по краю острова. Рисуется внутри него, поэтому повторяет и форму, и подпрыгивание;
  * цвета бегут по кругу.
  */
-fun DrawScope.eggRim(corner: Float) {
+fun DrawScope.eggRim(corner: Float, notch: Boolean) {
     val i = Egg.intensity.floatValue
     if (i < 0.01f) return
     val e = Egg.pulse.floatValue
     val w = (1.5f + 1.5f * e).dp.toPx()
     val hue = Egg.hue.floatValue
-    drawRoundRect(
+    drawIslandRect(
         Brush.sweepGradient(List(7) { rainbow(hue + it * 60f) }, center),
         topLeft = Offset(w / 2, w / 2),
         size = Size(size.width - w, size.height - w),
-        cornerRadius = CornerRadius((corner - w / 2).coerceAtLeast(0f)),
-        alpha = (i * (0.55f + 0.45f * e)).coerceIn(0f, 1f),
+        corner = corner - w / 2,
+        notch = notch,
         style = Stroke(w),
+        alpha = (i * (0.55f + 0.45f * e)).coerceIn(0f, 1f),
     )
 }
 

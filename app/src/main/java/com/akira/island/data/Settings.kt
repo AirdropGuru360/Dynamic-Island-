@@ -11,6 +11,17 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/** Сколько раз в секунду рисуются живые украшения: эквалайзер, светящаяся точка. 0 — с частотой экрана */
+@Serializable
+enum class FxRate(val fps: Int, private val ru: String, private val en: String) {
+    ECO(30, "30 кадров — экономнее", "30 fps — saves power"),
+    SMOOTH(60, "60 кадров — плавно", "60 fps — smooth"),
+    MAX(0, "Как у экрана — до 120", "Screen rate — up to 120"),
+    ;
+
+    val title: String get() = tr(ru, en)
+}
+
 @Serializable
 enum class ExpandStyle(private val ru: String, private val en: String) {
     FRUIT("Как Фрукт", "Like a Fruit"),
@@ -176,6 +187,11 @@ data class IslandSettings(
     // Анимации
     val expandStyle: ExpandStyle = ExpandStyle.FRUIT,
     val durationPercent: Int = 35,
+    /**
+     * «Жидкое раскрытие» («Оформление»): содержимое растёт вместе с островом и проявляется из размытия,
+     * а остров раскрывается быстрее. Выключено — прежнее перетекание
+     */
+    val liquidExpand: Boolean = false,
     /** Слабая упругость: с сильной остров, как писали в комментариях, слишком «прыгает» */
     val elasticity: Elasticity = Elasticity.LOW,
     val reduceEffects: Boolean = false,
@@ -186,6 +202,8 @@ data class IslandSettings(
     val fxBlur: Boolean = true,
     /** Полоски эквалайзера пляшут под музыку; выключено — стоят ровно, так экономнее */
     val fxEqualizer: Boolean = true,
+    /** Частота кадров эквалайзера и свечения: 60 — плавно и вдвое легче, чем 120 у экрана */
+    val fxRate: FxRate = FxRate.SMOOTH,
     /** Мягкое свечение цвета обложки вокруг острова, пока играет музыка */
     val fxGlow: Boolean = false,
     /** Волны NFC вокруг острова, пока ждём терминал, и вспышка с искрами, когда оплата прошла */
@@ -219,6 +237,8 @@ data class IslandSettings(
     val autoCollapseSec: Int = 0,
     /** Вторая активность — кружком рядом с капсулой, как на iPhone */
     val bubble: Boolean = true,
+    /** «Не выгружать остров»: служба с тихим уведомлением, чтобы остров не закрывался вместе с недавними */
+    val keepAlive: Boolean = false,
     /** Сколько строк текста видно в карточке уведомления */
     val msgLines: Int = 3,
     /** Уведомления приложения, которое сейчас открыто, тоже приходят в остров */
@@ -315,6 +335,7 @@ object SettingsRepo {
         copy(
             expandStyle = d.expandStyle,
             durationPercent = d.durationPercent,
+            liquidExpand = d.liquidExpand,
             elasticity = d.elasticity,
             reduceEffects = d.reduceEffects,
             noticeDurationMs = d.noticeDurationMs,
@@ -323,6 +344,9 @@ object SettingsRepo {
 
     fun resetEffects() = update {
         val d = IslandSettings()
-        copy(fxBlur = d.fxBlur, fxEqualizer = d.fxEqualizer, fxGlow = d.fxGlow, fxPay = d.fxPay, fxShake = d.fxShake, batterySaver = d.batterySaver)
+        copy(
+            fxBlur = d.fxBlur, fxEqualizer = d.fxEqualizer, fxRate = d.fxRate, fxGlow = d.fxGlow, fxPay = d.fxPay,
+            fxShake = d.fxShake, batterySaver = d.batterySaver,
+        )
     }
 }

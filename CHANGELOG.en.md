@@ -6,12 +6,15 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 > Since 1.6.1 the app and the island speak English (Features → General → Language). Earlier versions were in Russian only, so older entries give the Russian label in brackets.
 
-## [1.6.3] — 2026-10-27
+## [1.6.4] — 2026-10-27
 
-- ⏰ **On a schedule**: the island shows only in the hours you pick, e.g. from 10:00 to 23:00 (Features → Behavior).
-- 💬 **No more double messages**: System banners lists messengers whose own banner still pops up, with a shortcut to turn it off; Home shows a hint.
-- 🐞 A countdown from another app's notification no longer gets stuck in the island at "00:00".
-- 🔋 Lighter on the phone: the equalizer and glow draw 30 times a second instead of at the screen's refresh rate, and the touch window isn't moved every frame.
+- 🎬 **Liquid expansion** — new in Appearance → Animations: the content grows together with the island and emerges from a blur; the island opens faster.
+- 🫧 **A smoother collapsed island**: the bubble splits off like a droplet, a hidden island comes out of the camera, artwork and color change smoothly; the equalizer runs at 60 fps (Appearance → Effects: 30, 60 or screen rate).
+- 📌 **Keep the island loaded**: it no longer disappears when you swipe the app away from recents (Home → Keep the island running).
+- ⏰ **On a schedule**: the island shows only in the hours you pick (Features → Behavior).
+- 💬 **No more double messages**: System banners lists messengers that still pop up their own banner, with a shortcut to turn it off.
+- 🔋 Lighter on the phone: a hidden island draws nothing, and the touch window isn't moved during animations.
+- 🐞 No more stuck "00:00" from another app's countdown; with Like a notch, the glow and waves around the island have a flat top.
 
 ## [1.6.2] — 2026-10-27
 

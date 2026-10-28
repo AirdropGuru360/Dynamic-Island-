@@ -3,13 +3,19 @@ package com.akira.island.ui.screens
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.RocketLaunch
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import com.akira.island.core.tr
+import com.akira.island.data.SettingsRepo
+import com.akira.island.service.KeepAliveService
 import com.akira.island.ui.Group
 import com.akira.island.ui.GroupItem
+import com.akira.island.ui.GroupToggle
 import com.akira.island.ui.Page
 import com.akira.island.ui.Perms
 import com.akira.island.ui.Perms.Vendor
@@ -28,10 +34,22 @@ fun KeepAliveScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val vendor = Perms.vendor()
     val (battery, _) = rememberOnResume { Perms.batteryUnrestricted(context) }
+    val s by SettingsRepo.state.collectAsState()
 
     Page(tr("Чтобы остров не закрывался", "Keep the island running"), onBack,
         subtitle = tr("Прошивка телефона может выгружать остров в фоне — тогда он пропадает, пока его не включить снова",
             "Your phone's firmware may stop the island in the background — then it disappears until you turn it on again")) {
+        // Процесс со службой на переднем плане Android не закрывает, когда приложение смахивают из недавних
+        GroupToggle(
+            Pos.Single, Icons.Rounded.PushPin, tr("Не выгружать остров", "Keep the island loaded"),
+            tr("Остров не пропадёт, даже если смахнуть приложение из недавних. Android может показать тихое уведомление",
+                "The island stays even if you swipe the app away from recent apps. Android may show a quiet notification"),
+            s.keepAlive, color = Tile.Purple,
+        ) { v ->
+            SettingsRepo.update { copy(keepAlive = v) }
+            KeepAliveService.sync(context)
+        }
+
         Group {
             GroupItem(
                 if (Perms.hasAutostart()) Pos.First else Pos.Single, Icons.Rounded.BatteryChargingFull,

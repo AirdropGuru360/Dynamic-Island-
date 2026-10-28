@@ -87,6 +87,7 @@ import com.akira.island.ui.screens.PayDiagScreen
 import com.akira.island.ui.screens.PermissionsScreen
 import com.akira.island.ui.screens.SizeScreen
 import com.akira.island.ui.screens.TestsScreen
+import com.akira.island.service.KeepAliveService
 import com.akira.island.update.UpdateChecker
 
 enum class Screen {
@@ -103,6 +104,12 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent { IslandTheme { AppRoot() } }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // «Не выгружать остров»: из фона Android может не запустить службу — запускаем, пока приложение открыто
+        KeepAliveService.sync(this)
     }
 }
 

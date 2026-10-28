@@ -15,7 +15,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -46,14 +45,14 @@ fun PayEffects(primary: Act, body: () -> Rect, s: IslandSettings) {
     if (s.reduceEffects || !s.fxPay) return
     val notice = (primary as? Act.NoticeA)?.n
     when {
-        primary is Act.PayA -> PayWaves(body)
-        notice?.style == NoticeStyle.PAY_DONE -> key(notice.id) { PayBurst(body, notice.tint) }
+        primary is Act.PayA -> PayWaves(body, s.notch)
+        notice?.style == NoticeStyle.PAY_DONE -> key(notice.id) { PayBurst(body, notice.tint, s.notch) }
     }
 }
 
 /** Волны NFC: новая каждые 0,9 с, расходится от краёв острова и гаснет за 1,35 с. */
 @Composable
-private fun PayWaves(body: () -> Rect) {
+private fun PayWaves(body: () -> Rect, notch: Boolean) {
     val clock = rememberInfiniteTransition(label = "nfc")
     val t by clock.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "t")
     Canvas(Modifier.fillMaxSize()) {
@@ -65,15 +64,15 @@ private fun PayWaves(body: () -> Rect) {
             val e = ExpoOut.transform(p)
             val d = 6.dp.toPx() + e * 90.dp.toPx()
             val alpha = (1f - p) * 0.75f
-            outline(b, d, Tints.Lavender.copy(alpha = alpha * 0.25f), 7.dp.toPx())
-            outline(b, d, Tints.Lavender.copy(alpha = alpha), 1.6.dp.toPx())
+            outline(b, d, Tints.Lavender.copy(alpha = alpha * 0.25f), 7.dp.toPx(), notch)
+            outline(b, d, Tints.Lavender.copy(alpha = alpha), 1.6.dp.toPx(), notch)
         }
     }
 }
 
 /** Успех: кольцо уходит от острова, искры разлетаются вниз и в стороны, остров подпрыгивает. */
 @Composable
-private fun PayBurst(body: () -> Rect, color: Color) {
+private fun PayBurst(body: () -> Rect, color: Color, notch: Boolean) {
     val p = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         val pop = Animatable(1.06f)
@@ -89,7 +88,7 @@ private fun PayBurst(body: () -> Rect, color: Color) {
         val b = body()
         if (b.isEmpty || p.value >= 1f) return@Canvas
         val e = p.value
-        outline(b, 4.dp.toPx() + e * 130.dp.toPx(), color.copy(alpha = 1f - e), 3.dp.toPx())
+        outline(b, 4.dp.toPx() + e * 130.dp.toPx(), color.copy(alpha = 1f - e), 3.dp.toPx(), notch)
         // 22 искры веером вниз: зелёные и белые, как в ролике
         val c = b.center
         for (i in 0 until 22) {
@@ -105,14 +104,15 @@ private fun PayBurst(body: () -> Rect, color: Color) {
 /** Случайные, но одни и те же на каждом кадре — искры не мерцают. */
 private val Seeds = FloatArray(22) { i -> ((sin(i * 127.1 + 311.7) * 43758.5453) % 1.0).let { if (it < 0) it + 1.0 else it }.toFloat() }
 
-/** Скруглённый контур вокруг острова на расстоянии [d]: та же форма, только больше. */
-private fun DrawScope.outline(b: Rect, d: Float, color: Color, width: Float) {
+/** Скруглённый контур вокруг острова на расстоянии [d]: та же форма, только больше (у «Как вырез» — с прямым верхом). */
+private fun DrawScope.outline(b: Rect, d: Float, color: Color, width: Float, notch: Boolean) {
     val corner = min(b.height / 2f, 46.dp.toPx())
-    drawRoundRect(
+    drawIslandRect(
         color,
         topLeft = Offset(b.left - d, b.top - d),
         size = Size(b.width + d * 2, b.height + d * 2),
-        cornerRadius = CornerRadius(corner + d),
+        corner = corner + d,
+        notch = notch,
         style = Stroke(width),
     )
 }

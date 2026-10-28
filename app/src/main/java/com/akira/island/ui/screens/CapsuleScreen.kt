@@ -9,6 +9,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BatterySaver
 import androidx.compose.material.icons.rounded.BlurCircular
 import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.BubbleChart
 import androidx.compose.material.icons.rounded.Contactless
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.FormatColorFill
@@ -38,6 +39,7 @@ import com.akira.island.core.Tints
 import com.akira.island.core.tr
 import com.akira.island.data.Elasticity
 import com.akira.island.data.ExpandStyle
+import com.akira.island.data.FxRate
 import com.akira.island.data.IslandSettings
 import com.akira.island.data.SettingsRepo
 import com.akira.island.ui.ChoiceDialog
@@ -96,6 +98,12 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
             GroupItem(Pos.First, Icons.Rounded.Animation, tr("Раскрытие острова", "Island expansion"),
                 "${s.expandStyle.title} · ${s.durationPercent}%",
                 color = Tile.Blue, onClick = { open(Screen.ANIM) }) { Arrow() }
+            // Новое раскрытие — отдельным переключателем: выключено — прежнее перетекание
+            GroupToggle(Pos.Middle, Icons.Rounded.BubbleChart, tr("Жидкое раскрытие", "Liquid expansion"),
+                tr("Содержимое растёт вместе с островом и проявляется из размытия, остров раскрывается быстрее",
+                    "The content grows together with the island and emerges from a blur; the island opens faster"),
+                s.liquidExpand, color = Tile.Indigo, badge = tr("Новое", "New"),
+            ) { v -> SettingsRepo.update { copy(liquidExpand = v) } }
             // Упругость — на виду: «слишком прыгает» правится одним нажатием
             ElasticityItem(Pos.Middle, s, Tile.Teal)
             GroupItem(Pos.Last, Icons.Rounded.AutoAwesome, tr("Эффекты", "Effects"), effectsSummary(s),
@@ -197,6 +205,7 @@ private fun effectsSummary(s: IslandSettings): String {
 @Composable
 fun EffectsScreen(onBack: () -> Unit) {
     val s by SettingsRepo.state.collectAsState()
+    var rateDialog by remember { mutableStateOf(false) }
     Page(tr("Эффекты", "Effects"), onBack, action = {
         Text(tr("Сброс", "Reset"), color = Ui.Sub, fontSize = 16.sp, modifier = Modifier.clickable { SettingsRepo.resetEffects() })
     }) {
@@ -219,6 +228,11 @@ fun EffectsScreen(onBack: () -> Unit) {
                 tr("Полоски у музыки и звонка пляшут. Выключено — стоят ровно, так экономнее",
                     "The music and call bars dance. Off — they stand still, which saves power"),
                 s.fxEqualizer, color = Tile.Pink) { v -> SettingsRepo.update { copy(fxEqualizer = v) } }
+            // Раскрытие и смена содержимого всегда идут с частотой экрана — это только для того, что движется постоянно
+            GroupItem(Pos.Middle, Icons.Rounded.Speed, tr("Частота эквалайзера", "Equalizer frame rate"),
+                tr("${s.fxRate.title}. Ещё светящаяся точка фонарика и навигатора",
+                    "${s.fxRate.title}. Also the glowing dot of the flashlight and navigation"),
+                color = Tile.Indigo, onClick = { rateDialog = true })
             GroupToggle(Pos.Last, Icons.Rounded.NotificationsActive, tr("Вздрагивание", "Shake"),
                 tr("Капсула вздрагивает при смене режима звука, колокольчик звонящего таймера качается",
                     "The capsule shakes when the ring mode changes, and a ringing timer's bell swings"),
@@ -241,5 +255,10 @@ fun EffectsScreen(onBack: () -> Unit) {
             tr("В режиме энергосбережения Android остров сам обходится без живых эффектов",
                 "In Android's battery saver mode the island skips live effects by itself"),
             s.batterySaver, color = Tile.Green) { v -> SettingsRepo.update { copy(batterySaver = v) } }
+    }
+
+    if (rateDialog) {
+        ChoiceDialog(tr("Частота эквалайзера", "Equalizer frame rate"), FxRate.entries, s.fxRate, { it.title },
+            { v -> SettingsRepo.update { copy(fxRate = v) } }) { rateDialog = false }
     }
 }

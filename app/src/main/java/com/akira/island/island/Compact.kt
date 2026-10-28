@@ -13,6 +13,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -223,7 +225,9 @@ fun CompactContent(act: Act, s: IslandSettings, wideWidth: Dp) {
                 if (act.p.indeterminate) {
                     Icon(Ios.download, null, tint = Tints.Blue, modifier = Modifier.size(icon))
                 } else {
-                    ProgressRing(act.p.fraction, Tints.Blue, Modifier.size(h * 0.52f), stroke = 3.dp)
+                    // Кольцо доезжает до нового процента, а не прыгает
+                    val fraction by animateFloatAsState(act.p.fraction, tween(450, easing = FastOutSlowInEasing), label = "progress")
+                    ProgressRing(fraction, Tints.Blue, Modifier.size(h * 0.52f), stroke = 3.dp)
                 }
             },
         )
@@ -258,7 +262,7 @@ private fun TimeText(text: String, color: Color, size: Int = 16, weight: FontWei
 /** Мягко светящаяся точка — признак того, что фонарик горит. Свечение только перерисовывается. */
 @Composable
 private fun GlowDot(color: Color, size: Dp, animate: Boolean) {
-    // Фонарик и навигатор горят долго — свечение идёт около 30 кадров в секунду, а не с частотой экрана
+    // Фонарик и навигатор горят долго — свечение идёт с частотой из «Эффектов» (по умолчанию 60 кадров), а не до 120
     val time = rememberFxClock(animate)
     Canvas(Modifier.size(size * 1.8f)) {
         val k = if (animate) 0.55f + 0.45f * pingPong(time.value, 1100) else 1f
@@ -324,11 +328,13 @@ private fun MediaCompact(m: MediaInfo, s: IslandSettings) {
     val h = activeHeight(s)
     val art = h * 0.58f
     val egg by IslandBus.egg.collectAsState()
+    // Новый трек: обложка сменяется плавно, цвет эквалайзера перетекает в цвет новой обложки
+    val accent by animateColorAsState(m.accent, tween(400), label = "accent")
     CompactRow(h, compactGap(s), sideMax(s),
-        left = { Art(m.art, art, art * 0.24f) },
+        left = { Crossfade(m.art, animationSpec = tween(300), label = "art") { Art(it, art, art * 0.24f) } },
         right = {
             // Пасхалка: вместо эквалайзера бьётся душа
-            if (egg) SoulHeart(Modifier.size(h * 0.5f)) else Equalizer(m.accent, m.playing, s.liveEqualizer, Modifier.size(h * 0.6f, h * 0.42f))
+            if (egg) SoulHeart(Modifier.size(h * 0.5f)) else Equalizer(accent, m.playing, s.liveEqualizer, Modifier.size(h * 0.6f, h * 0.42f))
         },
     )
 }

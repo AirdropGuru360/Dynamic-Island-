@@ -507,7 +507,7 @@ fun IslandPreview(expanded: Boolean = false) {
                 // «Как вырез» — капсула от самого верха, как на экране
                 .padding(top = if (s.notch) 0.dp else 18.dp)
                 // «Свечение обложки» видно и на примере
-                .then(if (!expanded && s.fxGlow && !s.reduceEffects) Modifier.drawBehind { islandGlow(demo.accent, 1f, corner.toPx()) } else Modifier)
+                .then(if (!expanded && s.fxGlow && !s.reduceEffects) Modifier.drawBehind { islandGlow(demo.accent, 1f, corner.toPx(), s.notch) } else Modifier)
                 .clip(shape)
                 .then(
                     if (s.liquidGlass) Modifier.glassSurface(shape, Color(s.color), s.glassOpacity / 100f)
