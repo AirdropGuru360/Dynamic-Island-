@@ -18,7 +18,7 @@ data class FoundLyrics(val lines: List<LyricLine>, val synced: Boolean)
  * потом NetEase — там много русской и азиатской музыки.
  */
 object LyricsRepo {
-    private const val UA = "DynamicIslandAndroid/1.2 (https://github.com/Akira9021/Dynamic-Island-)"
+    private const val UA = "DynamicIslandAndroid/1.2 (https://github.com/AirdropGuru360/Dynamic-Island-)"
 
     private val cache = object : LinkedHashMap<String, FoundLyrics?>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, FoundLyrics?>?) = size > 40
