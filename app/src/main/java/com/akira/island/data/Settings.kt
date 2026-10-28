@@ -50,10 +50,26 @@ enum class TapAction(private val ru: String, private val en: String) {
     OPEN_APP("Открыть приложение", "Open the app"),
     PLAY_PAUSE("Пауза / воспроизведение", "Play / pause"),
     NEXT_TRACK("Следующий трек", "Next track"),
+    SCREENSHOT("Скриншот без острова", "Screenshot without the island"),
     NOTHING("Ничего", "Nothing"),
     ;
 
     val title: String get() = tr(ru, en)
+}
+
+/** Кнопки раскрытого пустого острова. Подпись на кнопке короче, чем в настройках */
+@Serializable
+enum class QuickAction(private val ru: String, private val en: String, private val shortRu: String, private val shortEn: String) {
+    TIMER("Таймер", "Timer", "Таймер", "Timer"),
+    STOPWATCH("Секундомер", "Stopwatch", "Секундомер", "Stopwatch"),
+    FLASHLIGHT("Фонарик", "Flashlight", "Фонарик", "Flashlight"),
+    SCREENSHOT("Скриншот без острова", "Screenshot without the island", "Скриншот", "Screenshot"),
+    CAMERA("Камера", "Camera", "Камера", "Camera"),
+    LOCK("Заблокировать экран", "Lock the screen", "Блокировка", "Lock"),
+    ;
+
+    val title: String get() = tr(ru, en)
+    val short: String get() = tr(shortRu, shortEn)
 }
 
 /** Откуда берётся цвет кнопок «Ответить», «Пометить прочитанным» и отправки в карточке уведомления. */
@@ -188,8 +204,8 @@ data class IslandSettings(
     val expandStyle: ExpandStyle = ExpandStyle.FRUIT,
     val durationPercent: Int = 35,
     /**
-     * «Жидкое раскрытие» («Оформление»): содержимое растёт вместе с островом и проявляется из размытия,
-     * а остров раскрывается быстрее. Выключено — прежнее перетекание
+     * «Жидкое раскрытие» («Оформление»): содержимое растёт вместе с островом и проявляется из размытия.
+     * Длительность и упругость те же, что без него. Выключено — прежнее перетекание
      */
     val liquidExpand: Boolean = false,
     /** Слабая упругость: с сильной остров, как писали в комментариях, слишком «прыгает» */
@@ -237,6 +253,10 @@ data class IslandSettings(
     val autoCollapseSec: Int = 0,
     /** Вторая активность — кружком рядом с капсулой, как на iPhone */
     val bubble: Boolean = true,
+    /** Нажатие на пустой остров раскрывает его: часы, заряд и [quickActions] */
+    val idleExpand: Boolean = true,
+    /** Кнопки раскрытого пустого острова; пусто — только часы и заряд */
+    val quickActions: List<QuickAction> = listOf(QuickAction.TIMER, QuickAction.STOPWATCH, QuickAction.FLASHLIGHT),
     /** «Не выгружать остров»: служба с тихим уведомлением, чтобы остров не закрывался вместе с недавними */
     val keepAlive: Boolean = false,
     /** Сколько строк текста видно в карточке уведомления */

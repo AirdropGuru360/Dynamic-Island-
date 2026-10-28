@@ -20,6 +20,8 @@ import com.akira.island.island.Ios
  * Ближайший будильник. Его знает сама система (AlarmManager.getNextAlarmClock) — уведомления «Часов»
  * для этого не нужны. Поставили новый будильник — остров показывает плашку со временем подъёма;
  * следующий по расписанию (прошлый прозвенел или отложен) — молча.
+ * Будильником системы пользуются и календари, напоминалки, трекеры сна — их «будильник» человек не ставил,
+ * поэтому берём только поставленные приложением-будильником («Часы», Alarmy и т. п.).
  */
 class AlarmMonitor(private val context: Context) {
     private val alarms = context.getSystemService(AlarmManager::class.java)
@@ -41,7 +43,8 @@ class AlarmMonitor(private val context: Context) {
 
     private fun refresh(announce: Boolean) {
         val info = runCatching { alarms?.nextAlarmClock }.getOrNull()
-        val next = info?.let { AlarmInfo(it.triggerTime, it.showIntent?.creatorPackage, it.showIntent) }
+        val next = info?.takeIf { a -> a.showIntent?.creatorPackage?.let { ClockApps.isAlarmApp(context, it) } == true }
+            ?.let { AlarmInfo(it.triggerTime, it.showIntent?.creatorPackage, it.showIntent) }
         val prev = IslandBus.nextAlarm.value
         IslandBus.nextAlarm.value = next
         if (!announce || next == null || prev?.triggerAt == next.triggerAt) return

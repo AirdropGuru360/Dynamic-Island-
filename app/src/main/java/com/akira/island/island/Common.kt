@@ -108,21 +108,17 @@ fun <T> fadeSpec(s: IslandSettings): FiniteAnimationSpec<T> = when (s.expandStyl
 /** Жёсткость пружины в ролике (damping 12, stiffness 190, mass 0.85): остров перетекает за полсекунды с перелётом. */
 private const val VIDEO_STIFFNESS = 223f
 
-/** «Жидкое раскрытие» быстрее: при «Длительности» по умолчанию остров дорастает за 0,17 с, как в образце. */
-private const val LIQUID_SPEED = 2.6f
-
 /**
  * «Длительность»: 0% — быстрее всего, 100% — медленнее всего. По умолчанию (35%) — ровно как в ролике;
  * в обе стороны жёсткость меняется в разы, поэтому ползунок заметен по всей длине.
  */
 fun animStiffness(s: IslandSettings): Float {
     val t = s.durationPercent.coerceIn(0, 100) / 100f
-    val k = if (t <= 0.35f) {
+    return if (t <= 0.35f) {
         1200f * (VIDEO_STIFFNESS / 1200f).pow(t / 0.35f)
     } else {
         VIDEO_STIFFNESS * (60f / VIDEO_STIFFNESS).pow((t - 0.35f) / 0.65f)
     }
-    return if (s.liquidExpand) k * LIQUID_SPEED else k
 }
 
 /** Во сколько раз всё медленнее, чем в ролике: по ней же идут проявление содержимого и размытие. */
@@ -131,10 +127,7 @@ fun motionScale(s: IslandSettings): Float = if (s.expandStyle == ExpandStyle.INS
 /** Плавность из ролика: быстро в начале и долго мягко дотягивает (cubic-bezier 0.16, 1, 0.3, 1). */
 val ExpoOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
-fun animDurationMs(s: IslandSettings): Int {
-    val ms = 160 + s.durationPercent.coerceIn(0, 100) * 6
-    return if (s.liquidExpand) (ms / sqrt(LIQUID_SPEED)).toInt() else ms
-}
+fun animDurationMs(s: IslandSettings): Int = 160 + s.durationPercent.coerceIn(0, 100) * 6
 
 /** Текущее время (elapsedRealtime) с обновлением раз в [periodMs]; пока экран погашен — не обновляется. */
 @Composable
@@ -211,7 +204,9 @@ fun rememberHaptic(): () -> Unit {
 }
 
 /**
- * Звуковая волна из тонких полосок, как в острове iPhone. Высоты читаются только при рисовании:
+ * Звуковая волна из тонких полосок, как в острове iPhone. Полоски тоньше промежутков и качаются спокойно:
+ * толстые и быстрые, как писали в комментариях, смотрятся плохо, особенно под медленную музыку. У каждой полоски
+ * две свои скорости, поэтому движение не механическое. Высоты читаются только при рисовании:
  * кадр анимации перерисовывает полоски, а не пересобирает остров.
  */
 @Composable
@@ -219,18 +214,21 @@ fun Equalizer(color: Color, playing: Boolean, animate: Boolean, modifier: Modifi
     val moving = playing && animate
     val time = rememberFxClock(moving)
     Canvas(modifier) {
-        // Полоска и промежуток одной ширины; у каждой своя скорость
-        val w = size.width / (bars * 2 - 1)
+        // Промежуток в 1,6 раза шире полоски
+        val w = size.width / (bars + (bars - 1) * 1.6f)
         for (i in 0 until bars) {
             val h = when {
-                moving -> 0.2f + 0.8f * pingPong(time.value, 320 + (i * 97) % 280)
+                moving -> {
+                    val t = time.value
+                    0.25f + 0.75f * (0.6f * pingPong(t, 420 + (i * 173) % 380) + 0.4f * pingPong(t + i * 211L, 700 + (i * 97) % 400))
+                }
                 playing -> 0.3f + 0.45f * ((i * 37) % 10) / 10f
                 else -> 0.15f
             }
             val bh = (size.height * h).coerceAtLeast(w)
             drawRoundRect(
                 color = color,
-                topLeft = Offset(i * 2 * w, (size.height - bh) / 2),
+                topLeft = Offset(i * 2.6f * w, (size.height - bh) / 2),
                 size = Size(w, bh),
                 cornerRadius = CornerRadius(w / 2),
             )

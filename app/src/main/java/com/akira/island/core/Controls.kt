@@ -152,9 +152,8 @@ object Controls {
             return
         }
         if (send(context, call.answer)) return
-        val telecom = context.getSystemService(TelecomManager::class.java) ?: return
-        val ok = runCatching { telecom.acceptRingingCall() }.isSuccess
-        if (!ok) runCatching { telecom.showInCallScreen(false) }
+        val ok = runCatching { context.getSystemService(TelecomManager::class.java)!!.acceptRingingCall() }.isSuccess
+        if (!ok) showCallScreen(context, call)
     }
 
     @Suppress("DEPRECATION", "MissingPermission")
@@ -165,9 +164,47 @@ object Controls {
             return
         }
         if (send(context, if (call.incoming) call.decline else call.hangUp)) return
-        val telecom = context.getSystemService(TelecomManager::class.java) ?: return
-        val ok = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && runCatching { telecom.endCall() }.getOrDefault(false)
-        if (!ok) runCatching { telecom.showInCallScreen(false) }
+        val ok = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+            runCatching { context.getSystemService(TelecomManager::class.java)!!.endCall() }.getOrDefault(false)
+        if (!ok) showCallScreen(context, call)
+    }
+
+    /**
+     * Ответить или сбросить из острова не вышло — скорее всего, не дали разрешение «Звонки». Тогда открываем
+     * экран звонка телефона: там кнопки работают всегда. Нет и его — звонилку.
+     */
+    @Suppress("MissingPermission")
+    private fun showCallScreen(context: Context, call: CallInfo) {
+        val telecom = context.getSystemService(TelecomManager::class.java)
+        if (telecom != null && runCatching { telecom.showInCallScreen(false) }.isSuccess) return
+        if (send(context, call.open)) return
+        val dialer = runCatching { telecom?.defaultDialerPackage }.getOrNull()?.takeIf { it.isNotEmpty() } ?: call.pkg
+        if (dialer.isNotEmpty()) openApp(context, dialer)
+    }
+
+    /** Смахнули входящий звонок вверх — он уходит из острова (звонок продолжается, ответить можно в звонилке). */
+    fun hideIncomingCall() {
+        IslandBus.callHidden.value = true
+    }
+
+    /** Скриншот без острова — остров на миг прячется, снимок делает Android (9+) */
+    fun screenshot() {
+        IslandBus.commands.tryEmit(ServiceCommand.SCREENSHOT)
+    }
+
+    fun lockScreen() {
+        IslandBus.commands.tryEmit(ServiceCommand.LOCK)
+    }
+
+    /** Выключить службу острова, например на время банковского приложения. Включить её снова можно только в настройках */
+    fun turnOffIsland() {
+        IslandBus.commands.tryEmit(ServiceCommand.TURN_OFF)
+    }
+
+    fun openCamera(context: Context) {
+        runCatching {
+            context.startActivity(Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
     }
 
     @Suppress("MissingPermission")

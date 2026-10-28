@@ -100,8 +100,8 @@ fun CapsuleScreen(open: (Screen) -> Unit) {
                 color = Tile.Blue, onClick = { open(Screen.ANIM) }) { Arrow() }
             // Новое раскрытие — отдельным переключателем: выключено — прежнее перетекание
             GroupToggle(Pos.Middle, Icons.Rounded.BubbleChart, tr("Жидкое раскрытие", "Liquid expansion"),
-                tr("Содержимое растёт вместе с островом и проявляется из размытия, остров раскрывается быстрее",
-                    "The content grows together with the island and emerges from a blur; the island opens faster"),
+                tr("Содержимое растёт вместе с островом и проявляется из размытия",
+                    "The content grows together with the island and emerges from a blur"),
                 s.liquidExpand, color = Tile.Indigo, badge = tr("Новое", "New"),
             ) { v -> SettingsRepo.update { copy(liquidExpand = v) } }
             // Упругость — на виду: «слишком прыгает» правится одним нажатием

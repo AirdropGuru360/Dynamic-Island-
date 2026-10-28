@@ -144,16 +144,16 @@ object NotificationParser {
         val n = sbn.notification
         val ex = n.extras
         val ongoing = ex.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false) && n.`when` > 0
-        // CallStyle (Android 12+) кладёт кнопки в extras, у старых звонилок ищем по подписи
+        // CallStyle (Android 12+) кладёт кнопки в extras, у остальных звонилок ищем по подписи на языке телефона
         var answer = pending(ex, "android.answerIntent")
         var decline = pending(ex, "android.declineIntent")
         var hangUp = pending(ex, "android.hangUpIntent")
         n.actions?.forEach { a ->
             val t = a.title?.toString()?.lowercase().orEmpty()
             when {
-                answer == null && listOf("ответ", "принять", "answer", "accept").any { it in t } -> answer = a.actionIntent
-                decline == null && listOf("отклон", "сброс", "decline", "reject", "dismiss").any { it in t } -> decline = a.actionIntent
-                hangUp == null && listOf("заверш", "положить", "hang", "end call").any { it in t } -> hangUp = a.actionIntent
+                answer == null && AnswerWords.any { it in t } -> answer = a.actionIntent
+                decline == null && DeclineWords.any { it in t } -> decline = a.actionIntent
+                hangUp == null && HangUpWords.any { it in t } -> hangUp = a.actionIntent
             }
         }
         val incoming = !ongoing && answer != null
@@ -264,3 +264,22 @@ object LiveApps {
         else -> null
     }
 }
+
+/**
+ * Подписи кнопок звонка на разных языках: остров смотрят во Вьетнаме, Индонезии, Таиланде, Бразилии,
+ * Латинской Америке и не только — без них ответить и сбросить из острова там не получалось.
+ */
+private val AnswerWords = listOf(
+    "ответ", "принять", "answer", "accept", "trả lời", "nghe", "jawab", "terima", "angkat", "contestar", "responder",
+    "atender", "aceptar", "aceitar", "รับสาย", "cevapla", "yanıtla", "kabul", "annehmen", "répondre", "rispondi", "accetta",
+    "odbierz", "відповісти", "прийняти", "sagutin", "接听", "接聽", "応答", "응답", "받기",
+)
+private val DeclineWords = listOf(
+    "отклон", "сброс", "decline", "reject", "dismiss", "từ chối", "tolak", "rechazar", "recusar", "rejeitar", "ปฏิเสธ",
+    "reddet", "ablehnen", "refuser", "rifiuta", "odrzuć", "відхилити", "tanggihan", "拒接", "拒絕", "拒否", "거절",
+)
+private val HangUpWords = listOf(
+    "заверш", "положить", "hang", "end call", "kết thúc", "gác máy", "akhiri", "colgar", "finalizar", "desligar",
+    "encerrar", "วางสาย", "kapat", "auflegen", "beenden", "raccrocher", "riaggancia", "zakończ", "завершити", "ibaba",
+    "挂断", "掛斷", "終了", "종료",
+)

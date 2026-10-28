@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.akira.island.core.Controls
 import com.akira.island.core.IslandBus
+import com.akira.island.core.ServiceCommand
 import com.akira.island.core.NoticeStyle
 import com.akira.island.R
 import com.akira.island.core.LangScope
@@ -125,6 +126,11 @@ class IslandService : AccessibilityService() {
         tall = false
         updateDisplayHeight()
     }
+    /** Скриншот без острова: снимок — когда окно уже прозрачное, остров возвращается после */
+    private val shoot = Runnable {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
+    }
+    private val showAgain = Runnable { display?.alpha = 1f }
     /** Вокруг острова рисуются эффекты (пасхалка, волны оплаты): им нужно высокое окно */
     private var fxTall = false
     private val fxSettle = Runnable {
@@ -174,6 +180,7 @@ class IslandService : AccessibilityService() {
 
         createWindows()
         KeepAliveService.sync(this)
+        IslandTile.refresh(this)
         events = SystemEvents(this).also { it.start() }
         keyguardShown = keyguard?.isKeyguardLocked == true
         torch = TorchController(this).also { it.start() }
@@ -184,6 +191,24 @@ class IslandService : AccessibilityService() {
         payReader = PayScreenReader(this, scope)
         alarmMonitor = AlarmMonitor(this).also { it.start() }
         IslandBus.serviceRunning.value = true
+
+        // Входящий смахнули — он скрыт, пока звонит; перестал звонить — следующий входящий снова в острове.
+        // Здесь, а не в острове: пока остров спрятан, он не рисуется и ничего бы не сбросил
+        scope.launch {
+            IslandBus.calls.map { calls -> calls.values.any { it.incoming } }.distinctUntilChanged()
+                .collect { ringing -> if (!ringing) IslandBus.callHidden.value = false }
+        }
+
+        // То, что умеет только служба: скриншот без острова, блокировка экрана, выключение (на время банка)
+        scope.launch {
+            IslandBus.commands.collect { cmd ->
+                when (cmd) {
+                    ServiceCommand.SCREENSHOT -> screenshotWithoutIsland()
+                    ServiceCommand.LOCK -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+                    ServiceCommand.TURN_OFF -> disableSelf()
+                }
+            }
+        }
 
         // Пока вводят ответ на уведомление, окну нужен фокус, иначе клавиатура не покажется
         scope.launch {
@@ -354,6 +379,22 @@ class IslandService : AccessibilityService() {
             display?.let { v -> runCatching { wm?.updateViewLayout(v, displayParams) } }
         }
         updateTouchWindow()
+    }
+
+    /**
+     * Скриншот без острова. Системный скриншот кнопками острову не подвластен: Android не даёт прятать
+     * наложение от него. Поэтому снимок делает сам остров: окно становится прозрачным, через кадр-другой
+     * Android снимает экран уже без него, потом остров возвращается.
+     */
+    private fun screenshotWithoutIsland() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        Controls.collapse()
+        val view = display ?: return
+        view.alpha = 0f
+        handler.removeCallbacks(shoot)
+        handler.removeCallbacks(showAgain)
+        handler.postDelayed(shoot, 250)
+        handler.postDelayed(showAgain, 1_600)
     }
 
     private fun onTransition() {
@@ -590,12 +631,15 @@ class IslandService : AccessibilityService() {
     override fun onDestroy() {
         // Остров выключили в спец. возможностях — держать его процесс больше незачем
         stopService(Intent(this, KeepAliveService::class.java))
+        handler.removeCallbacks(shoot)
+        handler.removeCallbacks(showAgain)
         handler.removeCallbacks(settle)
         handler.removeCallbacks(fxSettle)
         handler.removeCallbacks(touchUpdate)
         IslandBus.egg.value = false
         setTiltEnabled(false)
         IslandBus.serviceRunning.value = false
+        IslandTile.refresh(this)
         events?.stop()
         torch?.stop()
         alarm?.stop()

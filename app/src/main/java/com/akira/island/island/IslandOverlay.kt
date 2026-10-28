@@ -217,9 +217,11 @@ fun IslandOverlay(
             )
         }
     }
+    // Смахнутый входящий не показываем, пока звонит (сбрасывает служба, когда звонить перестали)
+    val callHidden by IslandBus.callHidden.collectAsState()
     val acts = buildList {
         // Входящий звонок важнее всего, как на iPhone
-        if (call != null && call.incoming) add(Act.CallA(call))
+        if (call != null && call.incoming && !callHidden) add(Act.CallA(call))
         notice?.let { add(Act.NoticeA(it)) }
 
         val persistent = mutableListOf<Act>()
@@ -615,7 +617,8 @@ private fun IslandBody(
                         val vertical = abs(dy) > abs(dx)
                         val act = current
                         when {
-                            !isExpanded && vertical && dy > threshold && settings.swipeExpand && !act.transient -> {
+                            !isExpanded && vertical && dy > threshold && settings.swipeExpand && !act.transient &&
+                                (act !is Act.Idle || settings.idleExpand) -> {
                                 haptic()
                                 Controls.expand(act.id)
                             }
@@ -630,6 +633,11 @@ private fun IslandBody(
                             }
                             // Подсказку оплаты тоже можно смахнуть
                             !isExpanded && vertical && dy < -threshold && act is Act.PayA -> PayMonitor.clearReady()
+                            // И входящий звонок, если не хочется отвечать: звонок идёт дальше, но остров свободен
+                            !isExpanded && vertical && dy < -threshold && act is Act.CallA && act.c.incoming -> {
+                                haptic()
+                                Controls.hideIncomingCall()
+                            }
                             !isExpanded && !vertical && abs(dx) > side && act is Act.MediaA && settings.swipeTracks -> {
                                 haptic()
                                 // Как в ПК-версии: толкнуть влево — следующий трек
@@ -781,7 +789,8 @@ private fun onTap(context: Context, act: Act, expanded: Boolean, s: IslandSettin
             act.n.alarm?.let { openAlarm(context, it) }
             IslandBus.notice.value = null
         }
-        is Act.Idle -> Controls.expand(act.id)
+        // Пустой остров раскрывается, если это не выключили в «Поведении»
+        is Act.Idle -> if (s.idleExpand) Controls.expand(act.id)
         // Оплата: нажатие открывает приложение оплаты (окно Google открывать нечего)
         is Act.PayA -> if (act.pkg != PayMonitor.GMS) Controls.openApp(context, act.pkg)
         is Act.TimerA -> if (act.t.ringing) Controls.cancelTimer() else perform(context, s.tapAction, act)
@@ -802,6 +811,7 @@ private fun perform(context: Context, action: TapAction, act: Act) {
         TapAction.OPEN_APP -> act.pkg?.let { Controls.openApp(context, it) } ?: Controls.expand(act.id)
         TapAction.PLAY_PAUSE -> if (hasMedia) Controls.playPause() else Controls.expand(act.id)
         TapAction.NEXT_TRACK -> if (hasMedia) Controls.next() else Controls.expand(act.id)
+        TapAction.SCREENSHOT -> Controls.screenshot()
         TapAction.NOTHING -> Unit
     }
 }

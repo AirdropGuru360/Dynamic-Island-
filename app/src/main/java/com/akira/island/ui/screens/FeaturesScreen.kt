@@ -74,6 +74,15 @@ import com.akira.island.ui.Screen
 import com.akira.island.ui.SectionHeader
 import com.akira.island.ui.Tile
 import com.akira.island.ui.Ui
+import androidx.compose.material.icons.rounded.UnfoldMore
+import androidx.compose.material.icons.rounded.HourglassBottom
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.FlashlightOn
+import androidx.compose.material.icons.rounded.Screenshot
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.akira.island.data.QuickAction
 
 /**
  * «Функции»: что остров показывает и как с ним обращаться. Внешний вид — во вкладке «Оформление»,
@@ -197,6 +206,24 @@ fun BehaviorScreen(onBack: () -> Unit) {
             }
         }
 
+        // Нажатие на пустой остров: лишние кнопки убираются, а можно не раскрывать его вовсе
+        SectionHeader(tr("Пустой остров по нажатию", "Tapping the empty island"))
+        Group {
+            GroupToggle(if (s.idleExpand) Pos.First else Pos.Single, Icons.Rounded.UnfoldMore, tr("Раскрывать", "Expand"),
+                tr("Часы, заряд и кнопки ниже. Выключено — нажатие ничего не делает",
+                    "Clock, battery and the buttons below. Off — tapping does nothing"),
+                s.idleExpand, color = Tile.Blue) { v -> SettingsRepo.update { copy(idleExpand = v) } }
+            if (s.idleExpand) {
+                QuickAction.entries.forEachIndexed { i, a ->
+                    GroupToggle(if (i == QuickAction.entries.lastIndex) Pos.Last else Pos.Middle, a.settingsIcon, a.title,
+                        a.hint, a in s.quickActions, color = Tile.Orange) { v ->
+                        // Порядок кнопок — как в списке, что бы ни включали первым
+                        SettingsRepo.update { copy(quickActions = QuickAction.entries.filter { if (it == a) v else it in quickActions }) }
+                    }
+                }
+            }
+        }
+
         SectionHeader(tr("Отклик", "Feedback"))
         Group {
             GroupToggle(Pos.First, Icons.Rounded.Vibration, tr("Виброотклик", "Haptics"),
@@ -296,3 +323,22 @@ private fun PreviewTile(title: String, accent: Color, modifier: Modifier) {
         FitText(title, accent, 14.sp, 10.sp, FontWeight.SemiBold)
     }
 }
+
+private val QuickAction.settingsIcon: ImageVector
+    get() = when (this) {
+        QuickAction.TIMER -> Icons.Rounded.HourglassBottom
+        QuickAction.STOPWATCH -> Icons.Rounded.Timer
+        QuickAction.FLASHLIGHT -> Icons.Rounded.FlashlightOn
+        QuickAction.SCREENSHOT -> Icons.Rounded.Screenshot
+        QuickAction.CAMERA -> Icons.Rounded.PhotoCamera
+        QuickAction.LOCK -> Icons.Rounded.Lock
+    }
+
+/** Подпись к кнопке — только там, где непонятно по названию */
+private val QuickAction.hint: String?
+    get() = when (this) {
+        QuickAction.SCREENSHOT -> tr("Остров на миг прячется — на снимке его нет (Android 9+)",
+            "The island hides for a moment, so it's not in the shot (Android 9+)")
+        QuickAction.LOCK -> tr("Гасит экран, как кнопка питания (Android 9+)", "Turns the screen off like the power button (Android 9+)")
+        else -> null
+    }

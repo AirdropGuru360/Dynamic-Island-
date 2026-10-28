@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -31,6 +32,10 @@ object IslandBus {
     val progress = MutableStateFlow<Map<String, ProgressInfo>>(emptyMap())
     val chrono = MutableStateFlow<Map<String, ChronoInfo>>(emptyMap())
     val calls = MutableStateFlow<Map<String, CallInfo>>(emptyMap())
+    /** Входящий звонок смахнули — в острове его нет, пока он не закончится или не станет разговором */
+    val callHidden = MutableStateFlow(false)
+    /** Что может сделать только сама служба спец. возможностей; без службы команда теряется */
+    val commands = MutableSharedFlow<ServiceCommand>(extraBufferCapacity = 4)
     val live = MutableStateFlow<Map<String, LiveInfo>>(emptyMap())
     /** Экран оплаты телефоном на виду — «Оплата · К терминалу», пока не заплатили или не ушли (PayMonitor) */
     val payReady = MutableStateFlow<PayReady?>(null)
@@ -96,3 +101,6 @@ object IslandBus {
         queue.trySend(n)
     }
 }
+
+/** Команды службе: скриншот без острова, блокировка экрана, выключение острова (для банков). */
+enum class ServiceCommand { SCREENSHOT, LOCK, TURN_OFF }

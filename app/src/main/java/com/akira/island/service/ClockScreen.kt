@@ -42,6 +42,17 @@ object ClockApps {
     }.getOrDefault(emptyList()) - context.packageName).also { found = it }
 
     fun isClock(context: Context, pkg: String) = pkg in packages(context)
+
+    private var alarmApps: Set<String>? = null
+
+    /** «Часы» и будильники (Alarmy, Sleep as Android…) — те, кто ставит будильники или показывает их список */
+    fun isAlarmApp(context: Context, pkg: String): Boolean = pkg in (alarmApps ?: (packages(context) +
+        listOf(AlarmClock.ACTION_SET_ALARM, AlarmClock.ACTION_SHOW_ALARMS).flatMap { action ->
+            runCatching {
+                @Suppress("DEPRECATION")
+                context.packageManager.queryIntentActivities(Intent(action), 0).map { it.activityInfo.packageName }
+            }.getOrDefault(emptyList())
+        }).also { alarmApps = it })
 }
 
 /** Что делает кнопка «Часов». */

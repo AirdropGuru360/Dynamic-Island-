@@ -44,7 +44,8 @@ class MediaMonitor(private val context: Context) {
 
     private val bound = ArrayList<Pair<MediaController, MediaController.Callback>>()
     private var current: MediaController? = null
-    private var lastArt: Bitmap? = null
+    /** Отпечаток последней обложки (см. [artPrint]); null — обложки нет */
+    private var lastArt: Long? = null
     private var artJob: Job? = null
     private var lyricsJob: Job? = null
     private var hideJob: Job? = null
@@ -174,10 +175,11 @@ class MediaMonitor(private val context: Context) {
         val art = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: meta.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-        // Плеер при каждой паузе и перемотке отдаёт обложку новым объектом, хотя картинка та же.
-        // Цвет пересчитываем, только если сменился трек или размер обложки (пришла более чёткая)
-        val artChanged = art?.width != lastArt?.width || art?.height != lastArt?.height
-        if (!sameTrack || artChanged) loadArt(key, art)
+        // Плеер при каждой паузе и перемотке отдаёт обложку новым объектом, хотя картинка та же, — её не пересчитываем.
+        // Сравниваем не по размеру, а по самой картинке: обложки треков обычно одного размера, а при смене трека
+        // плеер часто сперва присылает новое название со старой обложкой и только следом — новую обложку
+        val print = art?.let(::artPrint)
+        if (!sameTrack || print != lastArt) loadArt(key, art, print)
         // Текст ищем один раз на трек, а не после каждого скрытия карточки на паузе
         if (key != lyricsKey) {
             lyricsKey = key
@@ -209,8 +211,8 @@ class MediaMonitor(private val context: Context) {
         }
     }
 
-    private fun loadArt(key: String, art: Bitmap?) {
-        lastArt = art
+    private fun loadArt(key: String, art: Bitmap?, print: Long?) {
+        lastArt = print
         artJob?.cancel()
         if (art == null) return
         artJob = scope.launch {
@@ -254,3 +256,13 @@ class MediaMonitor(private val context: Context) {
         val UndoWords = Regex("unlike|un_like|undo|remove|убрать|удалить|отмен")
     }
 }
+
+/**
+ * Отпечаток картинки: размер и 25 точек сеткой 5×5. Дёшево (не весь битмап) и отличает разные обложки одного размера.
+ * Аппаратный битмап читать нельзя — тогда каждый раз «новая», как было до отпечатков.
+ */
+private fun artPrint(b: Bitmap): Long = runCatching {
+    var h = b.width * 31L + b.height
+    for (i in 1..5) for (j in 1..5) h = h * 31 + b.getPixel(b.width * i / 6, b.height * j / 6)
+    h
+}.getOrDefault(System.nanoTime())

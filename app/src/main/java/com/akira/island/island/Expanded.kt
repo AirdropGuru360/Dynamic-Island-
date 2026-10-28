@@ -2,6 +2,7 @@
 
 package com.akira.island.island
 
+import android.content.Context
 import android.text.format.DateFormat
 import android.os.SystemClock
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -59,6 +60,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.HeartBroken
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Screenshot
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,7 +73,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -104,6 +106,7 @@ import com.akira.island.core.TorchState
 import com.akira.island.core.formatDuration
 import com.akira.island.core.tr
 import com.akira.island.data.IslandSettings
+import com.akira.island.data.QuickAction
 import com.akira.island.data.SettingsRepo
 import com.akira.island.service.ClockApps
 import com.akira.island.service.ClockControl
@@ -663,7 +666,10 @@ private fun ChargingExpanded(b: BatteryInfo) {
     }
 }
 
-/** Раскрытый пустой остров: часы, заряд и быстрый запуск таймера, секундомера и фонарика. */
+/**
+ * Раскрытый пустой остров: часы, заряд и кнопки, которые выбрали в «Поведении» (по умолчанию таймер,
+ * секундомер и фонарик). Кнопок нет — только часы и заряд, остров компактный.
+ */
 @Composable
 private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
     val context = LocalContext.current
@@ -708,38 +714,71 @@ private fun IdleExpanded(s: IslandSettings, battery: BatteryInfo) {
                 }
             }
         }
+        val actions = s.quickActions
+        if (actions.isEmpty()) return@Column
         Spacer(Modifier.height(16.dp))
-        // Таймер от 1 до 99 минут
-        Row(
-            Modifier.fillMaxWidth().clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).padding(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RoundButton(Ios.remove, size = 38.dp, iconScale = 0.44f) {
-                SettingsRepo.update { copy(timerMinutes = (timerMinutes - 1).coerceAtLeast(1)) }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Таймер от 1 до 99 минут
+            if (QuickAction.TIMER in actions) Row(
+                Modifier.fillMaxWidth().clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).padding(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoundButton(Ios.remove, size = 38.dp, iconScale = 0.44f) {
+                    SettingsRepo.update { copy(timerMinutes = (timerMinutes - 1).coerceAtLeast(1)) }
+                }
+                Text(
+                    tr("${s.timerMinutes} мин", "${s.timerMinutes} min"), color = Color.White, fontSize = 16.sp, style = Digits,
+                    textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
+                )
+                RoundButton(Ios.add, size = 38.dp, iconScale = 0.44f) {
+                    SettingsRepo.update { copy(timerMinutes = (timerMinutes + 1).coerceAtMost(99)) }
+                }
+                Spacer(Modifier.width(8.dp))
+                PillButton(Ios.play, tr("Таймер", "Timer"), bg = Tints.Orange, fg = Color.Black) {
+                    Controls.startTimer(s.timerMinutes)
+                    Controls.expand("timer")
+                }
             }
-            Text(
-                tr("${s.timerMinutes} мин", "${s.timerMinutes} min"), color = Color.White, fontSize = 16.sp, style = Digits,
-                textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
-            )
-            RoundButton(Ios.add, size = 38.dp, iconScale = 0.44f) {
-                SettingsRepo.update { copy(timerMinutes = (timerMinutes + 1).coerceAtMost(99)) }
-            }
-            Spacer(Modifier.width(8.dp))
-            PillButton(Ios.play, tr("Таймер", "Timer"), bg = Tints.Orange, fg = Color.Black) {
-                Controls.startTimer(s.timerMinutes)
-                Controls.expand("timer")
+            // Остальные кнопки — по две в ряд, в порядке из настроек
+            actions.filter { it != QuickAction.TIMER }.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { QuickButton(it, context, Modifier.weight(1f)) }
+                }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton(Ios.stopwatch, tr("Секундомер", "Stopwatch"), Modifier.weight(1f)) {
+    }
+}
+
+@Composable
+private fun QuickButton(a: QuickAction, context: Context, modifier: Modifier) {
+    val icon = when (a) {
+        QuickAction.STOPWATCH -> Ios.stopwatch
+        QuickAction.FLASHLIGHT -> Ios.flashlight
+        QuickAction.SCREENSHOT -> Icons.Rounded.Screenshot
+        QuickAction.CAMERA -> Icons.Rounded.PhotoCamera
+        QuickAction.LOCK -> Ios.lock
+        QuickAction.TIMER -> Ios.timer
+    }
+    PillButton(icon, a.short, modifier) {
+        when (a) {
+            QuickAction.STOPWATCH -> {
                 Controls.startStopwatch()
                 Controls.expand("stopwatch")
             }
-            PillButton(Ios.flashlight, tr("Фонарик", "Flashlight"), Modifier.weight(1f).alpha(0.95f)) {
+            QuickAction.FLASHLIGHT -> {
                 Controls.torchOn()
                 Controls.collapse()
             }
+            QuickAction.SCREENSHOT -> Controls.screenshot()
+            QuickAction.CAMERA -> {
+                Controls.collapse()
+                Controls.openCamera(context)
+            }
+            QuickAction.LOCK -> {
+                Controls.collapse()
+                Controls.lockScreen()
+            }
+            QuickAction.TIMER -> Controls.startTimer(SettingsRepo.current.timerMinutes)
         }
     }
 }

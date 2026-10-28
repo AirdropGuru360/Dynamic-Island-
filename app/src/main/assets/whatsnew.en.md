@@ -1,16 +1,16 @@
 ### 🎬 Liquid expansion
-- Appearance → Animations → **Liquid expansion**: the content grows together with the island and emerges from a blur, and the island opens faster.
-- The collapsed island is smoother too: the bubble, the equalizer, artwork changes.
+- Appearance → Animations → **Liquid expansion**: the content grows together with the island and emerges from a blur. Duration and bounce follow your settings.
 
-### 📌 Keep the island loaded
-- Home → Keep the island running → **Keep the island loaded**: the island stays when you swipe the app away from recents.
+### 🎛️ Your own buttons and a screenshot without the island
+- Features → Behavior: choose the buttons in the expanded island — timer, stopwatch, flashlight, **screenshot without the island**, camera, lock — or just the clock.
 
-### ⏰ On a schedule
-- The island can work only in the hours you need — for example, from 10:00 to 23:00: Features → Behavior → **On a schedule**.
+### 🏦 Bank app won't open?
+- Home → **Bank app won't open**: the Island tile in quick settings turns the island off for a while and back on.
 
-### 💬 No more double messages
-- Features → **System banners** → Messengers: see which messenger still pops up its own banner, and turn it off in one tap.
+### 📞 Calls
+- Answer and Decline work in any phone language; swipe an incoming call up to hide it.
 
 ### 🐞 Fixes
-- A "00:00" timer no longer gets stuck in the island when another app's countdown ends.
-- The island is lighter on the phone.
+- The previous track's artwork no longer sticks to the next one; the equalizer is thinner and calmer.
+- Alarms in the island come only from Clock and other alarm apps.
+- With Keep the island loaded it stays after you swipe it from recents, and it's lighter on the phone.

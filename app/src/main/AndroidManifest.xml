@@ -46,6 +46,13 @@
         <intent>
             <action android:name="android.intent.action.SET_TIMER" />
         </intent>
+        <!-- Будильник в острове — только от приложений-будильников, а не от календарей и напоминалок -->
+        <intent>
+            <action android:name="android.intent.action.SET_ALARM" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SHOW_ALARMS" />
+        </intent>
         <!-- Приложения, которые умеют платить телефоном по NFC: только на их экране остров ждёт оплату -->
         <intent>
             <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
@@ -130,6 +137,22 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps the Dynamic Island accessibility overlay running when the app is removed from recent apps" />
+        </service>
+
+        <!-- Плитка «Остров» в шторке: выключить на время банковского приложения и включить обратно.
+         Привязаться к ней может только система (BIND_QUICK_SETTINGS_TILE) -->
+        <service
+            android:name=".service.IslandTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tab_island"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
         </service>
 
         <!-- Музыка, прогресс и таймеры из уведомлений других приложений -->

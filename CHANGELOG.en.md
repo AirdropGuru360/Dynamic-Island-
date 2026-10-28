@@ -6,15 +6,19 @@ Versioning: the second number (1.5, 1.6…) means new and changed features, the 
 
 > Since 1.6.1 the app and the island speak English (Features → General → Language). Earlier versions were in Russian only, so older entries give the Russian label in brackets.
 
-## [1.6.4] — 2026-10-27
+## [1.6.5] — 2026-10-28
 
-- 🎬 **Liquid expansion** — new in Appearance → Animations: the content grows together with the island and emerges from a blur; the island opens faster.
-- 🫧 **A smoother collapsed island**: the bubble splits off like a droplet, a hidden island comes out of the camera, artwork and color change smoothly; the equalizer runs at 60 fps (Appearance → Effects: 30, 60 or screen rate).
+- 🎬 **Liquid expansion** — new in Appearance → Animations: the content grows together with the island and emerges from a blur; duration and bounce follow your settings.
+- 🎛️ **Your own buttons in the expanded island**: timer, stopwatch, flashlight, screenshot without the island, camera, lock — or just the clock (Features → Behavior).
+- 📸 **Screenshot without the island** — with a button in the expanded island or a double tap / long press (Gestures).
+- 🏦 **Bank app won't open?** The Island tile in quick settings turns the island off for a while and back on (Home → Bank app won't open).
+- 📞 **Calls**: Answer and Decline work in any phone language, and without the permission they open the call screen; swipe an incoming call up to hide it.
+- 🫧 **A smoother collapsed island**: the bubble splits off like a droplet, a hidden island comes out of the camera, artwork and color change smoothly; the equalizer is thinner, calmer and smoother — 60 fps (Appearance → Effects).
 - 📌 **Keep the island loaded**: it no longer disappears when you swipe the app away from recents (Home → Keep the island running).
 - ⏰ **On a schedule**: the island shows only in the hours you pick (Features → Behavior).
 - 💬 **No more double messages**: System banners lists messengers that still pop up their own banner, with a shortcut to turn it off.
 - 🔋 Lighter on the phone: a hidden island draws nothing, and the touch window isn't moved during animations.
-- 🐞 No more stuck "00:00" from another app's countdown; with Like a notch, the glow and waves around the island have a flat top.
+- 🐞 Fixed: the previous track's artwork on the next one; "alarms" from calendars and reminders; a stuck "00:00" from another app's countdown; with Like a notch, the glow and waves have a flat top.
 
 ## [1.6.2] — 2026-10-27
 
