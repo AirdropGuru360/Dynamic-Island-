@@ -138,6 +138,7 @@ object Messages {
                 extraMs = if (actions.isEmpty()) 2_000 else 4_500,
             ),
         )
+        runCatching { service.cancelNotification(sbn.key) }
         // Для «Системных плашек»: какой мессенджер и всплывает ли у него ещё своя плашка поверх острова
         SystemBanners.onMessage(sbn.packageName, n.channelId, popsUp = !ranked || ranking.importance >= NotificationManager.IMPORTANCE_HIGH)
     }
