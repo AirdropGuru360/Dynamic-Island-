@@ -56,6 +56,7 @@ object IslandBus {
     /** Человек читает или отвечает — уведомление не убирается по таймеру */
     val noticeHold = MutableStateFlow(false)
     val battery = MutableStateFlow(BatteryInfo())
+    val hotspotClients = MutableStateFlow(0)
     val foregroundPackage = MutableStateFlow<String?>(null)
     val landscape = MutableStateFlow(false)
     /** Вне часов «По расписанию» остров не показывается */
